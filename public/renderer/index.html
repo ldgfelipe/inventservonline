@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sistema de Inventarios</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <!-- Pantalla de inicio de sesion -->
+  <div id="pantallaLogin" class="pantalla-login">
+    <form id="formLogin" class="login-caja">
+      <div class="login-logo">&#9632;</div>
+      <h1>Sistema de Inventarios</h1>
+      <p class="login-subtitulo">Inicia sesion para continuar</p>
+      <div class="campo">
+        <label>Usuario</label>
+        <input type="text" id="loginUsuario" autocomplete="username" placeholder="admin" required />
+      </div>
+      <div class="campo">
+        <label>Contrasena</label>
+        <input type="password" id="loginPassword" autocomplete="current-password" placeholder="********" required />
+      </div>
+      <div id="loginError" class="login-error"></div>
+      <button type="submit" class="btn btn-primary btn-bloque">Ingresar</button>
+      <div class="login-ayuda">
+        <span>Acceso inicial: <strong>admin</strong> / <strong>admin123</strong></span>
+        <span>(deberas cambiar la contrasena al entrar)</span>
+      </div>
+    </form>
+  </div>
+
+  <div id="app" class="oculto">
+    <aside class="sidebar">
+      <div class="logo">
+        <span class="logo-icon">&#9632;</span>
+        <span class="logo-text">Inventarios</span>
+      </div>
+      <nav class="nav">
+        <button class="nav-item active" data-vista="dashboard">
+          <span class="nav-icon">&#9776;</span> Dashboard
+        </button>
+        <button class="nav-item" data-vista="productos">
+          <span class="nav-icon">&#9635;</span> Productos
+        </button>
+        <button class="nav-item" data-vista="movimientos">
+          <span class="nav-icon">&#8646;</span> Movimientos
+        </button>
+        <button class="nav-item" data-vista="proveedores">
+          <span class="nav-icon">&#9881;</span> Proveedores
+        </button>
+        <button class="nav-item" data-vista="bitacora">
+          <span class="nav-icon">&#9776;</span> Bitacora
+        </button>
+        <button class="nav-item nav-solo-admin" data-vista="usuarios">
+          <span class="nav-icon">&#9679;</span> Usuarios
+        </button>
+        <button class="nav-item" data-vista="config">
+          <span class="nav-icon">&#9881;</span> Configuracion
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <span id="giroActual" class="badge-giro">Cargando...</span>
+        <div id="infoUsuario" class="info-usuario oculto">
+          <strong id="infoUsuarioNombre">-</strong>
+          <span id="infoUsuarioRol" class="badge-rol">-</span>
+          <span id="infoUsuarioArea" class="texto-area">-</span>
+        </div>
+        <div class="acciones-usuario">
+          <button id="btnCambiarClave" class="btn-link">Cambiar contrasena</button>
+          <button id="btnCerrarSesion" class="btn-link btn-link-peligro">Cerrar sesion</button>
+        </div>
+        <span id="versionApp" class="version">v1.0.0</span>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <h2 id="tituloVista">Dashboard</h2>
+        <div class="topbar-actions" id="accionesVista"></div>
+      </header>
+
+      <div class="content">
+        <!-- Vista: Dashboard -->
+        <section id="vista-dashboard" class="vista active">
+          <div class="stats-grid" id="statsGrid"></div>
+          <div class="panel">
+            <h3>Stock bajo o agotado</h3>
+            <table class="tabla">
+              <thead>
+                <tr><th>Codigo</th><th>Producto</th><th>Categoria</th><th>Stock</th><th>Minimo</th></tr>
+              </thead>
+              <tbody id="stockBajoBody"></tbody>
+            </table>
+          </div>
+          <div class="panel">
+            <h3>Ultimos movimientos</h3>
+            <table class="tabla">
+              <thead>
+                <tr><th>Fecha</th><th>Producto</th><th>Tipo</th><th>Cantidad</th><th>Responsable</th><th>Observacion</th></tr>
+              </thead>
+              <tbody id="ultimosMovBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Vista: Productos -->
+        <section id="vista-productos" class="vista">
+          <div class="toolbar">
+            <input type="text" id="buscarProducto" placeholder="Buscar por nombre o codigo..." class="input-buscar" />
+            <select id="filtroCategoria" class="input-select"></select>
+            <select id="filtroStock" class="input-select">
+              <option value="">Todo el stock</option>
+              <option value="bajo">Stock bajo</option>
+              <option value="agotado">Agotado</option>
+            </select>
+            <button id="btnExportarProductos" class="btn btn-secondary">Exportar Excel</button>
+            <button id="btnImprimirProductos" class="btn btn-secondary">Imprimir</button>
+            <button id="btnImportar" class="btn btn-secondary">Importar</button>
+            <button id="btnNuevoProducto" class="btn btn-primary">+ Producto</button>
+          </div>
+          <div class="panel">
+            <table class="tabla">
+              <thead>
+                <tr>
+                  <th>Codigo</th><th>Nombre</th><th>Categoria</th>
+                  <th>Stock</th><th>Minimo</th><th>Precio venta</th><th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="productosBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Vista: Movimientos -->
+        <section id="vista-movimientos" class="vista">
+          <div class="toolbar">
+            <button id="btnNuevoMovimiento" class="btn btn-primary">+ Movimiento</button>
+            <button id="btnExportarMovimientos" class="btn btn-secondary">Exportar Excel</button>
+            <button id="btnImprimirMovimientos" class="btn btn-secondary">Imprimir</button>
+            <select id="filtroTipoMov" class="input-select">
+              <option value="">Entradas y salidas</option>
+              <option value="entrada">Solo entradas</option>
+              <option value="salida">Solo salidas</option>
+            </select>
+            <input type="text" id="buscarMovProducto" placeholder="Filtrar por producto..." class="input-buscar" />
+            <select id="filtroMovArea" class="input-select"></select>
+          </div>
+          <div class="panel">
+            <table class="tabla">
+              <thead>
+                <tr><th>Fecha</th><th>Producto</th><th>Tipo</th><th>Cantidad</th><th>Precio</th><th>Total</th><th>Responsable</th><th>Area</th><th>Observacion</th></tr>
+              </thead>
+              <tbody id="movimientosBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Vista: Proveedores -->
+        <section id="vista-proveedores" class="vista">
+          <div class="toolbar">
+            <button id="btnNuevoProveedor" class="btn btn-primary">+ Proveedor</button>
+          </div>
+          <div class="panel">
+            <table class="tabla">
+              <thead>
+                <tr><th>Nombre</th><th>RIF</th><th>Telefono</th><th>Email</th><th>Direccion</th><th>Acciones</th></tr>
+              </thead>
+              <tbody id="proveedoresBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Vista: Configuracion -->
+        <section id="vista-config" class="vista">
+          <div class="panel">
+            <h3>Giro del negocio</h3>
+            <p class="texto-ayuda">El giro define los campos personalizados de tus productos.</p>
+          <div class="campo-en-linea">
+            <select id="selectGiro" class="input-select"></select>
+            <button id="btnGuardarGiro" class="btn btn-primary">Guardar</button>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>Campos personalizados del giro</h3>
+          <p class="texto-ayuda">Define los campos que se pediran al crear productos. El sistema se adapta automaticamente.</p>
+          <div class="campo-en-linea">
+            <input type="text" id="nombreCampo" placeholder="Nombre del campo (ej. lote, espesor)" class="input-buscar" />
+            <select id="tipoCampo" class="input-select">
+              <option value="text">Texto</option>
+              <option value="number">Numero</option>
+              <option value="date">Fecha</option>
+              <option value="integer">Si / No</option>
+            </select>
+            <label class="check-label"><input type="checkbox" id="obligatorioCampo" /> Obligatorio</label>
+            <button id="btnAgregarCampo" class="btn btn-primary">Agregar</button>
+          </div>
+          <table class="tabla">
+            <thead>
+              <tr><th>Campo</th><th>Tipo</th><th>Obligatorio</th><th>Acciones</th></tr>
+            </thead>
+            <tbody id="camposGiroBody"></tbody>
+          </table>
+        </div>
+          <div class="panel">
+            <h3>Categorias</h3>
+            <div class="campo-en-linea">
+              <input type="text" id="nombreCategoria" placeholder="Nueva categoria" class="input-buscar" />
+              <button id="btnAgregarCategoria" class="btn btn-primary">Agregar</button>
+            </div>
+            <ul id="listaCategorias" class="lista-chips"></ul>
+          </div>
+          <div class="panel">
+            <h3>Salida de datos (Webhook)</h3>
+            <p class="texto-ayuda">Envia los datos a un endpoint externo en formato JSON.</p>
+            <div class="campo-en-linea">
+              <input type="url" id="webhookUrl" placeholder="https://tuserver.com/webhook" class="input-buscar" />
+              <button id="btnEnviarWebhook" class="btn btn-primary">Enviar productos</button>
+            </div>
+            <pre id="webhookResultado" class="consola"></pre>
+          </div>
+          <div class="panel">
+            <h3>Sistema</h3>
+            <div class="campo-en-linea">
+              <button id="btnVerificarActualizaciones" class="btn btn-secondary">Verificar actualizaciones</button>
+            </div>
+            <pre id="estadoActualizacion" class="consola"></pre>
+          </div>
+          <div class="panel">
+            <h3>Uso y adopcion</h3>
+            <p class="texto-ayuda">Permite medir si el sistema se usa de verdad y detectar abandono.</p>
+            <div id="adopcionContenido"></div>
+          </div>
+        </section>
+
+        <!-- Vista: Usuarios -->
+        <section id="vista-usuarios" class="vista">
+          <div class="toolbar">
+            <button id="btnNuevoUsuario" class="btn btn-primary">+ Usuario</button>
+          </div>
+          <div class="panel">
+            <table class="tabla">
+              <thead>
+                <tr><th>Nombre</th><th>Usuario</th><th>Nivel (rol)</th><th>Area</th><th>Estado</th><th>Ultimo acceso</th><th>Acciones</th></tr>
+              </thead>
+              <tbody id="usuariosBody"></tbody>
+            </table>
+          </div>
+          <div class="panel">
+            <h3>Matriz de permisos por nivel</h3>
+            <p class="texto-ayuda">El <strong>nivel</strong> define que puede hacer cada usuario. El <strong>area</strong> define su ambito organizacional y queda registrado en cada movimiento.</p>
+            <div id="matrizPermisos"></div>
+          </div>
+        </section>
+
+        <!-- Vista: Bitacora -->
+        <section id="vista-bitacora" class="vista">
+          <div class="panel">
+            <h3>Trazabilidad del sistema</h3>
+            <p class="texto-ayuda">Registro de quien hizo que y cuando. Filtra para auditar un producto o un usuario.</p>
+            <div class="toolbar">
+              <input type="text" id="bitacoraUsuario" placeholder="Filtrar por usuario..." class="input-buscar" />
+              <select id="bitacoraArea" class="input-select"></select>
+              <select id="bitacoraAccion" class="input-select">
+                <option value="">Todas las acciones</option>
+                <option value="movimiento.entrada">Entradas de stock</option>
+                <option value="movimiento.salida">Salidas de stock</option>
+                <option value="sesion.iniciar">Inicios de sesion</option>
+                <option value="sesion.cerrar">Cierres de sesion</option>
+                <option value="producto.crear">Alta de productos</option>
+                <option value="producto.editar">Edicion de productos</option>
+                <option value="producto.eliminar">Eliminacion de productos</option>
+                <option value="usuario.guardar">Cambios en usuarios</option>
+                <option value="webhook.enviar">Envios por webhook</option>
+                <option value="reporte.exportar">Exportaciones</option>
+              </select>
+              <button id="btnFiltrarBitacora" class="btn btn-secondary">Filtrar</button>
+              <button id="btnExportarBitacora" class="btn btn-secondary">Exportar Excel</button>
+            </div>
+            <table class="tabla">
+              <thead>
+                <tr><th>Fecha</th><th>Usuario</th><th>Area</th><th>Nivel</th><th>Accion</th><th>Entidad</th><th>Detalle</th></tr>
+              </thead>
+              <tbody id="bitacoraBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal Producto -->
+  <div id="modalProducto" class="modal">
+    <div class="modal-content modal-grande">
+      <h3 id="tituloModalProducto">Nuevo Producto</h3>
+      <form id="formProducto">
+        <input type="hidden" id="productoId" />
+        <div class="grid-formulario" id="camposProducto"></div>
+        <div class="acciones-formulario">
+          <button type="button" id="btnCancelProducto" class="btn btn-ghost">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Movimiento -->
+  <div id="modalMovimiento" class="modal">
+    <div class="modal-content">
+      <h3 id="tituloModalMovimiento">Registrar Movimiento</h3>
+      <form id="formMovimiento">
+        <div class="campo">
+          <label>Producto</label>
+          <select id="movProducto" class="input-select" required></select>
+        </div>
+        <div class="campo">
+          <label>Tipo</label>
+          <select id="movTipo" class="input-select">
+            <option value="entrada">Entrada</option>
+            <option value="salida">Salida</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label>Cantidad</label>
+          <input type="number" id="movCantidad" min="1" value="1" required />
+        </div>
+        <div class="campo">
+          <label>Precio unitario</label>
+          <input type="number" id="movPrecio" min="0" step="0.01" value="0" />
+        </div>
+        <div class="campo">
+          <label>Proveedor (opcional)</label>
+          <select id="movProveedor" class="input-select"></select>
+        </div>
+        <div class="campo">
+          <label>Observacion</label>
+          <input type="text" id="movObservacion" />
+        </div>
+        <div class="acciones-formulario">
+          <button type="button" id="btnCancelMovimiento" class="btn btn-ghost">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Registrar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Proveedor -->
+  <div id="modalProveedor" class="modal">
+    <div class="modal-content">
+      <h3 id="tituloModalProveedor">Nuevo Proveedor</h3>
+      <form id="formProveedor">
+        <input type="hidden" id="proveedorId" />
+        <div class="campo"><label>Nombre</label><input type="text" id="provNombre" required /></div>
+        <div class="campo"><label>RIF / Identificacion</label><input type="text" id="provRif" /></div>
+        <div class="campo"><label>Telefono</label><input type="text" id="provTelefono" /></div>
+        <div class="campo"><label>Email</label><input type="email" id="provEmail" /></div>
+        <div class="campo"><label>Direccion</label><input type="text" id="provDireccion" /></div>
+        <div class="acciones-formulario">
+          <button type="button" id="btnCancelProveedor" class="btn btn-ghost">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Usuario -->
+  <div id="modalUsuario" class="modal">
+    <div class="modal-content">
+      <h3 id="tituloModalUsuario">Nuevo Usuario</h3>
+      <form id="formUsuario">
+        <input type="hidden" id="usuarioId" />
+        <div class="campo"><label>Nombre completo *</label><input type="text" id="uNombre" required /></div>
+        <div class="campo"><label>Usuario (login) *</label><input type="text" id="uUsuario" required /></div>
+        <div class="campo">
+          <label>Nivel / Rol *</label>
+          <select id="uRol" class="input-select" required></select>
+          <p id="uRolDesc" class="texto-ayuda-secundaria"></p>
+        </div>
+        <div class="campo">
+          <label>Area *</label>
+          <select id="uArea" class="input-select" required></select>
+        </div>
+        <div class="campo">
+          <label id="labelPassword">Contrasena *</label>
+          <input type="password" id="uPassword" autocomplete="new-password" />
+          <p id="ayudaPassword" class="texto-ayuda-secundaria">Minimo 4 caracteres</p>
+        </div>
+        <div class="campo">
+          <label class="check-label"><input type="checkbox" id="uActivo" checked /> Usuario activo</label>
+        </div>
+        <div class="acciones-formulario">
+          <button type="button" id="btnCancelUsuario" class="btn btn-ghost">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Trazabilidad de producto -->
+  <div id="modalTrazabilidad" class="modal">
+    <div class="modal-content modal-grande">
+      <h3 id="tituloTrazabilidad">Trazabilidad del producto</h3>
+      <div id="trazabilidadContenido"></div>
+      <div class="acciones-formulario">
+        <button type="button" id="btnCerrarTrazabilidad" class="btn btn-primary">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Cambiar contrasena propia -->
+  <div id="modalClave" class="modal">
+    <div class="modal-content">
+      <h3>Cambiar contrasena</h3>
+      <form id="formClave">
+        <div class="campo"><label>Contrasena actual</label><input type="password" id="claveActual" required /></div>
+        <div class="campo"><label>Nueva contrasena</label><input type="password" id="claveNueva" required /></div>
+        <div class="campo"><label>Repetir nueva contrasena</label><input type="password" id="claveRepetir" required /></div>
+        <div class="acciones-formulario">
+          <button type="button" id="btnCancelClave" class="btn btn-ghost">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Cambiar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="notificacion" class="notificacion"></div>
+
+  <!-- Boton flotante del asistente -->
+  <button id="btnAbrirAsistente" class="fab" title="Asistente de inventario">&#10022; Asistente</button>
+
+  <!-- Panel del asistente -->
+  <aside id="panelAsistente" class="panel-asistente">
+    <header class="panel-asistente-header">
+      <div>
+        <strong>Asistente de inventario</strong>
+        <span class="texto-ayuda-secundaria">Consulta y registra con lenguaje natural</span>
+      </div>
+      <button id="btnCerrarAsistente" class="btn-icono" title="Cerrar">&#10005;</button>
+    </header>
+    <div id="asistenteMensajes" class="asistente-mensajes"></div>
+    <div id="asistenteAcciones" class="asistente-acciones"></div>
+    <form id="formAsistente" class="asistente-form">
+      <input type="text" id="asistenteInput" placeholder="Ej: cuanto cemento tengo?" autocomplete="off" />
+      <button type="submit" class="btn btn-primary">Enviar</button>
+    </form>
+    <footer class="asistente-footer">
+      <span id="asistenteAyuda">Escribe "ayuda" para ver lo que puedo hacer</span>
+    </footer>
+  </aside>
+
+  <!-- Modal Importar productos -->
+  <div id="modalImportar" class="modal">
+    <div class="modal-content modal-grande">
+      <h3>Importar productos desde archivo</h3>
+      <div id="importarInicio">
+        <p class="texto-ayuda">
+          Selecciona un archivo <strong>CSV</strong> o <strong>Excel (.xlsx)</strong>. Detecto las columnas automaticamente,
+          normalizo los datos, aviso de duplicados y te muestro una vista previa antes de aplicar.
+        </p>
+        <button id="btnSeleccionarArchivo" class="btn btn-primary">Seleccionar archivo</button>
+      </div>
+      <div id="importarAnalisis" class="oculto">
+        <div id="importarResumen" class="resumen-importacion"></div>
+        <div class="campo-en-linea">
+          <label class="check-label">Duplicados:</label>
+          <select id="importarResolucion" class="input-select">
+            <option value="omitir">Omitir (no tocar los existentes)</option>
+            <option value="actualizar">Actualizar el stock y datos</option>
+          </select>
+        </div>
+        <div class="tabla-contenedor">
+          <table class="tabla tabla-compacta">
+            <thead>
+              <tr>
+                <th>Fila</th><th>Nombre</th><th>Codigo</th><th>Categoria</th>
+                <th>Stock</th><th>Precio</th><th>Estado</th><th>Accion</th>
+              </tr>
+            </thead>
+            <tbody id="importarBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="acciones-formulario">
+        <button type="button" id="btnCancelImportar" class="btn btn-ghost">Cancelar</button>
+        <button type="button" id="btnAplicarImportar" class="btn btn-primary" disabled>Aplicar importacion</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/api-web.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
