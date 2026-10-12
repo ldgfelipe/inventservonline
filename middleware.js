@@ -56,5 +56,5 @@ export function middleware(request) {
 }
 
 export const config = {
-  matcher: ['/panel/:path*', '/renderer/:path*', '/api/:path*'],
+  matcher: ['/panel/:path*', '/admin/:path*', '/renderer/:path*', '/api/:path*'],
 };

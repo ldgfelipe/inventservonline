@@ -138,3 +138,96 @@ a { color: var(--primario); text-decoration: none; }
 .mensaje.ok { background: #dcfce7; color: #166534; }
 
 .pie { margin-top: 18px; font-size: 14px; color: var(--suave); text-align: center; }
+
+.btn-enlace {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--primario);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-enlace:hover { text-decoration: underline; }
+
+/* Administracion */
+.admin { max-width: 900px; }
+.admin-ancho { max-width: 1080px; }
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+.admin-header h1 { font-size: 26px; margin: 0 0 4px; }
+.cargando { text-align: center; padding: 60px; color: var(--suave); }
+
+.panel-admin {
+  background: var(--panel);
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  padding: 22px;
+  margin-bottom: 20px;
+}
+.panel-admin h2 { font-size: 16px; margin: 0 0 6px; }
+
+.rejilla-giros {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+.giro-opcion {
+  padding: 11px 13px;
+  border: 1px solid var(--borde);
+  background: #fff;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  text-align: left;
+  color: var(--texto);
+}
+.giro-opcion:hover { border-color: var(--primario); }
+.giro-opcion.activo {
+  border-color: var(--primario);
+  background: #eff6ff;
+  color: var(--primario);
+  font-weight: 600;
+}
+
+.form-clave { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.form-clave input {
+  flex: 1 1 160px;
+  padding: 10px 12px;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.tabla-admin { width: 100%; border-collapse: collapse; }
+.tabla-admin th {
+  text-align: left;
+  padding: 9px 10px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--suave);
+  border-bottom: 1px solid var(--borde);
+}
+.tabla-admin td { padding: 11px 10px; border-bottom: 1px solid var(--borde); font-size: 14px; }
+.mono { font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
+.vacio { text-align: center; color: var(--suave); padding: 24px; }
+
+.estado { padding: 3px 9px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+.estado.verde { background: #dcfce7; color: #166534; }
+.estado.rojo { background: #fee2e2; color: #991b1b; }
+
+.btn-mini {
+  padding: 5px 11px;
+  font-size: 12.5px;
+  border: 1px solid var(--borde);
+  background: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+}

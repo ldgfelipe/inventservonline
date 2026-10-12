@@ -20,6 +20,7 @@ export async function POST(request) {
   const nombre = String(cuerpo.nombre || '').trim();
   const empresa = String(cuerpo.empresa || '').trim();
   const giro = String(cuerpo.giro || 'Construccion').trim();
+  const claveAdmin = String(cuerpo.clave_admin || '').trim();
 
   if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return error('Escribe un email valido');
   if (password.length < 6) return error('La contrasena debe tener al menos 6 caracteres');
@@ -31,6 +32,15 @@ export async function POST(request) {
   // El giro debe existir en el catalogo compartido
   const { data: giroValido } = await sb.from('giros').select('nombre').eq('nombre', giro).maybeSingle();
   if (!giroValido) return error('El giro seleccionado no es valido');
+
+  // Clave de administrador (opcional). Si la manda y no sirve, se avisa:
+  // mas vale un error claro que crear una cuenta sin el nivel esperado.
+  let superAdmin = false;
+  if (claveAdmin) {
+    const { data: claveId } = await sb.rpc('consumir_clave_admin', { p_codigo: claveAdmin });
+    if (!claveId) return error('La clave de administrador no es valida o ya fue usada', 403);
+    superAdmin = true;
+  }
 
   const { data: creado, error: errUsuario } = await sb.auth.admin.createUser({
     email,
@@ -60,6 +70,7 @@ export async function POST(request) {
       nombre,
       rol: 'admin',
       area: 'Administracion',
+      super_admin: superAdmin,
     });
     if (errPerfil) throw errPerfil;
 

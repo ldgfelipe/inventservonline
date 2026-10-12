@@ -14,6 +14,7 @@ export async function GET(request) {
         rol: perfil.rol,
         area: perfil.area,
         empresa_id: perfil.empresa_id,
+        super_admin: !!perfil.super_admin,
       },
     });
   } catch (err) {

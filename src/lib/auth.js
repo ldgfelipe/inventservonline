@@ -24,7 +24,7 @@ export async function sesion(request) {
 
   const { data: perfil, error: errPerfil } = await sb
     .from('perfiles')
-    .select('id, empresa_id, nombre, rol, area, activo')
+    .select('id, empresa_id, nombre, rol, area, activo, super_admin')
     .eq('id', data.user.id)
     .maybeSingle();
 

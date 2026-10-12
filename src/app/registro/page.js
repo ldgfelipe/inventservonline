@@ -7,7 +7,8 @@ import Link from 'next/link';
 export default function Registro() {
   const router = useRouter();
   const [giros, setGiros] = useState([]);
-  const [form, setForm] = useState({ empresa: '', nombre: '', email: '', password: '', giro: '', rif: '' });
+  const [form, setForm] = useState({ empresa: '', nombre: '', email: '', password: '', giro: '', rif: '', clave_admin: '' });
+  const [verClave, setVerClave] = useState(false);
   const [error, setError] = useState('');
   const [cargando, setCargando] = useState(false);
 
@@ -67,6 +68,14 @@ export default function Registro() {
           </div>
 
           <div className="campo">
+            <label>A que se dedica tu negocio</label>
+            <select name="giro" value={form.giro} onChange={cambiar} required>
+              {giros.map((g) => <option key={g.id} value={g.nombre}>{g.nombre}</option>)}
+            </select>
+            <div className="ayuda">Define los campos que pediran tus productos. Despues puedes cambiarlo.</div>
+          </div>
+
+          <div className="campo">
             <label>Tu nombre</label>
             <input name="nombre" value={form.nombre} onChange={cambiar} placeholder="Juan Perez" required />
           </div>
@@ -83,12 +92,18 @@ export default function Registro() {
           </div>
 
           <div className="campo">
-            <label>Giro de tu negocio</label>
-            <select name="giro" value={form.giro} onChange={cambiar} required>
-              {giros.map((g) => <option key={g.id} value={g.nombre}>{g.nombre}</option>)}
-            </select>
-            <div className="ayuda">Define los campos que pediran tus productos. Despues puedes cambiarlo.</div>
+            <button type="button" className="btn-enlace" onClick={() => setVerClave((v) => !v)}>
+              {verClave ? '- Ocultar clave de administrador' : '+ Tengo una clave de administrador'}
+            </button>
           </div>
+
+          {verClave && (
+            <div className="campo">
+              <label>Clave de administrador</label>
+              <input name="clave_admin" value={form.clave_admin} onChange={cambiar} placeholder="ADM-XXXX-XXXX-XXXX" />
+              <div className="ayuda">Solo si te la proporciono el administrador del sistema.</div>
+            </div>
+          )}
 
           <button className="btn btn-bloque" disabled={cargando}>
             {cargando ? 'Creando cuenta...' : 'Crear cuenta y entrar'}

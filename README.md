@@ -121,6 +121,43 @@ Los roles y permisos viven en `src/services/permisos.js`, compartido con la vers
 - `metricas_dashboard(...)`, `metricas_adopcion(...)`: agregan con SQL en vez de traer todos los productos. Con muchos datos es la diferencia entre segundos y milisegundos.
 - `top_movidos(...)`: productos con mas movimiento.
 
+## Migraciones SQL
+
+El proyecto usa dos archivos, **en este orden**:
+
+1. `sql/001_schema.sql` — tablas, funciones, RLS y datos semilla
+2. `sql/002_admin_y_giros.sql` — claves de administrador y catálogo ampliado de giros
+
+Ejecuta los dos en **Supabase → SQL Editor**, uno detrás del otro. Ambos son idempotentes.
+
+## Administrador de la plataforma
+
+Hay dos niveles distintos, y conviene no confundirlos:
+
+- **Administrador de empresa** (`rol = admin`): es quien crea la cuenta y gestiona su propio inventario, usuarios y configuración. Lo es automáticamente el primero que se registra.
+- **Administrador de la plataforma** (`super_admin = true`): tu personal. Accede a `/admin`, ve los perfiles de todas las empresas y gestiona las claves.
+
+### Crear tu primera clave maestra
+
+Después de ejecutar `002_admin_y_giros.sql`, corre esta línea **cambiando el código por uno tuyo**:
+
+```sql
+insert into public.claves_admin (codigo, descripcion, max_usos)
+values ('TU-CODIGO-SECRETO', 'Clave maestra del sistema', 1);
+```
+
+Guárdala. Al registrarte en `/registro`, pulsa *"Tengo una clave de administrador"* e introdúcela: te marcará como `super_admin` y la clave quedará consumida.
+
+Desde `/admin` puedes crear más claves (con usos y vencimiento), activarlas o desactivarlas. **El código solo se muestra al crearla**, igual que una contraseña.
+
+> Una clave no válida o ya usada **bloquea el registro con un error claro** en vez de crear la cuenta sin el nivel esperado.
+
+## Giros del negocio
+
+El catálogo de `002` trae 30 categorías generales (Construcción, Farmacia, Ferretería, Alimentos y bebidas, Restaurante, Ropa y calzado, Electrónica, Veterinaria, Servicios profesionales, etc.). Construcción y Farmacia conservan sus campos específicos; el resto arranca sin campos propios y se les pueden agregar desde Configuración.
+
+El giro se puede cambiar en cualquier momento desde `/admin` o desde **Configuración** dentro del sistema.
+
 ## Seguridad
 
 - `SUPABASE_SERVICE_ROLE_KEY` solo se usa en el servidor (registro y administracion de usuarios). El navegador usa la clave anonima, y es el **RLS** el que limita lo que puede ver.
