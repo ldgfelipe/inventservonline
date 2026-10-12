@@ -20,9 +20,7 @@ async function ejecutar(request) {
     if (!puede(perfil.rol, permiso)) return error(`No tienes permiso (${permiso})`, 403);
 
     const { data, error: err } = await sb.rpc('registrar_movimiento', {
-      p_empresa: perfil.empresa_id,
       p_producto: accion.productoId,
-      p_usuario: perfil.id,
       p_tipo: accion.tipoMov,
       p_cantidad: Number(accion.cantidad),
       p_precio: 0,

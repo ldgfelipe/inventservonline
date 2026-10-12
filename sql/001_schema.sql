@@ -45,6 +45,18 @@ as $$
   select empresa_id from public.perfiles where id = auth.uid()
 $$;
 
+-- Sinonimo usado por las funcionesRPC: recuerda que dentro de una funcion
+-- security definer hay que llamarla sin el prefijo para no anidar RLS.
+create or replace function public.empresa_del_usuario()
+returns uuid
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select empresa_id from public.perfiles where id = auth.uid()
+$$;
+
 -- Catálogo compartido (solo lectura para los usuarios) --------
 create table if not exists public.giros (
   id     serial primary key,
@@ -166,6 +178,11 @@ create table if not exists public.asistente_alias (
   created_at  timestamptz not null default now()
 );
 
+-- Necesario para que el upsert del asistente (onConflict) encuentre
+-- una restriccion unique donde apoyarse.
+create unique index if not exists uq_asistente_alias
+  on public.asistente_alias(empresa_id, usuario_id, frase);
+
 create table if not exists public.bitacora (
   id         uuid primary key default gen_random_uuid(),
   empresa_id uuid not null references public.empresas(id) on delete cascade,
@@ -200,7 +217,7 @@ create index if not exists idx_bitacora_fecha        on public.bitacora(fecha);
 -- ============================================================
 --  Productos mas movidos (lo usa el asistente)
 -- ============================================================
-create or replace function public.top_movidos(p_empresa uuid, p_limite integer default 10)
+create or replace function public.top_movidos(p_limite integer default 10)
 returns table (nombre text, movimientos bigint, entradas bigint, salidas bigint)
 language sql
 stable
@@ -213,7 +230,7 @@ as $$
          count(m.id) filter (where m.tipo = 'salida') as salidas
   from public.movimientos m
   join public.productos p on p.id = m.producto_id
-  where m.empresa_id = p_empresa
+  where m.empresa_id = public.empresa_del_usuario()
   group by p.id, p.nombre
   order by movimientos desc
   limit p_limite;
@@ -222,7 +239,7 @@ $$;
 -- ============================================================
 --  Metricas de adopcion (detectar abandono de un cliente)
 -- ============================================================
-create or replace function public.metricas_adopcion(p_empresa uuid)
+create or replace function public.metricas_adopcion()
 returns json
 language sql
 stable
@@ -238,21 +255,22 @@ as $$
   hechos as (
     select c.evento,
            exists (select 1 from public.eventos_app e
-                   where e.empresa_id = p_empresa and e.evento = c.evento) as hecho
+                   where e.empresa_id = public.empresa_del_usuario() and e.evento = c.evento) as hecho
     from claves c
   )
   select json_build_object(
     'dias7',       (select count(distinct fecha::date) from public.eventos_app
-                    where empresa_id = p_empresa and fecha >= current_date - 6),
+                    where empresa_id = public.empresa_del_usuario() and fecha >= current_date - 6),
     'dias30',      (select count(distinct fecha::date) from public.eventos_app
-                    where empresa_id = p_empresa and fecha >= current_date - 29),
-    'totalEventos',(select count(*) from public.eventos_app where empresa_id = p_empresa),
+                    where empresa_id = public.empresa_del_usuario() and fecha >= current_date - 29),
+    'totalEventos',(select count(*) from public.eventos_app
+                    where empresa_id = public.empresa_del_usuario()),
     'asistente',   (select count(*) from public.eventos_app
-                    where empresa_id = p_empresa and evento = 'asistente.consulta'),
+                    where empresa_id = public.empresa_del_usuario() and evento = 'asistente.consulta'),
     'hoy',         (select count(*) from public.eventos_app
-                    where empresa_id = p_empresa and fecha >= current_date),
+                    where empresa_id = public.empresa_del_usuario() and fecha >= current_date),
     'usuariosActivos', (select count(distinct usuario_id) from public.eventos_app
-                    where empresa_id = p_empresa and usuario_id is not null),
+                    where empresa_id = public.empresa_del_usuario() and usuario_id is not null),
     'completado',  (select json_agg(json_build_object('evento', evento, 'hecho', hecho)) from hechos)
   );
 $$;
@@ -260,7 +278,7 @@ $$;
 -- ============================================================
 --  Metricas del dashboard (agregadas en SQL)
 -- ============================================================
-create or replace function public.metricas_dashboard(p_empresa uuid)
+create or replace function public.metricas_dashboard()
 returns json
 language sql
 stable
@@ -268,13 +286,21 @@ security definer
 set search_path = public
 as $$
   select json_build_object(
-    'productos', (select count(*) from public.productos where empresa_id = p_empresa and activo),
-    'unidades',  (select coalesce(sum(stock_actual), 0) from public.productos where empresa_id = p_empresa and activo),
-    'valor',     (select coalesce(sum(stock_actual * precio_venta), 0) from public.productos where empresa_id = p_empresa and activo),
-    'stockBajo', (select count(*) from public.productos where empresa_id = p_empresa and activo and stock_actual > 0 and stock_actual <= stock_minimo),
-    'agotados',  (select count(*) from public.productos where empresa_id = p_empresa and activo and stock_actual <= 0),
-    'movimientosHoy', (select count(*) from public.movimientos where empresa_id = p_empresa and fecha >= current_date),
-    'usuarios',  (select count(*) from public.perfiles where empresa_id = p_empresa and activo)
+    'productos', (select count(*) from public.productos
+                  where empresa_id = public.empresa_del_usuario() and activo),
+    'unidades',  (select coalesce(sum(stock_actual), 0) from public.productos
+                  where empresa_id = public.empresa_del_usuario() and activo),
+    'valor',     (select coalesce(sum(stock_actual * precio_venta), 0) from public.productos
+                  where empresa_id = public.empresa_del_usuario() and activo),
+    'stockBajo', (select count(*) from public.productos
+                  where empresa_id = public.empresa_del_usuario() and activo
+                    and stock_actual > 0 and stock_actual <= stock_minimo),
+    'agotados',  (select count(*) from public.productos
+                  where empresa_id = public.empresa_del_usuario() and activo and stock_actual <= 0),
+    'movimientosHoy', (select count(*) from public.movimientos
+                  where empresa_id = public.empresa_del_usuario() and fecha >= current_date),
+    'usuarios',  (select count(*) from public.perfiles
+                  where empresa_id = public.empresa_del_usuario() and activo)
   );
 $$;
 
@@ -284,16 +310,18 @@ $$;
 --  Actualiza el stock e inserta el movimiento en una sola transaccion.
 --  Es una funcion de Postgres (no dos consultas desde la API) para que
 --  no pueda quedar el stock actualizado sin movimiento, o al reves.
+--
+--  La empresa y el usuario se derivan de auth.uid(), NO se reciben como
+--  parametros: si llegaran por la API, cualquiera podria pasar el uuid de
+--  otra empresa y moverle el stock.
 -- ============================================================
 create or replace function public.registrar_movimiento(
-  p_empresa    uuid,
   p_producto   uuid,
-  p_usuario    uuid,
   p_tipo       text,
   p_cantidad   integer,
-  p_precio     numeric,
-  p_observacion text,
-  p_proveedor  uuid
+  p_precio     numeric default 0,
+  p_observacion text default null,
+  p_proveedor  uuid default null
 )
 returns json
 language plpgsql
@@ -301,13 +329,19 @@ security definer
 set search_path = public
 as $$
 declare
-  v_stock integer;
-  v_nombre text;
-  v_total numeric;
+  v_empresa uuid := public.empresa_del_usuario();
+  v_usuario uuid := auth.uid();
+  v_stock   integer;
+  v_nombre  text;
+  v_total   numeric;
 begin
+  if v_empresa is null then
+    raise exception 'Sesion no valida';
+  end if;
+
   select stock_actual, nombre into v_stock, v_nombre
   from public.productos
-  where id = p_producto and empresa_id = p_empresa
+  where id = p_producto and empresa_id = v_empresa
   for update;
 
   if not found then
@@ -323,7 +357,7 @@ begin
     v_stock := v_stock - p_cantidad;
   end if;
 
-  v_total := round(p_precio * p_cantidad, 2);
+  v_total := round(coalesce(p_precio, 0) * p_cantidad, 2);
 
   update public.productos
   set stock_actual = v_stock, updated_at = now()
@@ -332,7 +366,7 @@ begin
   insert into public.movimientos
     (empresa_id, producto_id, usuario_id, tipo, cantidad, precio_unitario, total, proveedor_id, observacion)
   values
-    (p_empresa, p_producto, p_usuario, p_tipo, p_cantidad, p_precio, v_total, p_proveedor, p_observacion);
+    (v_empresa, p_producto, v_usuario, p_tipo, p_cantidad, coalesce(p_precio, 0), v_total, p_proveedor, p_observacion);
 
   return json_build_object('stock_actual', v_stock, 'nombre', v_nombre, 'total', v_total);
 end $$;

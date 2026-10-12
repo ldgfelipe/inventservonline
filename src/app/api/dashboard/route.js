@@ -9,7 +9,7 @@ async function stats(request) {
   const { perfil, sb } = await sesion(request);
   exigir(perfil, 'productos.ver');
 
-  const { data, error: err } = await sb.rpc('metricas_dashboard', { p_empresa: perfil.empresa_id });
+  const { data, error: err } = await sb.rpc('metricas_dashboard');
   if (err) return error('Error calculando metricas: ' + err.message, 500);
 
   return Response.json({ ok: true, stats: data });

@@ -63,11 +63,9 @@ async function registrar(request) {
   if (!Number.isFinite(cantidad) || cantidad <= 0) return error('La cantidad debe ser mayor a cero');
 
   // Transaccion real: actualizar stock + insertar movimiento.
-  // Se hace con una funcion de Postgres para que sea atomica.
+  // La funcion deriva la empresa y el usuario de la sesion, no de los parametros.
   const { data, error: err } = await sb.rpc('registrar_movimiento', {
-    p_empresa: perfil.empresa_id,
     p_producto: productoId,
-    p_usuario: perfil.id,
     p_tipo: esEntrada ? 'entrada' : 'salida',
     p_cantidad: cantidad,
     p_precio: Number(cuerpo.precio_unitario) || 0,

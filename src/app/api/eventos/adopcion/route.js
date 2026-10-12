@@ -9,7 +9,7 @@ async function adopcion(request) {
   const { perfil, sb } = await sesion(request);
   exigir(perfil, 'config.ver');
 
-  const { data, error: err } = await sb.rpc('metricas_adopcion', { p_empresa: perfil.empresa_id });
+  const { data, error: err } = await sb.rpc('metricas_adopcion');
   if (err) return error('Error calculando adopcion: ' + err.message, 500);
   return Response.json({ ok: true, ...data });
 }

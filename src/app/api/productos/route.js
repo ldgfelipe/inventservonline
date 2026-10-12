@@ -17,10 +17,16 @@ async function listar(request) {
     .from('productos')
     .select('*, categorias(nombre)')
     .eq('empresa_id', perfil.empresa_id)
+    .eq('activo', true)
     .order('id', { ascending: false })
     .limit(limite);
 
-  if (busqueda) consulta = consulta.or(`nombre.ilike.%${busqueda}%,codigo.ilike.%${busqueda}%`);
+  if (busqueda) {
+    // PostgREST interpreta comas y parentesis dentro de or(). Se limpian
+    // para que una busqueda como "cemento, arena" no rompa el filtro.
+    const termino = busqueda.replace(/[,()]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (termino) consulta = consulta.or(`nombre.ilike.%${termino}%,codigo.ilike.%${termino}%`);
+  }
   if (categoria) consulta = consulta.eq('categoria_id', categoria);
   if (stock === 'bajo') consulta = consulta.gt('stock_actual', 0).lte('stock_minimo', 'stock_actual');
   if (stock === 'agotado') consulta = consulta.lte('stock_actual', 0);
