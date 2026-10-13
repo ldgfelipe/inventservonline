@@ -79,45 +79,26 @@ export async function POST(request) {
   const usuarioId = data.user.id;
   const token = data.session.access_token;
 
-  // 1) Lectura con RLS
-  let sb = conJwt(token);
-  let { data: perfil, error: errPerfil } = await sb.from('perfiles')
+  // 1) Lectura con service_role: no depende de las policies RLS.
+  const sbAdmin = admin();
+  let { data: perfil } = await sbAdmin.from('perfiles')
     .select('*').eq('id', usuarioId).maybeSingle();
 
-  // 2) Si RLS lo bloqueo o la fila falta: verdad absoluta con service_role
+  // 2) Si la fila realmente falta, autorreparamos
   if (!perfil) {
-    const sbAdmin = admin();
-    const { data: perfilReal, error: errReal } = await sbAdmin.from('perfiles')
-      .select('*').eq('id', usuarioId).maybeSingle();
-
-    if (errReal) {
-      return error('La base de datos rechazo la consulta del perfil: ' + errReal.message, 500);
-    }
-
-    if (perfilReal) {
-      // La fila EXISTE: el problema es una politica RLS
-      return error(
-        'Tu perfil existe pero las politicas de seguridad impiden leerlo. ' +
-        'Ejecuta sql/001_schema.sql (seccion Row Level Security) en Supabase.',
-        403
-      );
-    }
-
-    // 3) La fila no existe: autorreparacion
     try {
       await reparar(sbAdmin, usuarioId, email);
     } catch (e) {
       return error('No se pudo crear tu empresa: ' + e.message, 500);
     }
-
     ({ data: perfil } = await sbAdmin.from('perfiles').select('*').eq('id', usuarioId).maybeSingle());
   }
 
   if (!perfil) return error('No se pudo recuperar el perfil', 500);
   if (!perfil.activo) return error('El usuario esta inactivo', 403);
 
-  // La empresa debe existir
-  const { data: empresa } = await conJwt(token).from('empresas')
+  // 3) La empresa debe existir
+  const { data: empresa } = await sbAdmin.from('empresas')
     .select('id, nombre, giro_actual, plan').eq('id', perfil.empresa_id).maybeSingle();
 
   if (!empresa) {

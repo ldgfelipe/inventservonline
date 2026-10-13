@@ -54,7 +54,7 @@ async function buscarProducto(sb, empresaId, texto, usuarioId) {
 
 /* POST /api/asistente { texto } */
 async function consultar(request) {
-  const { perfil, sb } = await sesion(request);
+  const { perfil, sb, sbRpc } = await sesion(request);
   let cuerpo;
   try { cuerpo = await request.json(); } catch { cuerpo = {}; }
 
@@ -104,13 +104,13 @@ async function consultar(request) {
       case 'valor_inventario':
       case 'conteo_total': {
         if (!puede(perfil.rol, 'productos.ver')) return responder(p, negar('productos.ver').texto);
-        const { data } = await sb.rpc('metricas_dashboard');
+        const { data } = await sbRpc.rpc('metricas_dashboard');
         return responder(p, `Tienes ${data.productos} productos activos con ${data.unidades} unidades en total, valorizados en ${moneda(data.valor)}.`);
       }
 
       case 'top_movidos': {
         if (!puede(perfil.rol, 'movimientos.ver')) return responder(p, negar('movimientos.ver').texto);
-        const { data } = await sb.rpc('top_movidos', { p_limite: 10 });
+        const { data } = await sbRpc.rpc('top_movidos', { p_limite: 10 });
         return responder(p, data && data.length ? 'Productos con mas movimiento:' : 'Aun no hay movimientos registrados.',
           tabla('Mas movidos', data || [], ['nombre', 'movimientos', 'entradas', 'salidas'], ['Producto', 'Movs', 'Entradas', 'Salidas']));
       }

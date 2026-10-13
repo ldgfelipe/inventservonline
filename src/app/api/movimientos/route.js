@@ -4,7 +4,7 @@ export const runtime = 'nodejs';
 
 /* GET /api/movimientos?tipo=&busqueda=&producto_id=&limite= */
 async function listar(request) {
-  const { perfil, sb } = await sesion(request);
+  const { perfil, sb, sbRpc } = await sesion(request);
   exigir(perfil, 'movimientos.ver');
 
   const { searchParams } = new URL(request.url);
@@ -46,7 +46,7 @@ async function listar(request) {
 
 /* POST /api/movimientos  { producto_id, tipo, cantidad, precio_unitario, observacion } */
 async function registrar(request) {
-  const { perfil, sb } = await sesion(request);
+  const { perfil, sb, sbRpc } = await sesion(request);
   let cuerpo;
   try {
     cuerpo = await request.json();
@@ -64,7 +64,7 @@ async function registrar(request) {
 
   // Transaccion real: actualizar stock + insertar movimiento.
   // La funcion deriva la empresa y el usuario de la sesion, no de los parametros.
-  const { data, error: err } = await sb.rpc('registrar_movimiento', {
+  const { data, error: err } = await sbRpc.rpc('registrar_movimiento', {
     p_producto: productoId,
     p_tipo: esEntrada ? 'entrada' : 'salida',
     p_cantidad: cantidad,

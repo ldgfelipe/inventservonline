@@ -12,17 +12,32 @@ export function error(mensaje, estado = 400) {
   return Response.json({ ok: false, error: mensaje }, { status: estado });
 }
 
-/* Verifica el token y devuelve { usuario, perfil } o lanza.
-   El perfil trae empresa_id, rol y area: con eso se autoriza. */
+/* Verifica el token y devuelve { usuario, perfil, sb, sbRpc }.
+
+   DISENO DE DATOS (por que hay dos clientes):
+
+   - `sb`      cliente con service_role: para consultas a tablas. NO depende
+               de las policies RLS, asi que el sistema funciona aunque el
+               RLS este mal configurado. El aislamiento por empresa se
+               aplica filtrando empresa_id en cada consulta (todas las
+               rutas lo hacen).
+   - `sbRpc`   cliente con el JWT del usuario: para llamar funciones
+               (rpc). Las funciones derivan la empresa de auth.uid(), y
+               con service_role ese valor es null, por lo que deben
+               llamarse con el token del usuario.
+
+   Ver el README: el RLS queda como segunda capa de defensa, no como
+   la unica. */
 export async function sesion(request) {
   const token = tokenDe(request);
   if (!token) throw new NoAutorizado('Sesion no iniciada');
 
-  const sb = conJwt(token);
-  const { data, error: err } = await sb.auth.getUser(token);
+  const sbUsuario = conJwt(token);
+  const { data, error: err } = await sbUsuario.auth.getUser(token);
   if (err || !data?.user) throw new NoAutorizado('Sesion invalida o expirada');
 
-  const { data: perfil, error: errPerfil } = await sb
+  const sbAdmin = admin();
+  const { data: perfil, error: errPerfil } = await sbAdmin
     .from('perfiles')
     .select('id, empresa_id, nombre, rol, area, activo, super_admin')
     .eq('id', data.user.id)
@@ -32,7 +47,7 @@ export async function sesion(request) {
   if (!perfil) throw new NoAutorizado('El usuario no tiene empresa asignada');
   if (!perfil.activo) throw new NoAutorizado('El usuario esta inactivo');
 
-  return { usuario: data.user, perfil, token, sb };
+  return { usuario: data.user, perfil, token, sb: sbAdmin, sbRpc: sbUsuario };
 }
 
 /* Exige un permiso segun el rol del perfil. */

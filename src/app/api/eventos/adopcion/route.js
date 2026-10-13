@@ -6,10 +6,10 @@ export const runtime = 'nodejs';
    Sirve para detectar abandono: si un cliente deja de usar el sistema,
    se ve aqui antes de que cancele. */
 async function adopcion(request) {
-  const { perfil, sb } = await sesion(request);
+  const { perfil, sb, sbRpc } = await sesion(request);
   exigir(perfil, 'config.ver');
 
-  const { data, error: err } = await sb.rpc('metricas_adopcion');
+  const { data, error: err } = await sbRpc.rpc('metricas_adopcion');
   if (err) return error('Error calculando adopcion: ' + err.message, 500);
   return Response.json({ ok: true, ...data });
 }

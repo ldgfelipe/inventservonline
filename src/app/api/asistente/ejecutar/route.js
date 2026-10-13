@@ -7,7 +7,7 @@ export const runtime = 'nodejs';
    Ejecuta una accion propuesta por el asistente. Siempre vuelve a
    validar permisos aqui: la interfaz solo sugiere, el servidor decide. */
 async function ejecutar(request) {
-  const { perfil, sb } = await sesion(request);
+  const { perfil, sb, sbRpc } = await sesion(request);
   let cuerpo;
   try { cuerpo = await request.json(); } catch { return error('Cuerpo JSON invalido'); }
 
@@ -19,7 +19,7 @@ async function ejecutar(request) {
     const permiso = esEntrada ? 'movimientos.entrada' : 'movimientos.salida';
     if (!puede(perfil.rol, permiso)) return error(`No tienes permiso (${permiso})`, 403);
 
-    const { data, error: err } = await sb.rpc('registrar_movimiento', {
+    const { data, error: err } = await sbRpc.rpc('registrar_movimiento', {
       p_producto: accion.productoId,
       p_tipo: accion.tipoMov,
       p_cantidad: Number(accion.cantidad),

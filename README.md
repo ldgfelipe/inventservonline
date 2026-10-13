@@ -18,6 +18,21 @@ La decision clave: **el renderer es el mismo que la version de escritorio**. En 
  middleware.js       protege /panel, /renderer y /api/*
 ```
 
+## Cómo se aíslan los datos (leer esto)
+
+El sistema usa **dos clientes de Supabase**, y la razón es importante:
+
+| Cliente | Para qué | Por qué |
+|---|---|---|
+| `service_role` (`sb`) | Consultas a tablas | No depende de las políticas RLS. Si el RLS está mal configurado, el sistema **sigue funcionando**. |
+| JWT del usuario (`sbRpc`) | Llamar funciones (`rpc`) | Las funciones derivan la empresa de `auth.uid()`; con `service_role` ese valor es `null`. |
+
+**El aislamiento por empresa se aplica filtrando `empresa_id` en cada consulta.** Todas las rutas lo hacen: `productos`, `movimientos`, `categorias`, `proveedores`, `bitacora`, `trazabilidad`, `usuarios`, `asistente`, `importar`.
+
+Las políticas RLS quedan como **segunda capa de defensa**: si algún día se configuran correctamente, añaden protección extra; si no, no bloquean nada. Esta decisión se tomó tras un incidente real en el que un RLS a medio aplicar dejaba el sistema inutilizable con un error indescifrable.
+
+Si en el futuro quieres volver a hacer del RLS la capa principal, ejecuta `sql/006_repair_rls.sql`, verifica con `/diagnostico` que `auth.uid()` no es null, y entonces cambia `sb` por `sbRpc` en `src/lib/auth.js`.
+
 ## Multi-inquilino (cada cliente ve solo lo suyo)
 
 Cada registro pertenece a una **empresa**. El aislamiento no se hace en el codigo de la aplicacion, sino con **Row Level Security en Postgres**: aunque una ruta se equivoque, un usuario no puede leer datos de otra empresa.
