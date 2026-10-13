@@ -1,5 +1,5 @@
 import { conJwt, admin } from '@/lib/supabase';
-import { error } from '@/lib/auth';
+import { error, usuarioPublico } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 
@@ -118,15 +118,9 @@ export async function POST(request) {
 }
 
 function publico(perfil, email, empresa) {
-  return {
-    id: perfil.id,
-    nombre: perfil.nombre,
-    rol: perfil.rol,
-    area: perfil.area,
-    empresa_id: perfil.empresa_id,
+  return usuarioPublico(perfil, {
+    email,
     empresa: empresa.nombre,
     giro_actual: empresa.giro_actual,
-    super_admin: !!perfil.super_admin,
-    email,
-  };
+  });
 }

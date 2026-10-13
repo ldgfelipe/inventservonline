@@ -23,7 +23,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 function puedeUI(permiso) {
   if (!ESTADO.usuario) return false;
-  return ESTADO.usuario.permisos.includes(permiso);
+  // Defensivo: si el usuario viene sin permisos (p.e. una version antigua
+  // de la API), negamos en vez de lanzar y dejar la app congelada.
+  const permisos = ESTADO.usuario.permisos;
+  if (!Array.isArray(permisos)) return false;
+  return permisos.includes(permiso);
 }
 
 async function verificarSesion() {
@@ -80,12 +84,13 @@ async function cerrarSesion() {
 }
 
 function mostrarInfoUsuario(u) {
+  if (!u) return;
   document.getElementById('infoUsuario').classList.remove('oculto');
-  document.getElementById('infoUsuarioNombre').textContent = u.nombre;
+  document.getElementById('infoUsuarioNombre').textContent = u.nombre || '-';
   const rol = document.getElementById('infoUsuarioRol');
-  rol.textContent = u.rolNombre;
-  rol.className = 'badge-rol nivel-' + u.nivel;
-  document.getElementById('infoUsuarioArea').textContent = u.area;
+  rol.textContent = u.rolNombre || u.rol || '-';
+  rol.className = 'badge-rol nivel-' + (u.nivel || 0);
+  document.getElementById('infoUsuarioArea').textContent = u.area || '-';
 }
 
 /* Oculta secciones y botones segun los permisos del rol */

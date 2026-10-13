@@ -12,6 +12,29 @@ export function error(mensaje, estado = 400) {
   return Response.json({ ok: false, error: mensaje }, { status: estado });
 }
 
+/* Forma publica del usuario para el cliente.
+   IMPORTANTE: el renderer espera `permisos`, `rolNombre` y `nivel`.
+   Si falta `permisos`, puedeUI() lanza TypeError y la aplicacion se
+   queda congelada sin terminar de iniciar. */
+export function usuarioPublico(perfil, extra = {}) {
+  const { ROLES, permisosDeRol } = require('@/services/permisos');
+  const rol = ROLES[perfil.rol] || { nombre: perfil.rol, nivel: 0, permisos: [] };
+  return {
+    id: perfil.id,
+    nombre: perfil.nombre,
+    usuario: perfil.usuario || extra.email || null,
+    email: extra.email || null,
+    rol: perfil.rol,
+    rolNombre: rol.nombre,
+    nivel: rol.nivel,
+    area: perfil.area,
+    empresa_id: perfil.empresa_id,
+    super_admin: !!perfil.super_admin,
+    permisos: permisosDeRol(perfil.rol),
+    ...extra,
+  };
+}
+
 /* Verifica el token y devuelve { usuario, perfil, sb, sbRpc }.
 
    DISENO DE DATOS (por que hay dos clientes):
