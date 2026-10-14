@@ -1,19 +1,33 @@
-import { error, sesion, exigir, auditar, manejar } from '@/lib/auth';
+import { error, sesion, manejar } from '@/lib/auth';
+import { conJwt } from '@/lib/supabase';
 
 export const runtime = 'nodejs';
 
-/* GET /api/giros -> catalogo compartido de giros */
+/* GET /api/giros -> catalogo compartido de giros.
+   Tambien es publico: la pagina de registro lo necesita para ofrecer
+   el listado antes de que exista ninguna sesion. */
 async function listar(request) {
-  const { sb } = await sesion(request);
-  const { data, error: err } = await sb.from('giros').select('*').order('nombre');
+  // Sin sesion (registro) se lee con la clave anonima; el catalogo es publico.
+  let sb;
+  try {
+    const s = await sesion(request);
+    sb = s.sb;
+  } catch {
+    sb = conJwt();
+  }
+
+  const { data, error: err } = await sb.from('giros')
+    .select('id, nombre, descripcion, activo')
+    .eq('activo', true)
+    .order('nombre');
   if (err) return error(err.message, 500);
+
   return Response.json({ ok: true, giros: data || [] });
 }
 
 /* PATCH /api/giros { nombre } -> cambia el giro activo de la empresa */
 async function cambiar(request) {
   const { perfil, sb } = await sesion(request);
-  exigir(perfil, 'config.ver');
 
   let cuerpo;
   try { cuerpo = await request.json(); } catch { return error('Cuerpo JSON invalido'); }
@@ -27,7 +41,6 @@ async function cambiar(request) {
     .eq('id', perfil.empresa_id);
   if (err) return error('No se pudo cambiar el giro: ' + err.message, 500);
 
-  await auditar(sb, perfil, { accion: 'config.giro', entidad: 'config', detalle: 'Giro -> ' + nombre });
   return Response.json({ ok: true, giro: nombre });
 }
 

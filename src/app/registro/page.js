@@ -7,18 +7,36 @@ import Link from 'next/link';
 export default function Registro() {
   const router = useRouter();
   const [giros, setGiros] = useState([]);
-  const [form, setForm] = useState({ empresa: '', nombre: '', email: '', password: '', giro: '', rif: '', clave_admin: '' });
+  const [detalle, setDetalle] = useState(null);
+  const [form, setForm] = useState({
+    empresa: '', nombre: '', email: '', password: '', giro: '', rif: '', clave_admin: '',
+  });
   const [verClave, setVerClave] = useState(false);
   const [error, setError] = useState('');
   const [cargando, setCargando] = useState(false);
 
   useEffect(() => {
-    fetch('/api/giros').then((r) => r.json()).then((j) => {
-      const lista = j.giros || [];
-      setGiros(lista);
-      if (lista.length) setForm((f) => ({ ...f, giro: lista[0].nombre }));
-    }).catch(() => {});
+    fetch('/api/giros')
+      .then((r) => r.json())
+      .then((j) => {
+        const lista = j.giros || [];
+        setGiros(lista);
+        if (lista.length) setForm((f) => ({ ...f, giro: lista[0].nombre }));
+      })
+      .catch(() => setGiros([]));
   }, []);
+
+  // Al cambiar de giro, cargamos su descripcion y los campos que pedira
+  useEffect(() => {
+    if (!form.giro) return;
+    let vivo = true;
+    setDetalle(null);
+    fetch('/api/giros/' + encodeURIComponent(form.giro) + '/campos')
+      .then((r) => r.json())
+      .then((j) => { if (vivo && j.ok) setDetalle(j); })
+      .catch(() => {});
+    return () => { vivo = false; };
+  }, [form.giro]);
 
   function cambiar(e) {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
@@ -55,40 +73,104 @@ export default function Registro() {
 
   return (
     <main className="pagina-form">
-      <div className="tarjeta">
+      <div className="tarjeta tarjeta-ancha">
         <h1>Crea tu cuenta</h1>
-        <p className="sub">Empieza a usar el sistema en tu negocio. Sin instalar nada.</p>
+        <p className="sub">
+          Elige a que se dedica tu negocio y el sistema se adapta. Sin instalar nada.
+        </p>
 
         {error && <div className="mensaje error">{error}</div>}
 
         <form onSubmit={enviar}>
           <div className="campo">
-            <label>Nombre de tu empresa o negocio</label>
-            <input name="empresa" value={form.empresa} onChange={cambiar} placeholder="Ferreteria El Centro" required />
+            <label>Nombre de tu empresa o negocio *</label>
+            <input
+              name="empresa"
+              value={form.empresa}
+              onChange={cambiar}
+              placeholder="Ferreteria El Centro"
+              required
+            />
+            <div className="ayuda">Es el nombre que veras en el panel y en los reportes.</div>
           </div>
 
           <div className="campo">
-            <label>A que se dedica tu negocio</label>
+            <label>RIF o identificador fiscal (opcional)</label>
+            <input name="rif" value={form.rif} onChange={cambiar} placeholder="J-12345678-9" />
+          </div>
+
+          <div className="campo">
+            <label>A que se dedica tu negocio *</label>
             <select name="giro" value={form.giro} onChange={cambiar} required>
-              {giros.map((g) => <option key={g.id} value={g.nombre}>{g.nombre}</option>)}
+              {giros.map((g) => (
+                <option key={g.id} value={g.nombre}>{g.nombre}</option>
+              ))}
             </select>
-            <div className="ayuda">Define los campos que pediran tus productos. Despues puedes cambiarlo.</div>
           </div>
 
+          {/* Guia dinamica: que significa el giro elegido y que pediran los productos */}
+          {detalle && (
+            <div className="guia-giro">
+              <div className="guia-titulo">{detalle.giro.nombre}</div>
+              <p className="guia-texto">{detalle.giro.descripcion || 'Giro generico.'}</p>
+
+              {detalle.campos.length > 0 ? (
+                <>
+                  <div className="guia-subtitulo">
+                    Tus productos pediran estos campos adicionales:
+                  </div>
+                  <ul className="guia-campos">
+                    {detalle.campos.map((c) => (
+                      <li key={c.id}>
+                        <strong>{c.nombre}</strong>
+                        <span className="guia-tipo">{etiquetaTipo(c.tipo)}</span>
+                        {c.obligatorio && <span className="guia-obligatorio">obligatorio</span>}
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <div className="guia-subtitulo">
+                  Este giro no tiene campos adicionales: los productos se registran con
+                  codigo, nombre, stock, precios y categoria. Puedes agregar campos
+                  despues desde Configuracion.
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="campo">
-            <label>Tu nombre</label>
+            <label>Tu nombre *</label>
             <input name="nombre" value={form.nombre} onChange={cambiar} placeholder="Juan Perez" required />
+            <div className="ayuda">Quedaras como administrador de esta empresa.</div>
           </div>
 
           <div className="campo">
-            <label>Email</label>
-            <input type="email" name="email" value={form.email} onChange={cambiar} placeholder="juan@empresa.com" required />
+            <label>Email *</label>
+            <input
+              type="email"
+              name="email"
+              value={form.email}
+              onChange={cambiar}
+              placeholder="juan@empresa.com"
+              required
+            />
+            <div className="ayuda">Con este email entraras al sistema.</div>
           </div>
 
           <div className="campo">
-            <label>Contrasena</label>
-            <input type="password" name="password" value={form.password} onChange={cambiar} placeholder="Minimo 6 caracteres" required />
-            <div className="ayuda">Usaras este email y contrasena para entrar.</div>
+            <label>Contrasena *</label>
+            <input
+              type="password"
+              name="password"
+              value={form.password}
+              onChange={cambiar}
+              placeholder="Minimo 6 caracteres"
+              required
+            />
+            <div className="ayuda">
+              No hace falta confirmar el correo: la cuenta queda activa al crearla.
+            </div>
           </div>
 
           <div className="campo">
@@ -100,7 +182,12 @@ export default function Registro() {
           {verClave && (
             <div className="campo">
               <label>Clave de administrador</label>
-              <input name="clave_admin" value={form.clave_admin} onChange={cambiar} placeholder="ADM-XXXX-XXXX-XXXX" />
+              <input
+                name="clave_admin"
+                value={form.clave_admin}
+                onChange={cambiar}
+                placeholder="ADM-XXXX-XXXX-XXXX"
+              />
               <div className="ayuda">Solo si te la proporciono el administrador del sistema.</div>
             </div>
           )}
@@ -116,4 +203,13 @@ export default function Registro() {
       </div>
     </main>
   );
+}
+
+function etiquetaTipo(tipo) {
+  return {
+    text: 'texto',
+    number: 'numero',
+    date: 'fecha',
+    integer: 'si / no',
+  }[tipo] || tipo;
 }
