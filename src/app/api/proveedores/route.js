@@ -1,4 +1,5 @@
 import { error, sesion, exigir, auditar, manejar } from '@/lib/auth';
+import { exigirVigencia, revisarLimite } from '@/lib/licenciamiento';
 
 export const runtime = 'nodejs';
 
@@ -22,6 +23,12 @@ async function guardar(request) {
 
   const nombre = String(cuerpo.nombre || '').trim();
   if (!nombre) return error('El nombre es obligatorio');
+
+  // El limite solo aplica al CREAR; editar nunca debe bloquearse.
+  if (!cuerpo.id) {
+    await exigirVigencia(sb, perfil);
+    await revisarLimite(sb, perfil, 'proveedores');
+  }
 
   const fila = {
     empresa_id: perfil.empresa_id,

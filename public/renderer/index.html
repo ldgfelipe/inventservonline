@@ -291,6 +291,29 @@
             <pre id="estadoActualizacion" class="consola"></pre>
           </div>
           <div class="panel">
+            <h3>Suscripcion y plan</h3>
+            <p class="texto-ayuda">Tu plan actual, su vigencia y el consumo frente a los limites.</p>
+            <div id="suscripcionContenido"></div>
+            <div id="planesComparativo" style="margin-top:12px"></div>
+            <div class="campo-en-linea" style="margin-top:8px;flex-wrap:wrap">
+              <select id="pagoPlan" class="input-select">
+                <option value="basic">Basico</option>
+                <option value="pro">Pro</option>
+              </select>
+              <select id="pagoCiclo" class="input-select">
+                <option value="mensual">Mensual</option>
+                <option value="anual">Anual</option>
+              </select>
+            </div>
+            <div class="campo-en-linea" style="margin-top:8px;flex-wrap:wrap">
+              <button class="btn btn-primary" onclick="iniciarPago('stripe')">Pagar con Stripe</button>
+              <button class="btn btn-primary" onclick="iniciarPago('mercadopago')">Pagar con Mercado Pago</button>
+              <button class="btn btn-primary" onclick="iniciarPago('paypal')">Pagar con PayPal</button>
+              <button class="btn btn-secondary" onclick="abrirModal('modalTransferencia')">Transferencia bancaria</button>
+            </div>
+            <div id="pagoResultado" class="consola" style="margin-top:8px;display:none"></div>
+          </div>
+          <div class="panel">
             <h3>Uso y adopcion</h3>
             <p class="texto-ayuda">Permite medir si el sistema se usa de verdad y detectar abandono.</p>
             <div id="adopcionContenido"></div>
@@ -490,6 +513,56 @@
         <div class="acciones-formulario">
           <button type="button" id="btnCancelClave" class="btn btn-ghost">Cancelar</button>
           <button type="submit" class="btn btn-primary">Cambiar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modalUpgrade" class="modal">
+    <div class="modal-content">
+      <h3 id="upgradeTitulo">Sube de plan</h3>
+      <p id="upgradeMensaje" class="texto-ayuda"></p>
+      <div id="upgradeDetalle" class="consola" style="white-space:pre-wrap"></div>
+      <div class="acciones-formulario" style="margin-top:12px;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="irASuscripcion()">Ver planes y pagar</button>
+        <button class="btn btn-ghost" onclick="cerrarModal('modalUpgrade')">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modalTransferencia" class="modal">
+    <div class="modal-content">
+      <h3>Transferencia bancaria</h3>
+      <form id="formTransferencia">
+        <div class="campo">
+          <label>Plan</label>
+          <select id="trPlan" class="input-select">
+            <option value="basic">Basico</option>
+            <option value="pro">Pro</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label>Ciclo</label>
+          <select id="trCiclo" class="input-select">
+            <option value="mensual">Mensual</option>
+            <option value="anual">Anual</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label>URL del comprobante</label>
+          <input type="url" id="trComprobante" placeholder="https://..." required />
+        </div>
+        <div class="campo">
+          <label>Referencia / nro. de operacion (opcional)</label>
+          <input type="text" id="trReferencia" />
+        </div>
+        <div class="campo">
+          <label>Nota (opcional)</label>
+          <input type="text" id="trNota" />
+        </div>
+        <div class="acciones-formulario">
+          <button type="button" id="btnCancelTransferencia" class="btn btn-ghost">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Registrar transferencia</button>
         </div>
       </form>
     </div>

@@ -130,6 +130,14 @@ Todas las respuestas son JSON con `{ ok, ... }` y exigen `Authorization: Bearer 
 | `GET /api/bitacora` | Registro auditable |
 | `GET /api/trazabilidad?id=` | Historial completo de un producto |
 | `GET /api/eventos/adopcion` | Metricas de uso y abandono |
+| `GET /api/planes` | Catalogo de planes (publica) |
+| `GET /api/suscripcion` | Plan actual, vigencia y consumo de la empresa |
+| `GET/POST /api/almacenes` | Almacenes de la empresa (POST requiere plan Pro) |
+| `POST /api/pagos/checkout` | Inicia un pago (Stripe / Mercado Pago / PayPal) |
+| `POST /api/pagos/transferencia` | Registra una transferencia con comprobante (queda en revision) |
+| `GET /api/pagos/historial` | Pagos de la empresa |
+| `GET/POST /api/admin/pagos` | Super-admin: listar y aprobar/rechazar pagos |
+| `POST /api/webhooks/stripe`, `/mercadopago`, `/paypal` | Webhooks de pasarelas (publicos) |
 
 ## Roles
 
@@ -152,12 +160,40 @@ Los roles y permisos viven en `src/services/permisos.js`, compartido con la vers
 
 ## Migraciones SQL
 
-El proyecto usa dos archivos, **en este orden**:
+Ejecuta los archivos de `sql/` **en orden** en el SQL Editor de Supabase. Todos son idempotentes (se pueden repetir sin romper nada):
 
-1. `sql/001_schema.sql` — tablas, funciones, RLS y datos semilla
-2. `sql/002_admin_y_giros.sql` — claves de administrador y catálogo ampliado de giros
+| Archivo | Contenido |
+|---|---|
+| `001_schema.sql` | Tablas, funciones, RLS y datos semilla |
+| `002_admin_y_giros.sql` | Claves de administrador y catalogo de giros |
+| `003_crear_admin.sql` | Creacion de administradores |
+| `004_diagnostico.sql` | Comprobaciones de diagnostico |
+| `005_reparar_perfil.sql` | Reparacion del perfil |
+| `006_repair_rls.sql` | Reconstruccion de las policies RLS |
+| `007_diagnostico.sql` | Comprobaciones de diagnostico |
+| `008_giros_descripciones.sql` | Descripciones de giros |
+| `009_demo_abarrotes.sql` | Datos demo |
+| `010_almacen_y_contabilidad.sql` | Campos de almacen, costo promedio y contabilidad |
+| `011_demo_ampliado.sql` | Datos demo ampliados |
+| `012_pais_y_moneda.sql` | Pais y moneda por empresa |
+| `013_planes_freemium.sql` | Planes, suscripcion, multi-almacen y pagos SaaS |
 
-Ejecuta los dos en **Supabase → SQL Editor**, uno detrás del otro. Ambos son idempotentes.
+## Planes, freemium y limites
+
+- El **catalogo de planes y sus limites** vive en `src/lib/planes.js` (modulo puro): planes `free`, `basic` y `pro`, con limites de productos, usuarios, proveedores y almacenes (multi-almacen solo en `pro`).
+- `src/lib/licenciamiento.js` valida, en el servidor, la **suscripcion** (plan, estado y vencimiento) y el **consumo** antes de crear registros. Lo usan `POST /api/productos`, `POST /api/proveedores`, `POST /api/usuarios` y `POST /api/almacenes`.
+- Si se supera un limite, la API responde `403` con `codigo: "PlanLimitReached"` (y `recurso`, `limite`, `uso`, `plan`). Si la suscripcion vencio, responde `402` con `codigo: "PlanVencido"`. El frontend usa esos codigos para abrir el modal de upgrade.
+- **Resiliencia**: si la migracion `013` aun no esta aplicada, no se aplican limites y el sistema opera con normalidad.
+- La suscripcion por empresa se guarda en `suscripciones_empresas` (plan + estado + vigencia). Al registrarse, la empresa arranca con plan `pro` en estado `trial` (`DIAS_PRUEBA` dias, definidos en `src/lib/planes.js`). Las cuentas que ya existian quedan activas (grandfathered).
+
+## Pagos y pasarelas
+
+- `src/lib/pasarelas.js` integra **Stripe** (Checkout Sessions), **Mercado Pago** (Preferences) y **PayPal** (Orders v2) usando `fetch` y `node:crypto`, **sin dependencias nuevas**.
+- `src/lib/pagos.js` maneja precios (desde `planes.js`), el registro de pagos en `pagos_saas_historial` y la activacion/extension de `suscripciones_empresas` (y refleja `empresas.plan`).
+- El **pago online** se inicia en `POST /api/pagos/checkout`: crea un pago `pendiente` y devuelve la URL de la pasarela. El webhook correspondiente lo confirma y activa el plan.
+- La **transferencia manual** se registra en `POST /api/pagos/transferencia` con la URL del comprobante: queda `en_revision` hasta que un super-admin la aprueba en `POST /api/admin/pagos`.
+- Los **webhooks** verifican firma (`STRIPE_WEBHOOK_SECRET`, `MERCADOPAGO_WEBHOOK_SECRET`, verificacion de PayPal) y responden `400` si la firma no es valida.
+- La app funciona **sin credenciales**: una pasarela no configurada responde `503 PasarelaNoConfigurada`. Ver `.env.example` para las variables (`APP_URL`, `STRIPE_*`, `MERCADOPAGO_*`, `PAYPAL_*`).
 
 ## Administrador de la plataforma
 

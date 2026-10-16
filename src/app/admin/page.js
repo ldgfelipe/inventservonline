@@ -12,6 +12,8 @@ export default function Admin() {
   const [mensaje, setMensaje] = useState('');
   const [error, setError] = useState('');
   const [nuevaClave, setNuevaClave] = useState({ descripcion: '', max_usos: 1, dias: 0 });
+  const [pagos, setPagos] = useState([]);
+  const [pagosCargando, setPagosCargando] = useState(false);
 
   useEffect(() => {
     fetch('/api/auth/sesion', { headers: auth() })
@@ -26,6 +28,7 @@ export default function Admin() {
     cargarClaves();
     fetch('/api/giros').then((r) => r.json()).then((j) => setGiros(j.giros || [])).catch(() => {});
     fetch('/api/empresa', { headers: auth() }).then((r) => r.json()).then((j) => setEmpresa(j.empresa)).catch(() => {});
+    cargarPagos();
   }, [usuario]);
 
   function auth() {
@@ -38,6 +41,30 @@ export default function Admin() {
     const j = await r.json();
     if (r.ok) setClaves(j.claves || []);
     else setError(j.error || 'No se pudieron cargar las claves');
+  }
+
+  async function cargarPagos() {
+    setPagosCargando(true);
+    try {
+      const r = await fetch('/api/admin/pagos?estado=en_revision', { headers: auth() });
+      const j = await r.json();
+      if (r.ok) setPagos(j.pagos || []);
+      else setError(j.error || 'No se pudieron cargar los pagos');
+    } finally { setPagosCargando(false); }
+  }
+
+  async function resolverPago(id, accion) {
+    setError('');
+    setMensaje('');
+    const r = await fetch('/api/admin/pagos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...auth() },
+      body: JSON.stringify({ id, accion }),
+    });
+    const j = await r.json();
+    if (!r.ok) return setError(j.error || 'No se pudo resolver');
+    setMensaje(accion === 'aprobar' ? 'Pago aprobado y plan activado' : 'Pago rechazado');
+    cargarPagos();
   }
 
   async function crearClave(e) {
@@ -180,6 +207,42 @@ export default function Admin() {
               </tr>
             ))}
             {claves.length === 0 && <tr><td colSpan={6} className="vacio">Sin claves creadas</td></tr>}
+          </tbody>
+        </table>
+      </section>
+
+      <section className="panel-admin">
+        <h2>Pagos pendientes de revision</h2>
+        <p className="ayuda">
+          Transferencias bancarias y pagos manuales que esperan aprobacion.
+        </p>
+        <button className="btn btn-secundario" onClick={cargarPagos} style={{ marginBottom: 12 }}>
+          {pagosCargando ? 'Cargando...' : 'Actualizar'}
+        </button>
+        <table className="tabla-admin">
+          <thead>
+            <tr><th>Empresa</th><th>Plan</th><th>Pasarela</th><th>Monto</th><th>Comprobante</th><th>Fecha</th><th></th></tr>
+          </thead>
+          <tbody>
+            {pagos.map((p) => (
+              <tr key={p.id}>
+                <td>{p.empresa || p.empresa_id}</td>
+                <td>{p.plan}</td>
+                <td>{p.pasarela}</td>
+                <td>{p.monto} {p.moneda}</td>
+                <td>
+                  {p.comprobante_url
+                    ? <a href={p.comprobante_url} target="_blank" rel="noopener">Ver</a>
+                    : '-'}
+                </td>
+                <td>{p.created_at ? new Date(p.created_at).toLocaleDateString('es-VE') : '-'}</td>
+                <td>
+                  <button className="btn-mini" onClick={() => resolverPago(p.id, 'aprobar')}>Aprobar</button>
+                  <button className="btn-mini" onClick={() => resolverPago(p.id, 'rechazar')}>Rechazar</button>
+                </td>
+              </tr>
+            ))}
+            {pagos.length === 0 && <tr><td colSpan={7} className="vacio">Sin pagos pendientes</td></tr>}
           </tbody>
         </table>
       </section>

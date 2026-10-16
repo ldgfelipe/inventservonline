@@ -1,4 +1,5 @@
 import { error, sesion, exigir, auditar, evento, manejar } from '@/lib/auth';
+import { exigirVigencia, revisarLimite } from '@/lib/licenciamiento';
 
 export const runtime = 'nodejs';
 
@@ -67,6 +68,10 @@ async function listar(request) {
 async function crear(request) {
   const { perfil, sb } = await sesion(request);
   exigir(perfil, 'productos.crear');
+
+  // Plan: bloquea si la suscripcion vencio y aplica el limite de productos.
+  await exigirVigencia(sb, perfil);
+  await revisarLimite(sb, perfil, 'productos');
 
   let cuerpo;
   try {

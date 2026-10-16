@@ -92,6 +92,10 @@ export function manejar(fn) {
     } catch (err) {
       if (err instanceof NoAutorizado) return error(err.message, 401);
       if (err instanceof SinPermiso) return error(err.message, 403);
+      // Errores de licenciamiento (PlanLimitReached, PlanVencido): traen su
+      // propia respuesta JSON con el codigo que el renderer entiende. Se
+      // detectan por duck-typing para no acoplar auth.js con licenciamiento.
+      if (err && typeof err.respuesta === 'function') return err.respuesta();
       console.error(err);
       return error(err.message || 'Error interno', 500);
     }

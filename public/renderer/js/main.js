@@ -17,6 +17,8 @@ const ESTADO = {
   empresa: null,
   monedaInfo: null,
   catalogoMonedas: null,
+  suscripcion: null,
+  planes: null,
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -1015,6 +1017,11 @@ async function configurarEventosConfig() {
       document.getElementById('estadoActualizacion').textContent = 'Estas usando la version 1.0.0. Actualmente estas al dia.';
     }, 800);
   });
+
+  const fTr = document.getElementById('formTransferencia');
+  if (fTr) fTr.addEventListener('submit', (e) => { e.preventDefault(); registrarTransferencia(); });
+  const btnCancelTr = document.getElementById('btnCancelTransferencia');
+  if (btnCancelTr) btnCancelTr.addEventListener('click', () => cerrarModal('modalTransferencia'));
 }
 
 async function cargarOpcionesConfig() {
@@ -1026,6 +1033,7 @@ async function cargarOpcionesConfig() {
   renderCategorias();
   renderCamposGiro();
   if (puedeUI('config.ver')) cargarAdopcion();
+  renderSuscripcion();
 }
 
 /* ---------- Empresa, pais y moneda ---------- */
@@ -1114,6 +1122,150 @@ async function cargarAdopcion() {
   } catch (err) {
     cont.innerHTML = '<p class="texto-ayuda">No se pudieron cargar las metricas.</p>';
   }
+}
+
+/* ------------------ Suscripcion y plan ------------------ */
+
+async function renderSuscripcion() {
+  const cont = document.getElementById('suscripcionContenido');
+  if (!cont) return;
+  try {
+    const s = await window.api.suscripcion.obtener();
+    ESTADO.suscripcion = s;
+    const plan = s.plan || {};
+    const estado = s.estado || 'activo';
+    const venc = s.fecha_vencimiento || s.trial_ends_at;
+    const vigencia = s.vencida
+      ? 'Vencido'
+      : (venc ? 'Vigente hasta ' + formatoFecha(venc).slice(0, 10) : 'Sin vencimiento');
+    const limites = s.limites || {};
+    const uso = s.uso || {};
+    const etiquetas = { productos: 'Productos', usuarios: 'Usuarios', proveedores: 'Proveedores', almacenes: 'Almacenes' };
+    const barras = Object.keys(limites).map((r) => {
+      const lim = limites[r];
+      const u = uso[r] || 0;
+      const pct = (lim == null || !lim) ? 0 : Math.min(100, Math.round((u / lim) * 100));
+      const limTxt = (lim == null) ? 'ilimitado' : lim;
+      const color = pct >= 100 ? '#ef4444' : (pct >= 80 ? '#f59e0b' : '#22c55e');
+      return `<div style="margin:6px 0">
+        <div style="display:flex;justify-content:space-between;font-size:13px">
+          <span>${escaparHtml(etiquetas[r] || r)}</span><span>${u} / ${limTxt}</span>
+        </div>
+        <div style="background:#e5e7eb;border-radius:6px;height:8px;overflow:hidden">
+          <div style="width:${pct}%;height:100%;background:${color}"></div>
+        </div>
+      </div>`;
+    }).join('');
+    cont.innerHTML = `
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+        <div><strong>Plan:</strong> ${escaparHtml(plan.nombre || plan.codigo || '-')}</div>
+        <div><strong>Estado:</strong> ${escaparHtml(estado)}</div>
+        <div><strong>Vigencia:</strong> ${escaparHtml(vigencia)}</div>
+        ${s.en_prueba ? '<span class="chip">En prueba</span>' : ''}
+        ${s.en_revision ? '<span class="chip">Pago en revision</span>' : ''}
+      </div>
+      ${barras}
+      ${s.aviso ? `<p class="texto-ayuda" style="color:#b45309">${escaparHtml(s.aviso)}</p>` : ''}`;
+    await renderPlanesComparativo(s.planes || []);
+  } catch (err) {
+    cont.innerHTML = '<p class="texto-ayuda">No se pudo cargar la suscripcion: ' + escaparHtml(err.message) + '</p>';
+  }
+}
+
+async function renderPlanesComparativo(planes) {
+  const cont = document.getElementById('planesComparativo');
+  if (!cont) return;
+  if (!planes || !planes.length) {
+    try { planes = await window.api.planes.listar(); } catch { planes = []; }
+  }
+  if (!planes || !planes.length) { cont.innerHTML = ''; return; }
+  const actual = ESTADO.suscripcion && ESTADO.suscripcion.plan && ESTADO.suscripcion.plan.codigo;
+  cont.innerHTML = `
+    <h4 style="margin:8px 0 4px;font-size:13px">Comparativo de planes</h4>
+    <table class="tabla">
+      <thead><tr><th>Plan</th><th>Precio</th><th>Productos</th><th>Usuarios</th><th>Proveedores</th><th>Multi-almacen</th></tr></thead>
+      <tbody>
+        ${planes.map(p => {
+          const lim = p.limites || {};
+          const fmt = (v) => (v == null ? 'Ilimitado' : v);
+          const precio = (p.precio && p.precio.mensual != null)
+            ? (p.precio.mensual === 0 ? 'Gratis' : (p.precio.mensual + ' ' + (p.precio.moneda || '') + '/mes'))
+            : '-';
+          return `<tr ${p.codigo === actual ? 'style="background:#eff6ff"' : ''}>
+            <td><strong>${escaparHtml(p.nombre)}</strong>${p.codigo === actual ? ' (actual)' : ''}</td>
+            <td>${escaparHtml(precio)}</td>
+            <td>${fmt(lim.productos)}</td>
+            <td>${fmt(lim.usuarios)}</td>
+            <td>${fmt(lim.proveedores)}</td>
+            <td>${p.multi_almacen ? 'Si' : 'No'}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
+async function iniciarPago(pasarela) {
+  const planSel = document.getElementById('pagoPlan');
+  const cicloSel = document.getElementById('pagoCiclo');
+  const plan = (planSel && planSel.value) || 'basic';
+  const ciclo = (cicloSel && cicloSel.value) || 'mensual';
+  try {
+    const r = await window.api.pagos.checkout(pasarela, { plan, ciclo });
+    if (r && r.url) { window.location.href = r.url; }
+    else notificar('No se obtuvo la URL de pago', true);
+  } catch (err) { notificar('Error: ' + err.message, true); }
+}
+
+async function registrarTransferencia() {
+  const plan = document.getElementById('trPlan').value;
+  const ciclo = document.getElementById('trCiclo').value;
+  const comprobante = document.getElementById('trComprobante').value.trim();
+  const referencia = document.getElementById('trReferencia').value.trim();
+  const nota = document.getElementById('trNota').value.trim();
+  try {
+    await window.api.pagos.transferencia({ plan, ciclo, comprobante_url: comprobante, referencia, nota });
+    cerrarModal('modalTransferencia');
+    const f = document.getElementById('formTransferencia');
+    if (f) f.reset();
+    notificar('Transferencia registrada. Un administrador la revisara.');
+    await renderSuscripcion();
+  } catch (err) { notificar('Error: ' + err.message, true); }
+}
+
+function abrirModalUpgrade(detalle) {
+  const titulo = document.getElementById('upgradeTitulo');
+  const msg = document.getElementById('upgradeMensaje');
+  const det = document.getElementById('upgradeDetalle');
+  if (!titulo || !msg) return;
+  if (detalle && detalle.codigo === 'PlanVencido') {
+    titulo.textContent = 'Tu plan no esta activo';
+    msg.textContent = detalle.error || 'Renueva tu plan para seguir creando registros.';
+  } else {
+    titulo.textContent = 'Alcanzaste el limite de tu plan';
+    msg.textContent = detalle && detalle.error ? detalle.error : 'Sube de plan para continuar.';
+  }
+  if (det) {
+    if (detalle && detalle.recurso) {
+      det.textContent = 'Recurso: ' + (detalle.recurso_nombre || detalle.recurso) +
+        '\nUso: ' + detalle.uso + ' / ' + detalle.limite +
+        '\nPlan: ' + (detalle.plan || '');
+      det.style.display = 'block';
+    } else {
+      det.textContent = '';
+      det.style.display = 'none';
+    }
+  }
+  abrirModal('modalUpgrade');
+}
+
+function irASuscripcion() {
+  cerrarModal('modalUpgrade');
+  navegar('config');
+  setTimeout(() => {
+    const el = document.getElementById('suscripcionContenido');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    renderSuscripcion();
+  }, 150);
 }
 
 function renderCamposGiro() {
@@ -2026,3 +2178,11 @@ window.eliminarUsuarioRegistro = eliminarUsuarioRegistro;
 window.abrirImportador = abrirImportador;
 window.imprimirComprobanteMovimiento = imprimirComprobanteMovimiento;
 window.imprimirFichaProveedor = imprimirFichaProveedor;
+window.iniciarPago = iniciarPago;
+window.registrarTransferencia = registrarTransferencia;
+window.irASuscripcion = irASuscripcion;
+
+// Modal de upgrade disparado por los codigos PlanLimitReached / PlanVencido
+window.addEventListener('plan:limite', (e) => {
+  try { abrirModalUpgrade(e.detail || null); } catch (err) { console.warn(err); }
+});

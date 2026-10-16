@@ -3,6 +3,7 @@ import { admin, conJwt } from '@/lib/supabase';
 import { error, sesion, exigir, auditar, manejar } from '@/lib/auth';
 import { rolValido, areaValida } from '@/services/permisos';
 import { hashearPassword } from '@/services/seguridad';
+import { exigirVigencia, revisarLimite } from '@/lib/licenciamiento';
 
 export const runtime = 'nodejs';
 
@@ -30,7 +31,7 @@ async function listar(request) {
 
 /* POST /api/usuarios -> crea o actualiza un usuario de mi empresa */
 async function guardar(request) {
-  const { perfil } = await sesion(request);
+  const { perfil, sb } = await sesion(request);
   exigir(perfil, 'usuarios.gestionar');
 
   let cuerpo;
@@ -68,7 +69,10 @@ async function guardar(request) {
     return Response.json({ ok: true, id: cuerpo.id });
   }
 
-  // Crear: usuario de auth + perfil en la misma empresa
+  // Crear: verificar plan/limite ANTES de crear el usuario de auth
+  await exigirVigencia(sb, perfil);
+  await revisarLimite(sb, perfil, 'usuarios');
+
   if (!cuerpo.password || cuerpo.password.length < 6) {
     return error('La contrasena debe tener al menos 6 caracteres');
   }

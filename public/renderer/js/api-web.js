@@ -58,7 +58,13 @@ async function pedir(ruta, opciones = {}) {
   }
 
   if (!respuesta.ok) {
-    throw new Error((datos && datos.error) || ('Error ' + respuesta.status));
+    const codigo = datos && datos.codigo;
+    if ((codigo === 'PlanLimitReached' || codigo === 'PlanVencido') && typeof window !== 'undefined') {
+      try { window.dispatchEvent(new CustomEvent('plan:limite', { detail: datos })); } catch { /* noop */ }
+    }
+    throw Object.assign(new Error((datos && datos.error) || ('Error ' + respuesta.status)), {
+      codigo, detalle: datos || null,
+    });
   }
   return datos;
 }
@@ -181,6 +187,26 @@ window.api = {
     guardar: (payload) => pedir('/api/empresa', { metodo: 'PATCH', json: payload }),
   },
 
+  /* Planes y suscripcion */
+  suscripcion: {
+    obtener: () => pedir('/api/suscripcion'),
+  },
+  planes: {
+    listar: () => pedir('/api/planes').then((r) => r.planes || []),
+  },
+  pagos: {
+    checkout: (pasarela, payload) => pedir('/api/pagos/checkout', { metodo: 'POST', json: { ...payload, pasarela } }),
+    transferencia: (payload) => pedir('/api/pagos/transferencia', { metodo: 'POST', json: payload }),
+    historial: () => pedir('/api/pagos/historial').then((r) => r.pagos || []),
+  },
+  adminPagos: {
+    listar: (estado) => pedir('/api/admin/pagos' + (estado ? '?estado=' + encodeURIComponent(estado) : '')).then((r) => r.pagos || []),
+    resolver: (id, accion, nota) => pedir('/api/admin/pagos', { metodo: 'POST', json: { id, accion, nota } }),
+  },
+  almacenes: {
+    listar: () => pedir('/api/almacenes').then((r) => r.almacenes || []),
+    guardar: (payload) => pedir('/api/almacenes', { metodo: 'POST', json: payload }),
+  },
   monedas: {
     listar: () => pedir('/api/monedas'),
   },

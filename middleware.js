@@ -17,6 +17,8 @@ const PUBLICAS = [
   '/api/giros',
   '/api/giros/',
   '/api/monedas',
+  '/api/planes',
+  '/api/webhooks',
 ];
 
 function esPublica(ruta) {

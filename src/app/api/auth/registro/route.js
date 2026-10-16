@@ -5,6 +5,7 @@ import {
   esPaisValido, esMonedaValida, monedaDePais,
   PAIS_POR_DEFECTO, MONEDA_POR_DEFECTO,
 } from '@/lib/monedas';
+import { DIAS_PRUEBA, PLAN_EN_PRUEBA } from '@/lib/planes';
 
 export const runtime = 'nodejs';
 
@@ -70,13 +71,13 @@ export async function POST(request) {
     // base todavia no la tiene, se crea igual sin esos campos.
     let { data: emp, error: errEmp } = await sb
       .from('empresas')
-      .insert({ nombre: empresa, email, giro_actual: giro, rif: cuerpo.rif || null, plan: 'trial', pais, moneda })
+      .insert({ nombre: empresa, email, giro_actual: giro, rif: cuerpo.rif || null, plan: PLAN_EN_PRUEBA, pais, moneda })
       .select('id')
       .single();
     if (errEmp) {
       ({ data: emp, error: errEmp } = await sb
         .from('empresas')
-        .insert({ nombre: empresa, email, giro_actual: giro, rif: cuerpo.rif || null, plan: 'trial' })
+        .insert({ nombre: empresa, email, giro_actual: giro, rif: cuerpo.rif || null, plan: PLAN_EN_PRUEBA })
         .select('id')
         .single());
     }
@@ -95,6 +96,24 @@ export async function POST(request) {
 
     // Categoria inicial para que no arranque vacio
     await sb.from('categorias').insert({ empresa_id: emp.id, nombre: 'General' });
+
+    // Suscripcion (plan de prueba con vencimiento) y almacen principal.
+    // Best-effort: si la migracion 013 aun no esta aplicada NO se rompe el
+    // registro; supabase devuelve {error} y aqui se ignora a proposito.
+    try {
+      await sb.from('suscripciones_empresas').insert({
+        empresa_id: emp.id,
+        plan: PLAN_EN_PRUEBA,
+        estado: 'trial',
+        trial_ends_at: new Date(Date.now() + DIAS_PRUEBA * 86400000).toISOString(),
+      });
+    } catch { /* migracion 013 pendiente */ }
+
+    try {
+      await sb.from('almacenes').insert({
+        empresa_id: emp.id, nombre: 'Principal', principal: true, activo: true,
+      });
+    } catch { /* migracion 013 pendiente */ }
   } catch (err) {
     // Si algo falla, limpiamos el usuario para no dejar cuentas huerfanas
     await sb.auth.admin.deleteUser(creado.user.id).catch(() => {});
