@@ -12,6 +12,7 @@ const ESTADO = {
   catalogos: null,
   usuario: null,
   editando: null,
+  eventosListos: false,
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -142,21 +143,37 @@ function alternarBoton(id, permitido) {
 }
 
 async function iniciar() {
-  await cargarGiroActual();
-  await cargarCategorias();
-  await cargarProveedores();
-  configurarNavegacion();
-  configurarEventosProductos();
-  configurarEventosMovimientos();
-  configurarEventosProveedores();
-  configurarEventosConfig();
-  configurarEventosUsuarios();
-  configurarEventosBitacora();
-  configurarEventosSesion();
-  configurarEventosAsistente();
-  configurarEventosImportador();
-  configurarMenu();
+  // Cada carga de datos se protege por separado: si una falla (catalogo
+  // incompleto, permiso ausente), el sistema igual queda navegable.
+  await cargarSinRomper(cargarGiroActual, 'el giro actual');
+  await cargarSinRomper(cargarCategorias, 'las categorias');
+  await cargarSinRomper(cargarProveedores, 'los proveedores');
+  // Los eventos se registran una sola vez por sesion de pagina:
+  // si no, al cerrar y abrir sesion se duplicarian los listeners.
+  if (!ESTADO.eventosListos) {
+    configurarNavegacion();
+    configurarEventosProductos();
+    configurarEventosMovimientos();
+    configurarEventosProveedores();
+    configurarEventosConfig();
+    configurarEventosUsuarios();
+    configurarEventosBitacora();
+    configurarEventosSesion();
+    configurarEventosAsistente();
+    configurarEventosImportador();
+    configurarMenu();
+    ESTADO.eventosListos = true;
+  }
   navegar('dashboard');
+}
+
+async function cargarSinRomper(fn, que) {
+  try {
+    await fn();
+  } catch (e) {
+    console.warn('No se pudo cargar ' + que + ':', e.message);
+    notificar('No se pudo cargar ' + que + ': ' + e.message, true);
+  }
 }
 
 /* Registra un evento de uso (ignora silenciosamente si no hay sesion) */
@@ -740,7 +757,7 @@ async function cargarOpcionesConfig() {
   const giros = await window.api.giros.listar();
   document.getElementById('selectGiro').innerHTML = giros.map(g => `<option value="${g.nombre}">${g.nombre}</option>`).join('');
   document.getElementById('selectGiro').value = ESTADO.giro || giros[0]?.nombre;
-  ESTADO.camposGiro = await window.api.giros.campos(ESTADO.giro);
+  if (ESTADO.giro) ESTADO.camposGiro = await window.api.giros.campos(ESTADO.giro);
   renderCategorias();
   renderCamposGiro();
   if (puedeUI('config.ver')) cargarAdopcion();

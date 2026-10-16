@@ -11,10 +11,17 @@ async function campos(request, { params }) {
   const { nombre } = await params;
   const sb = conJwt();
 
-  const { data: giro, error: errGiro } = await sb.from('giros')
+  // descripcion viene de la migracion 008; si la base no la tiene
+  // todavia, seguimos sin ella en lugar de fallar con 500.
+  let { data: giro, error: errGiro } = await sb.from('giros')
     .select('id, nombre, descripcion').eq('nombre', nombre).maybeSingle();
+  if (errGiro) {
+    ({ data: giro, error: errGiro } = await sb.from('giros')
+      .select('id, nombre').eq('nombre', nombre).maybeSingle());
+  }
   if (errGiro) return error(errGiro.message, 500);
   if (!giro) return error('Giro no encontrado', 404);
+  if (giro.descripcion === undefined) giro.descripcion = null;
 
   const { data, error: err } = await sb.from('campos_giro')
     .select('id, nombre, tipo, obligatorio').eq('giro_id', giro.id).order('id');

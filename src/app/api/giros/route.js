@@ -16,10 +16,19 @@ async function listar(request) {
     sb = conJwt();
   }
 
-  const { data, error: err } = await sb.from('giros')
+  // La columna descripcion llego con la migracion 008. Si una base
+  // antigua todavia no la tiene, reintentamos sin ella en vez de
+  // tumbar el catalogo completo (sin giros no hay registro ni panel).
+  let { data, error: err } = await sb.from('giros')
     .select('id, nombre, descripcion, activo')
     .eq('activo', true)
     .order('nombre');
+  if (err) {
+    ({ data, error: err } = await sb.from('giros')
+      .select('id, nombre, activo')
+      .eq('activo', true)
+      .order('nombre'));
+  }
   if (err) return error(err.message, 500);
 
   return Response.json({ ok: true, giros: data || [] });
