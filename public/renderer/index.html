@@ -224,6 +224,20 @@
         <!-- Vista: Configuracion -->
         <section id="vista-config" class="vista">
           <div class="panel">
+            <h3>Empresa, pais y moneda</h3>
+            <p class="texto-ayuda">El pais y la moneda definen como se muestran los montos en todo el sistema (dashboard, contabilidad, comprobantes e informes). No convierten los valores ya guardados.</p>
+            <div class="campo-en-linea">
+              <input type="text" id="empresaNombre" placeholder="Nombre de la empresa" class="input-buscar" />
+              <input type="text" id="empresaRif" placeholder="RIF / identificador fiscal" class="input-buscar" />
+            </div>
+            <div class="campo-en-linea">
+              <select id="selectPais" class="input-select" title="Pais"></select>
+              <select id="selectMoneda" class="input-select" title="Moneda"></select>
+              <button id="btnGuardarEmpresa" class="btn btn-primary">Guardar</button>
+            </div>
+            <p class="texto-ayuda" id="vistaPreviaMoneda"></p>
+          </div>
+          <div class="panel">
             <h3>Giro del negocio</h3>
             <p class="texto-ayuda">El giro define los campos personalizados de tus productos.</p>
           <div class="campo-en-linea">

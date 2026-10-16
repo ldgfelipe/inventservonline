@@ -15,6 +15,8 @@ const ESTADO = {
   eventosListos: false,
   contabilidad: null,
   empresa: null,
+  monedaInfo: null,
+  catalogoMonedas: null,
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -199,6 +201,9 @@ async function cargarGiroActual() {
 
 async function cargarEmpresa() {
   ESTADO.empresa = await window.api.empresa.obtener();
+  // moneda_info la resuelve la API (simbolo, decimales, formato). Si una
+  // base antigua no la trae, formatoMoneda cae en el valor por defecto.
+  ESTADO.monedaInfo = (ESTADO.empresa && ESTADO.empresa.moneda_info) || null;
 }
 
 async function cargarCategorias() {
@@ -955,6 +960,16 @@ async function guardarProveedor(e) {
 /* ------------------ Configuracion ------------------ */
 
 async function configurarEventosConfig() {
+  document.getElementById('btnGuardarEmpresa').addEventListener('click', guardarEmpresaMoneda);
+  // Al cambiar de pais se propone su moneda (el usuario puede cambiarla).
+  document.getElementById('selectPais').addEventListener('change', (e) => {
+    const cat = ESTADO.catalogoMonedas;
+    const p = cat && cat.paises.find(x => x.codigo === e.target.value);
+    if (p) document.getElementById('selectMoneda').value = p.moneda;
+    renderVistaPreviaMoneda();
+  });
+  document.getElementById('selectMoneda').addEventListener('change', renderVistaPreviaMoneda);
+
   document.getElementById('btnGuardarGiro').addEventListener('click', async () => {
     const nombre = document.getElementById('selectGiro').value;
     await window.api.giros.cambiar(nombre);
@@ -1003,6 +1018,7 @@ async function configurarEventosConfig() {
 }
 
 async function cargarOpcionesConfig() {
+  await renderEmpresaMoneda();
   const giros = await window.api.giros.listar();
   document.getElementById('selectGiro').innerHTML = giros.map(g => `<option value="${g.nombre}">${g.nombre}</option>`).join('');
   document.getElementById('selectGiro').value = ESTADO.giro || giros[0]?.nombre;
@@ -1010,6 +1026,67 @@ async function cargarOpcionesConfig() {
   renderCategorias();
   renderCamposGiro();
   if (puedeUI('config.ver')) cargarAdopcion();
+}
+
+/* ---------- Empresa, pais y moneda ---------- */
+
+async function cargarMonedas() {
+  if (!ESTADO.catalogoMonedas) ESTADO.catalogoMonedas = await window.api.monedas.listar();
+  return ESTADO.catalogoMonedas;
+}
+
+function infoMonedaUI(codigo) {
+  const lista = (ESTADO.catalogoMonedas && ESTADO.catalogoMonedas.monedas) || [];
+  return lista.find(m => m.codigo === codigo) || null;
+}
+
+function renderVistaPreviaMoneda() {
+  const el = document.getElementById('vistaPreviaMoneda');
+  if (!el) return;
+  const codigo = document.getElementById('selectMoneda').value;
+  const m = infoMonedaUI(codigo);
+  if (!m) { el.textContent = ''; return; }
+  el.textContent = `Vista previa: ${formatoConInfo(1234.5, m)}  ·  ${m.nombre} (${m.codigo})`;
+}
+
+async function renderEmpresaMoneda() {
+  const selPais = document.getElementById('selectPais');
+  const selMoneda = document.getElementById('selectMoneda');
+  if (!selPais || !selMoneda) return;
+
+  const cat = await cargarMonedas();
+  selPais.innerHTML = cat.paises.map(p => `<option value="${p.codigo}">${escaparHtml(p.nombre)}</option>`).join('');
+  selMoneda.innerHTML = cat.monedas.map(m => `<option value="${m.codigo}">${escaparHtml(m.nombre)} (${escaparHtml(m.simbolo)})</option>`).join('');
+
+  const emp = ESTADO.empresa || {};
+  document.getElementById('empresaNombre').value = emp.nombre || '';
+  document.getElementById('empresaRif').value = emp.rif || '';
+  if (emp.pais) selPais.value = emp.pais;
+  if (emp.moneda) selMoneda.value = emp.moneda;
+
+  renderVistaPreviaMoneda();
+}
+
+async function guardarEmpresaMoneda() {
+  const nombre = document.getElementById('empresaNombre').value.trim();
+  const rif = document.getElementById('empresaRif').value.trim();
+  const pais = document.getElementById('selectPais').value;
+  const moneda = document.getElementById('selectMoneda').value;
+  if (!nombre) return notificar('El nombre de la empresa no puede quedar vacio', true);
+
+  try {
+    const resp = await window.api.empresa.guardar({ nombre, rif, pais, moneda });
+    ESTADO.empresa = resp.empresa;
+    ESTADO.monedaInfo = resp.empresa && resp.empresa.moneda_info || null;
+    renderVistaPreviaMoneda();
+    if (resp.aviso) notificar(resp.aviso, true);
+    else notificar('Datos y moneda guardados');
+    // Vuelve a pintar la vista con la nueva moneda (el dashboard y demas
+    // pantallas se recalculan al navegar).
+    if (ESTADO.vista !== 'config') navegar(ESTADO.vista);
+  } catch (err) {
+    notificar('Error: ' + err.message, true);
+  }
 }
 
 async function cargarAdopcion() {
@@ -1910,8 +1987,20 @@ function notificar(mensaje, error = false) {
   notifTimer = setTimeout(() => el.classList.remove('visible'), 2600);
 }
 
+function formatoConInfo(n, m) {
+  const valor = Number(n);
+  const numero = new Intl.NumberFormat(m.locale, {
+    minimumFractionDigits: m.decimales,
+    maximumFractionDigits: m.decimales,
+  }).format(Number.isFinite(valor) ? valor : 0);
+  return m.posicion === 'pre' ? `${m.simbolo} ${numero}` : `${numero} ${m.simbolo}`;
+}
+
 function formatoMoneda(n) {
-  return new Intl.NumberFormat('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n) + ' Bs';
+  // La moneda la define la empresa (Configuracion). El valor por defecto
+  // mantiene el comportamiento anterior si todavia no se ha cargado.
+  return formatoConInfo(n, ESTADO.monedaInfo
+    || { simbolo: 'Bs', decimales: 2, locale: 'es-VE', posicion: 'post' });
 }
 
 function formatoFecha(f) {

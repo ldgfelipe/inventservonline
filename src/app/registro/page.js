@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { PAISES, opcionesMoneda, monedaDePais, PAIS_POR_DEFECTO } from '@/lib/monedas';
+
+const MONEDAS = opcionesMoneda();
 
 export default function Registro() {
   const router = useRouter();
@@ -10,6 +13,7 @@ export default function Registro() {
   const [detalle, setDetalle] = useState(null);
   const [form, setForm] = useState({
     empresa: '', nombre: '', email: '', password: '', giro: '', rif: '', clave_admin: '',
+    pais: PAIS_POR_DEFECTO, moneda: monedaDePais(PAIS_POR_DEFECTO),
   });
   const [verClave, setVerClave] = useState(false);
   const [error, setError] = useState('');
@@ -40,6 +44,12 @@ export default function Registro() {
 
   function cambiar(e) {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+  }
+
+  // Al elegir pais se propone su moneda; el usuario puede cambiarla.
+  function cambiarPais(e) {
+    const pais = e.target.value;
+    setForm((f) => ({ ...f, pais, moneda: monedaDePais(pais) }));
   }
 
   async function enviar(e) {
@@ -97,6 +107,30 @@ export default function Registro() {
           <div className="campo">
             <label>RIF o identificador fiscal (opcional)</label>
             <input name="rif" value={form.rif} onChange={cambiar} placeholder="J-12345678-9" />
+          </div>
+
+          <div className="campo">
+            <label>Pais *</label>
+            <select name="pais" value={form.pais} onChange={cambiarPais} required>
+              {PAISES.map((p) => (
+                <option key={p.codigo} value={p.codigo}>{p.nombre}</option>
+              ))}
+            </select>
+            <div className="ayuda">Se usa para proponer la moneda de tu empresa.</div>
+          </div>
+
+          <div className="campo">
+            <label>Tipo de moneda *</label>
+            <select name="moneda" value={form.moneda} onChange={cambiar} required>
+              {MONEDAS.map((m) => (
+                <option key={m.codigo} value={m.codigo}>
+                  {m.nombre} ({m.codigo} {m.simbolo})
+                </option>
+              ))}
+            </select>
+            <div className="ayuda">
+              Se usara para mostrar los montos. Podras cambiarla luego en Configuracion.
+            </div>
           </div>
 
           <div className="campo">

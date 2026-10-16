@@ -178,6 +178,11 @@ window.api = {
 
   empresa: {
     obtener: () => pedir('/api/empresa').then((r) => r.empresa),
+    guardar: (payload) => pedir('/api/empresa', { metodo: 'PATCH', json: payload }),
+  },
+
+  monedas: {
+    listar: () => pedir('/api/monedas'),
   },
 
   export: {

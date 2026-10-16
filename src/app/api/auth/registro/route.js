@@ -1,6 +1,10 @@
 import { NextRequest } from 'next/server';
 import { admin, conJwt } from '@/lib/supabase';
 import { error } from '@/lib/auth';
+import {
+  esPaisValido, esMonedaValida, monedaDePais,
+  PAIS_POR_DEFECTO, MONEDA_POR_DEFECTO,
+} from '@/lib/monedas';
 
 export const runtime = 'nodejs';
 
@@ -22,10 +26,17 @@ export async function POST(request) {
   const giro = String(cuerpo.giro || 'Construccion').trim();
   const claveAdmin = String(cuerpo.clave_admin || '').trim();
 
+  // Pais y moneda: si no mandan moneda, se propone la del pais elegido.
+  const pais = String(cuerpo.pais || PAIS_POR_DEFECTO).trim().toUpperCase();
+  let moneda = String(cuerpo.moneda || '').trim().toUpperCase();
+  if (!moneda) moneda = monedaDePais(pais);
+
   if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return error('Escribe un email valido');
   if (password.length < 6) return error('La contrasena debe tener al menos 6 caracteres');
   if (!nombre) return error('Escribe tu nombre');
   if (!empresa) return error('Escribe el nombre de tu empresa o negocio');
+  if (!esPaisValido(pais)) return error('El pais seleccionado no es valido');
+  if (!esMonedaValida(moneda)) return error('La moneda seleccionada no es valida');
 
   const sb = admin();
 
@@ -55,12 +66,20 @@ export async function POST(request) {
   }
 
   try {
-    // Empresa (inquilino)
-    const { data: emp, error: errEmp } = await sb
+    // Empresa (inquilino). pais/moneda son de la migracion 012: si la
+    // base todavia no la tiene, se crea igual sin esos campos.
+    let { data: emp, error: errEmp } = await sb
       .from('empresas')
-      .insert({ nombre: empresa, email, giro_actual: giro, rif: cuerpo.rif || null, plan: 'trial' })
+      .insert({ nombre: empresa, email, giro_actual: giro, rif: cuerpo.rif || null, plan: 'trial', pais, moneda })
       .select('id')
       .single();
+    if (errEmp) {
+      ({ data: emp, error: errEmp } = await sb
+        .from('empresas')
+        .insert({ nombre: empresa, email, giro_actual: giro, rif: cuerpo.rif || null, plan: 'trial' })
+        .select('id')
+        .single());
+    }
     if (errEmp) throw errEmp;
 
     // Perfil: el que se registra es administrador de su empresa

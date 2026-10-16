@@ -2,6 +2,7 @@ import { error, sesion, exigir, auditar, evento, manejar } from '@/lib/auth';
 import { interpretar } from '@/services/nlu';
 import { clave, similitud } from '@/services/texto';
 import { puede } from '@/services/permisos';
+import { formatearMoneda } from '@/lib/monedas';
 
 export const runtime = 'nodejs';
 
@@ -12,10 +13,6 @@ export const runtime = 'nodejs';
    ============================================================ */
 
 const UMBRAL = 0.55;
-
-function moneda(n) {
-  return new Intl.NumberFormat('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0) + ' Bs';
-}
 
 function tokensUtiles(nombre) {
   return clave(nombre).split(' ').filter((t) => t.length >= 4 && !/^[\d.,]+[a-z]{0,3}$/.test(t));
@@ -57,6 +54,12 @@ async function consultar(request) {
   const { perfil, sb, sbRpc } = await sesion(request);
   let cuerpo;
   try { cuerpo = await request.json(); } catch { cuerpo = {}; }
+
+  // La moneda con la que se muestran los importes. Si la base aun no
+  // tiene la migracion 012, la consulta falla y quedamos en VES.
+  const { data: empresaFila } = await sb.from('empresas')
+    .select('moneda').eq('id', perfil.empresa_id).maybeSingle();
+  const moneda = (n) => formatearMoneda(n, (empresaFila && empresaFila.moneda) || 'VES');
 
   const texto = String(cuerpo.texto || '').trim();
   if (!texto) return error('Escribe tu consulta');

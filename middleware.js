@@ -16,6 +16,7 @@ const PUBLICAS = [
   '/api/auth/logout',
   '/api/giros',
   '/api/giros/',
+  '/api/monedas',
 ];
 
 function esPublica(ruta) {
