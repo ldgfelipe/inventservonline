@@ -35,11 +35,19 @@ async function buscarProducto(sb, empresaId, texto, usuarioId) {
 
   const puntuados = productos.map((p) => {
     let puntos = 0;
+    const kc = clave(p.codigo);
     const kn = clave(p.nombre);
-    if (kn && texto.includes(kn)) puntos = 1;
+    if (kc && texto.includes(kc)) puntos = 1;
+    else if (kn && texto.includes(kn)) puntos = 1;
     else {
       const tokens = tokensUtiles(p.nombre);
-      if (tokens.length) puntos = (tokens.filter((t) => texto.includes(t)).length / tokens.length) * 0.9;
+      if (tokens.length) {
+        // Un token util que aparece en la frase ya es una senal fuerte:
+        // partimos de 0.6 y subimos segun cuantos tokens coincidan, para
+        // que "cuanto arroz tengo" encuentre "Arroz blanco 1Kg".
+        const coinciden = tokens.filter((t) => texto.includes(t)).length;
+        if (coinciden) puntos = 0.6 + (coinciden / tokens.length) * 0.4;
+      }
       if (puntos < 0.5) puntos = Math.max(puntos, similitud(texto, p.nombre) * 0.85);
     }
     return { producto: p, puntaje: puntos };
@@ -119,15 +127,19 @@ async function consultar(request) {
 
       case 'listar_bajo': {
         if (!puede(perfil.rol, 'productos.ver')) return responder(p, negar('productos.ver').texto);
+        // PostgREST no compara columnas entre si, asi que traemos los que
+        // tienen existencia y filtramos en memoria: actual <= minimo.
         const { data } = await sb.from('productos')
           .select('codigo, nombre, stock_actual, stock_minimo')
           .eq('empresa_id', perfil.empresa_id).eq('activo', true)
-          .gt('stock_actual', 0).lte('stock_minimo', 'stock_actual')
-          .order('stock_actual').limit(50);
-        return responder(p, data && data.length
-          ? `Hay ${data.length} producto(s) en o por debajo del minimo:`
+          .gt('stock_actual', 0);
+        const bajos = (data || [])
+          .filter((x) => Number(x.stock_actual) <= Number(x.stock_minimo))
+          .sort((a, b) => a.stock_actual - b.stock_actual).slice(0, 50);
+        return responder(p, bajos.length
+          ? `Hay ${bajos.length} producto(s) en o por debajo del minimo:`
           : 'Ningun producto esta por debajo del minimo. Todo en orden.',
-          tabla('Stock bajo', data || [], ['codigo', 'nombre', 'stock_actual', 'stock_minimo'], ['Codigo', 'Producto', 'Actual', 'Minimo']));
+          tabla('Stock bajo', bajos, ['codigo', 'nombre', 'stock_actual', 'stock_minimo'], ['Codigo', 'Producto', 'Actual', 'Minimo']));
       }
 
       case 'listar_agotados': {
