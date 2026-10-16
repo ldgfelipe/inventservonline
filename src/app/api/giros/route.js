@@ -1,5 +1,5 @@
 import { error, sesion, manejar } from '@/lib/auth';
-import { conJwt } from '@/lib/supabase';
+import { admin } from '@/lib/supabase';
 
 export const runtime = 'nodejs';
 
@@ -7,14 +7,13 @@ export const runtime = 'nodejs';
    Tambien es publico: la pagina de registro lo necesita para ofrecer
    el listado antes de que exista ninguna sesion. */
 async function listar(request) {
-  // Sin sesion (registro) se lee con la clave anonima; el catalogo es publico.
-  let sb;
-  try {
-    const s = await sesion(request);
-    sb = s.sb;
-  } catch {
-    sb = conJwt();
-  }
+  // El catalogo de giros es PUBLICO y compartido: la pagina de registro lo
+  // necesita antes de que exista ninguna sesion. Las policies de RLS sobre
+  // giros son "to authenticated", por lo que con la clave anonima el
+  // listado volvia vacio y el registro no podia ofrecer giros. Al no ser
+  // informacion de ninguna empresa (no tiene empresa_id), se lee con
+  // service_role sin riesgo de fuga entre inquilinos.
+  const sb = admin();
 
   // La columna descripcion llego con la migracion 008. Si una base
   // antigua todavia no la tiene, reintentamos sin ella en vez de

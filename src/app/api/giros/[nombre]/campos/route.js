@@ -1,5 +1,5 @@
-import { conJwt } from '@/lib/supabase';
-import { error, sesion } from '@/lib/auth';
+import { admin } from '@/lib/supabase';
+import { error } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 
@@ -9,7 +9,10 @@ export const runtime = 'nodejs';
    registro para explicar que va a pedir el sistema. */
 async function campos(request, { params }) {
   const { nombre } = await params;
-  const sb = conJwt();
+  // Catalogo compartido y publico (la pagina de registro lo consulta sin
+  // sesion). Las policies de RLS son "to authenticated", por lo que con la
+  // clave anonima la busqueda del giro fallaba: se lee con service_role.
+  const sb = admin();
 
   // descripcion viene de la migracion 008; si la base no la tiene
   // todavia, seguimos sin ella en lugar de fallar con 500.
