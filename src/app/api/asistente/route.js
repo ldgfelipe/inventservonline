@@ -99,8 +99,17 @@ async function procesar(request) {
   const texto = String(cuerpo.texto || '').trim();
   if (!texto) return error('Escribe tu consulta');
 
+  const paso = Number(cuerpo.paso || 0);
+  if (paso === 1) return Response.json({ ok: true, diag: 'tras leer texto', texto });
+
   const p = interpretar(texto);
+  if (paso === 2) return Response.json({ ok: true, diag: 'interpretar ok', intencion: p.intencion });
+
   await evento(sb, perfil, 'asistente.consulta', p.intencion);
+  if (paso === 3) return Response.json({ ok: true, diag: 'evento ok' });
+
+  const prueba = responder(p, 'prueba', [{ id: 'x', etiqueta: 'X', tipo: 'ayuda' }]);
+  if (paso === 4) return Response.json({ ok: true, diag: 'responder ok', prueba });
 
   const negar = (permiso) => ({
     ok: true, intencion: p.intencion,
