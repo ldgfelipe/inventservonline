@@ -1,4 +1,5 @@
 import { error, sesion, exigir, auditar, manejar } from '@/lib/auth';
+import { mapaPerfiles } from '@/lib/perfiles';
 
 export const runtime = 'nodejs';
 
@@ -15,7 +16,7 @@ async function listar(request) {
 
   let consulta = sb
     .from('movimientos')
-    .select('*, productos(nombre), perfiles(nombre, area, rol)')
+    .select('*, productos(nombre)')
     .eq('empresa_id', perfil.empresa_id)
     .order('fecha', { ascending: false })
     .limit(limite);
@@ -26,15 +27,20 @@ async function listar(request) {
   const { data, error: err } = await consulta;
   if (err) return error('Error consultando movimientos: ' + err.message, 500);
 
-  let filas = (data || []).map((m) => ({
-    ...m,
-    producto_nombre: m.productos ? m.productos.nombre : null,
-    usuario_nombre: m.perfiles ? m.perfiles.nombre : null,
-    usuario_area: m.perfiles ? m.perfiles.area : null,
-    usuario_rol: m.perfiles ? m.perfiles.rol : null,
-    productos: undefined,
-    perfiles: undefined,
-  }));
+  // usuario_id no tiene FK a perfiles, asi que se resuelve aparte.
+  const perfiles = await mapaPerfiles(sb, (data || []).map((m) => m.usuario_id));
+
+  let filas = (data || []).map((m) => {
+    const p = perfiles[m.usuario_id];
+    return {
+      ...m,
+      producto_nombre: m.productos ? m.productos.nombre : null,
+      usuario_nombre: p ? p.nombre : null,
+      usuario_area: p ? p.area : null,
+      usuario_rol: p ? p.rol : null,
+      productos: undefined,
+    };
+  });
 
   if (busqueda) {
     const b = busqueda.toLowerCase();

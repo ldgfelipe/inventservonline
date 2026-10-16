@@ -14,6 +14,7 @@
 do $$
 declare
   v_empresa_id uuid;
+  v_usuario_id uuid;
   v_prov_abar  uuid;
   v_prov_limp  uuid;
   r            record;
@@ -21,6 +22,7 @@ declare
   v_salida     integer;
 begin
   select id into v_empresa_id from public.empresas where email = 'demo@abarrotes.com';
+  select id into v_usuario_id from auth.users where email = 'demo@abarrotes.com';
   if v_empresa_id is null then
     raise notice 'Demo abarrotes no existe (ejecuta 009 primero). Nada que hacer.';
     return;
@@ -88,11 +90,11 @@ begin
       v_salida  := 20;
 
       insert into public.movimientos
-        (empresa_id, producto_id, tipo, cantidad, precio_unitario, total,
+        (empresa_id, producto_id, usuario_id, tipo, cantidad, precio_unitario, total,
          costo_unitario, costo_total, stock_resultante, saldo_valor,
          concepto, documento, observacion, fecha)
       values
-        (v_empresa_id, r.id, 'entrada', v_entrada, r.precio_compra,
+        (v_empresa_id, r.id, v_usuario_id, 'entrada', v_entrada, r.precio_compra,
          round(r.precio_compra * v_entrada, 2),
          r.precio_compra, round(r.precio_compra * v_entrada, 2),
          v_entrada, round(r.precio_compra * v_entrada, 2),
@@ -100,11 +102,11 @@ begin
          now() - interval '15 days');
 
       insert into public.movimientos
-        (empresa_id, producto_id, tipo, cantidad, precio_unitario, total,
+        (empresa_id, producto_id, usuario_id, tipo, cantidad, precio_unitario, total,
          costo_unitario, costo_total, stock_resultante, saldo_valor,
          concepto, documento, observacion, fecha)
       values
-        (v_empresa_id, r.id, 'salida', v_salida, r.precio_venta,
+        (v_empresa_id, r.id, v_usuario_id, 'salida', v_salida, r.precio_venta,
          round(r.precio_venta * v_salida, 2),
          r.precio_compra, round(r.precio_compra * v_salida, 2),
          r.stock_actual, round(r.precio_compra * r.stock_actual, 2),
@@ -112,6 +114,13 @@ begin
          now() - interval '3 days');
     end if;
   end loop;
+
+  -- Responsable de los movimientos ya existentes (011 corrio antes de esto).
+  if v_usuario_id is not null then
+    update public.movimientos
+       set usuario_id = v_usuario_id
+     where empresa_id = v_empresa_id and usuario_id is null;
+  end if;
 
   raise notice 'Demo abarrotes ampliado correctamente';
 end $$;

@@ -1,4 +1,5 @@
 import { error, sesion, exigir, manejar } from '@/lib/auth';
+import { mapaPerfiles } from '@/lib/perfiles';
 
 export const runtime = 'nodejs';
 
@@ -19,7 +20,7 @@ async function producto(request) {
 
   const [movimientos, eventos, valores, empresa] = await Promise.all([
     sb.from('movimientos')
-      .select('*, perfiles(nombre, area, rol)')
+      .select('*')
       .eq('empresa_id', perfil.empresa_id).eq('producto_id', id)
       .order('fecha', { ascending: true }),
     sb.from('bitacora').select('*')
@@ -29,6 +30,9 @@ async function producto(request) {
       .select('campo_id, valor').eq('empresa_id', perfil.empresa_id).eq('producto_id', id),
     sb.from('empresas').select('giro_actual').eq('id', perfil.empresa_id).maybeSingle(),
   ]);
+
+  // movimientos.usuario_id no tiene FK a perfiles: no se puede embeber.
+  const responsables = await mapaPerfiles(sb, (movimientos.data || []).map((m) => m.usuario_id));
 
   // Campos del giro activo de la empresa
   let camposGiro = [];
@@ -44,13 +48,15 @@ async function producto(request) {
   return Response.json({
     ok: true,
     producto: prod,
-    movimientos: (movimientos.data || []).map((m) => ({
-      ...m,
-      usuario_nombre: m.perfiles ? m.perfiles.nombre : null,
-      usuario_area: m.perfiles ? m.perfiles.area : null,
-      usuario_rol: m.perfiles ? m.perfiles.rol : null,
-      perfiles: undefined,
-    })),
+    movimientos: (movimientos.data || []).map((m) => {
+      const p = responsables[m.usuario_id];
+      return {
+        ...m,
+        usuario_nombre: p ? p.nombre : null,
+        usuario_area: p ? p.area : null,
+        usuario_rol: p ? p.rol : null,
+      };
+    }),
     bitacora: eventos.data || [],
     camposGiro,
     valores: valores.data || [],
