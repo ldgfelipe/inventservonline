@@ -132,7 +132,13 @@ Todas las respuestas son JSON con `{ ok, ... }` y exigen `Authorization: Bearer 
 | `GET /api/eventos/adopcion` | Metricas de uso y abandono |
 | `GET /api/planes` | Catalogo de planes (publica) |
 | `GET /api/suscripcion` | Plan actual, vigencia y consumo de la empresa |
-| `GET/POST /api/almacenes` | Almacenes de la empresa (POST requiere plan Pro) |
+| `GET/POST /api/compras`, `/api/compras/[id]` | Compras a proveedores + detalle |
+| `GET /api/cxc` | Cuentas por cobrar |
+| `GET /api/cxp` | Cuentas por pagar |
+| `GET/POST /api/cobros` | Cobros (caja) |
+| `GET/POST /api/pagos-proveedor` | Pagos a proveedores |
+| `GET /api/caja` | Resumen de caja del dia |
+| `GET/POST /api/clientes` | Clientes |
 | `POST /api/pagos/checkout` | Inicia un pago (Stripe / Mercado Pago / PayPal) |
 | `POST /api/pagos/transferencia` | Registra una transferencia con comprobante (queda en revision) |
 | `GET /api/pagos/historial` | Pagos de la empresa |
@@ -177,6 +183,7 @@ Ejecuta los archivos de `sql/` **en orden** en el SQL Editor de Supabase. Todos 
 | `011_demo_ampliado.sql` | Datos demo ampliados |
 | `012_pais_y_moneda.sql` | Pais y moneda por empresa |
 | `013_planes_freemium.sql` | Planes, suscripcion, multi-almacen y pagos SaaS |
+| `014_comercial.sql` | Clientes, ventas, cobros, CxC, compras, CxP y pagos a proveedores |
 
 ## Planes, freemium y limites
 
@@ -194,6 +201,15 @@ Ejecuta los archivos de `sql/` **en orden** en el SQL Editor de Supabase. Todos 
 - La **transferencia manual** se registra en `POST /api/pagos/transferencia` con la URL del comprobante: queda `en_revision` hasta que un super-admin la aprueba en `POST /api/admin/pagos`.
 - Los **webhooks** verifican firma (`STRIPE_WEBHOOK_SECRET`, `MERCADOPAGO_WEBHOOK_SECRET`, verificacion de PayPal) y responden `400` si la firma no es valida.
 - La app funciona **sin credenciales**: una pasarela no configurada responde `503 PasarelaNoConfigurada`. Ver `.env.example` para las variables (`APP_URL`, `STRIPE_*`, `MERCADOPAGO_*`, `PAYPAL_*`).
+
+## Modulo comercial (POS / cobranza + cuentas por pagar)
+
+- Tablas: `clientes`, `ventas` + `venta_detalle`, `cobros`, `cuentas_por_cobrar`, `compras` + `compra_detalle`, `cuentas_por_pagar`, `pagos_proveedor`.
+- RPCs transaccionales: `registrar_venta`, `registrar_cobro`, `registrar_compra`, `registrar_pago_proveedor`. Reutilizan `registrar_movimiento` para el stock, de modo que cabecera, detalle, stock y cuenta por cobrar/pagar nunca quedan a medias.
+- Endpoints: `/api/clientes`, `/api/ventas`, `/api/cobros`, `/api/cxc`, `/api/compras`, `/api/cxp`, `/api/pagos-proveedor`, `/api/caja`.
+- Cobros y pagos a proveedores se aplican a la factura indicada o, si no se indica, en orden FIFO a las cuentas pendientes del cliente/proveedor.
+- Permisos nuevos: `clientes.*`, `ventas.*`, `cobros.registrar`, `caja.ver`, `cxc.ver`, `compras.*`, `cxp.*`. Admin y supervisor los tienen; almacenista opera ventas/compras; consultor solo lectura.
+- La UI de POS (pantalla de venta, caja, CxC/CxP) queda como siguiente paso.
 
 ## Administrador de la plataforma
 

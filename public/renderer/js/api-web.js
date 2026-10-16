@@ -207,6 +207,37 @@ window.api = {
     listar: () => pedir('/api/almacenes').then((r) => r.almacenes || []),
     guardar: (payload) => pedir('/api/almacenes', { metodo: 'POST', json: payload }),
   },
+  clientes: {
+    listar: (filtro = {}) => pedir('/api/clientes' + qs({ busqueda: filtro.busqueda })).then((r) => r.clientes),
+    guardar: (payload) => pedir('/api/clientes', { metodo: 'POST', json: payload }),
+  },
+  ventas: {
+    listar: (o = {}) => pedir('/api/ventas' + qs({ limite: o.limite || 200 })).then((r) => r.ventas),
+    obtener: (id) => pedir('/api/ventas/' + id),
+    crear: (payload) => pedir('/api/ventas', { metodo: 'POST', json: payload }),
+  },
+  cobros: {
+    listar: (o = {}) => pedir('/api/cobros' + qs({ limite: o.limite || 200 })).then((r) => r.cobros),
+    registrar: (payload) => pedir('/api/cobros', { metodo: 'POST', json: payload }),
+  },
+  cxc: {
+    listar: (estado) => pedir('/api/cxc' + (estado ? '?estado=' + encodeURIComponent(estado) : '')).then((r) => r.cxc),
+  },
+  compras: {
+    listar: (o = {}) => pedir('/api/compras' + qs({ limite: o.limite || 200 })).then((r) => r.compras),
+    obtener: (id) => pedir('/api/compras/' + id),
+    crear: (payload) => pedir('/api/compras', { metodo: 'POST', json: payload }),
+  },
+  cxp: {
+    listar: (estado) => pedir('/api/cxp' + (estado ? '?estado=' + encodeURIComponent(estado) : '')).then((r) => r.cxp),
+  },
+  pagosProveedor: {
+    listar: () => pedir('/api/pagos-proveedor').then((r) => r.pagos),
+    registrar: (payload) => pedir('/api/pagos-proveedor', { metodo: 'POST', json: payload }),
+  },
+  caja: {
+    resumen: () => pedir('/api/caja'),
+  },
   monedas: {
     listar: () => pedir('/api/monedas'),
   },
