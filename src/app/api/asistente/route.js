@@ -49,6 +49,41 @@ async function buscarProducto(sb, empresaId, texto, usuarioId) {
   return { encontrado: true, producto: puntuados[0].producto, origen: 'tokens' };
 }
 
+/* -- Formato de las respuestas del asistente --------------------------------
+
+   El renderer espera { ok, intencion, texto, tablas, acciones }:
+   - `tablas`  arreglo de { titulo, columnas:[{campo,titulo}], filas }
+   - `acciones` arreglo de botones { id, etiqueta, tipo, ... }
+
+   Estos dos ayudantes existian en la version de escritorio; al portar la
+   ruta a la web se quedaron fuera y el asistente fallaba con
+   "responder is not defined". Se recuperan aqui. */
+function tabla(titulo, filas, campos, encabezados) {
+  return {
+    titulo,
+    columnas: (campos || []).map((campo, i) => ({
+      campo,
+      titulo: (encabezados && encabezados[i]) || campo,
+    })),
+    filas: filas || [],
+  };
+}
+
+function responder(p, texto, extra) {
+  const tablas = [];
+  let acciones = [];
+  if (Array.isArray(extra)) acciones = extra;
+  else if (extra && typeof extra === 'object' && extra.columnas) tablas.push(extra);
+
+  return {
+    ok: true,
+    intencion: (p && p.intencion) || 'desconocido',
+    texto,
+    tablas,
+    acciones,
+  };
+}
+
 /* POST /api/asistente { texto } */
 async function consultar(request) {
   const { perfil, sb, sbRpc } = await sesion(request);
