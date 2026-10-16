@@ -84,33 +84,61 @@ begin
   select id into v_cat_beb  from public.categorias where empresa_id = v_empresa_id and nombre = 'Bebidas';
   select id into v_cat_pan  from public.categorias where empresa_id = v_empresa_id and nombre = 'Panaderia';
 
-  -- 6. Productos (15)
-  insert into public.productos (empresa_id, codigo, nombre, categoria_id, stock_minimo, stock_actual, precio_compra, precio_venta, ubicacion)
-  values
-    (v_empresa_id, 'AB001', 'Arroz blanco 1Kg', v_cat_abar, 10, 150, 1.80, 2.50, 'Estante A1'),
-    (v_empresa_id, 'AB002', 'Frijoles negros 1Kg', v_cat_abar, 10, 120, 2.20, 3.00, 'Estante A1'),
-    (v_empresa_id, 'AB003', 'Aceite de maiz 1L', v_cat_abar, 5, 80, 3.50, 4.80, 'Estante A2'),
-    (v_empresa_id, 'AB004', 'Azucar blanca 1Kg', v_cat_abar, 10, 200, 1.40, 2.00, 'Estante A2'),
-    (v_empresa_id, 'AB005', 'Cafe molido 250g', v_cat_abar, 8, 60, 2.80, 4.00, 'Estante A3'),
-    (v_empresa_id, 'AB006', 'Leche en polvo 400g', v_cat_abar, 6, 70, 3.20, 4.50, 'Estante A3'),
-    (v_empresa_id, 'AB007', 'Harina de maiz 1Kg', v_cat_abar, 10, 150, 1.60, 2.20, 'Estante A1'),
-    (v_empresa_id, 'AB008', 'Salsa de tomate 500g', v_cat_abar, 8, 90, 1.70, 2.40, 'Estante A4'),
-    (v_empresa_id, 'AB009', 'Atun en lata 170g', v_cat_abar, 12, 110, 2.00, 2.90, 'Estante A4'),
-    (v_empresa_id, 'AB010', 'Pasta corta 500g', v_cat_abar, 10, 140, 1.50, 2.10, 'Estante A4'),
-    (v_empresa_id, 'LP001', 'Detergente liquido 1L', v_cat_lim, 5, 50, 3.00, 4.20, 'Estante L1'),
-    (v_empresa_id, 'LP002', 'Jabon de tocador 90g', v_cat_lim, 12, 150, 0.90, 1.40, 'Estante L1'),
-    (v_empresa_id, 'LP003', 'Papel higienico 4 rollos', v_cat_lim, 8, 80, 2.40, 3.50, 'Estante L2'),
-    (v_empresa_id, 'BB001', 'Gaseosa 2L', v_cat_beb, 10, 95, 1.90, 2.80, 'Nevera/Bebidas'),
-    (v_empresa_id, 'BB002', 'Cerveza lata 355ml x6', v_cat_beb, 6, 40, 7.50, 10.50, 'Nevera/Bebidas')
-  on conflict (empresa_id, codigo) do update
-    set nombre = excluded.nombre,
-        categoria_id = excluded.categoria_id,
-        stock_minimo = excluded.stock_minimo,
-        stock_actual = excluded.stock_actual,
-        precio_compra = excluded.precio_compra,
-        precio_venta  = excluded.precio_venta,
-        ubicacion     = excluded.ubicacion,
-        activo        = true;
+  -- 6. Productos (15) - insert o actualizar segun existencia (ON CONFLICT no sirve
+  --     porque el indice unico de productos es parcial: WHERE codigo is not null)
+  for p in (
+    select * from (values
+      ('AB001', 'Arroz blanco 1Kg',   'Abarrotes',  10, 150, 1.80, 2.50, 'Estante A1'),
+      ('AB002', 'Frijoles negros 1Kg','Abarrotes',  10, 120, 2.20, 3.00, 'Estante A1'),
+      ('AB003', 'Aceite de maiz 1L',  'Abarrotes',   5,  80, 3.50, 4.80, 'Estante A2'),
+      ('AB004', 'Azucar blanca 1Kg',  'Abarrotes',  10, 200, 1.40, 2.00, 'Estante A2'),
+      ('AB005', 'Cafe molido 250g',   'Abarrotes',   8,  60, 2.80, 4.00, 'Estante A3'),
+      ('AB006', 'Leche en polvo 400g','Abarrotes',   6,  70, 3.20, 4.50, 'Estante A3'),
+      ('AB007', 'Harina de maiz 1Kg', 'Abarrotes',  10, 150, 1.60, 2.20, 'Estante A1'),
+      ('AB008', 'Salsa de tomate 500g','Abarrotes',  8,  90, 1.70, 2.40, 'Estante A4'),
+      ('AB009', 'Atun en lata 170g',  'Abarrotes',  12, 110, 2.00, 2.90, 'Estante A4'),
+      ('AB010', 'Pasta corta 500g',   'Abarrotes',  10, 140, 1.50, 2.10, 'Estante A4'),
+      ('LP001', 'Detergente liquido 1L', 'Limpieza',  5,  50, 3.00, 4.20, 'Estante L1'),
+      ('LP002', 'Jabon de tocador 90g',  'Limpieza', 12, 150, 0.90, 1.40, 'Estante L1'),
+      ('LP003', 'Papel higienico 4 rollos','Limpieza', 8,  80, 2.40, 3.50, 'Estante L2'),
+      ('BB001', 'Gaseosa 2L',          'Bebidas',   10,  95, 1.90, 2.80, 'Nevera/Bebidas'),
+      ('BB002', 'Cerveza lata 355ml x6','Bebidas',    6,  40, 7.50, 10.50, 'Nevera/Bebidas')
+    ) as v(codigo, nombre, cat, stock_min, stock_act, compra, venta, ubic)
+  ) loop
+    declare
+      v_cat_id uuid;
+      v_prod_id uuid;
+    begin
+      select id into v_cat_id
+      from public.categorias
+      where empresa_id = v_empresa_id and nombre = p.cat;
+
+      select id into v_prod_id
+      from public.productos
+      where empresa_id = v_empresa_id and codigo = p.codigo;
+
+      if v_prod_id is null then
+        insert into public.productos (
+          empresa_id, codigo, nombre, categoria_id, stock_minimo, stock_actual,
+          precio_compra, precio_venta, ubicacion, activo
+        ) values (
+          v_empresa_id, p.codigo, p.nombre, v_cat_id, p.stock_min, p.stock_act,
+          p.compra, p.venta, p.ubic, true
+        );
+      else
+        update public.productos
+        set nombre = p.nombre,
+            categoria_id = v_cat_id,
+            stock_minimo = p.stock_min,
+            stock_actual = p.stock_act,
+            precio_compra = p.compra,
+            precio_venta = p.venta,
+            ubicacion = p.ubic,
+            activo = true
+        where id = v_prod_id;
+      end if;
+    end;
+  end loop;
 
   raise notice 'Demo Abarrotes creado/actualizado correctamente';
 end $$;
