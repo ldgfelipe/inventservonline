@@ -79,6 +79,20 @@ npm run dev
 
 Abre http://localhost:3000, crea una cuenta en `/registro` y entra.
 
+### Cuenta de demostración
+
+Para que cualquiera pueda probar el sistema sin registrarse, ejecuta `sql/009_demo_abarrotes.sql` en el **SQL Editor de Supabase**. Crea una tienda de abarrotes con 15 productos precargados y una cuenta demo:
+
+| Campo | Valor |
+|-------|-------|
+| Email | `demo@abarrotes.com` |
+| Contraseña | `demo123456` |
+| Empresa | Abarrotes La Esquina (plan trial) |
+| Giro | Supermercado y abastos |
+| Rol | admin de la empresa (no super_admin) |
+
+La landing (`/`) muestra un botón **"Probar el sistema"** que autentica con esas credenciales y redirige al panel. Cambia la contraseña en producción.
+
 ### 3. Vercel
 
 ```bash
