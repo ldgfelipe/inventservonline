@@ -322,6 +322,8 @@ body {
 .badge-bajo { background: #fef3c7; color: var(--color-warning); }
 .badge-agotado { background: #fee2e2; color: var(--color-error); }
 .badge-ok { background: #dcfce7; color: var(--color-exito); }
+.badge-reorden { background: #ffedd5; color: #c2410c; }
+.badge-exceso { background: #dbeafe; color: #1d4ed8; }
 
 /* Modal */
 .modal {

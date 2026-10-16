@@ -62,16 +62,27 @@ async function registrar(request) {
   if (!productoId) return error('Falta el producto');
   if (!Number.isFinite(cantidad) || cantidad <= 0) return error('La cantidad debe ser mayor a cero');
 
-  // Transaccion real: actualizar stock + insertar movimiento.
+  // Transaccion real: actualizar stock + insertar movimiento valorizado.
   // La funcion deriva la empresa y el usuario de la sesion, no de los parametros.
-  const { data, error: err } = await sbRpc.rpc('registrar_movimiento', {
+  const args = {
     p_producto: productoId,
     p_tipo: esEntrada ? 'entrada' : 'salida',
     p_cantidad: cantidad,
     p_precio: Number(cuerpo.precio_unitario) || 0,
     p_observacion: cuerpo.observacion || null,
     p_proveedor: cuerpo.proveedor_id || null,
-  });
+    p_concepto: cuerpo.concepto || null,
+    p_documento: cuerpo.documento || null,
+  };
+
+  let { data, error: err } = await sbRpc.rpc('registrar_movimiento', args);
+
+  // Compatibilidad: si la base todavia no tiene la migracion 010, la
+  // funcion no acepta concepto/documento. Reintentamos sin ellos.
+  if (err && /registrar_movimiento|argument|schema cache/i.test(err.message)) {
+    const { p_concepto, p_documento, ...basicos } = args;
+    ({ data, error: err } = await sbRpc.rpc('registrar_movimiento', basicos));
+  }
 
   if (err) {
     if (/insuficiente/i.test(err.message)) return error(err.message, 409);
@@ -90,6 +101,10 @@ async function registrar(request) {
     stock_actual: data.stock_actual,
     producto: data.nombre,
     total: data.total,
+    costo_unitario: data.costo_unitario,
+    costo_total: data.costo_total,
+    costo_promedio: data.costo_promedio,
+    saldo_valor: data.saldo_valor,
   }, { status: 201 });
 }
 

@@ -114,6 +114,7 @@ window.api = {
     listar: (filtro = {}) => pedir('/api/productos' + qs({
       busqueda: filtro.busqueda,
       categoria_id: filtro.categoria_id,
+      proveedor_id: filtro.proveedor_id,
       stock: filtro.stock,
       limite: filtro.limite || 500,
     })).then((r) => r.productos),
@@ -142,6 +143,14 @@ window.api = {
     stats: () => pedir('/api/dashboard').then((r) => r.stats),
   },
 
+  contabilidad: {
+    resumen: (filtros = {}) => pedir('/api/contabilidad' + qs({
+      desde: filtros.desde,
+      hasta: filtros.hasta,
+      producto_id: filtros.producto_id,
+    })),
+  },
+
   categorias: {
     listar: () => pedir('/api/categorias').then((r) => r.categorias),
     guardar: (payload) => pedir('/api/categorias', { metodo: 'POST', json: payload }),
@@ -167,6 +176,10 @@ window.api = {
     set: (clave, valor) => pedir('/api/config', { metodo: 'POST', json: { clave, valor } }),
   },
 
+  empresa: {
+    obtener: () => pedir('/api/empresa').then((r) => r.empresa),
+  },
+
   export: {
     excel: (payload) => pedir('/api/export', { metodo: 'POST', json: payload }).then((r) => {
       if (r && r.ok && r.contenido) {
@@ -186,6 +199,11 @@ window.api = {
 
   imprimir: {
     listar: () => Promise.resolve([]),
+    // Documento HTML libre: lo usan los comprobantes, actas y fichas.
+    html: (contenido) => {
+      abrirVentanaImpresion(contenido);
+      return Promise.resolve({ ok: true });
+    },
     reporte: (payload) => {
       abrirVentanaImpresion(htmlReporte(payload.titulo, payload.columnas, payload.filas));
       return Promise.resolve({ ok: true });

@@ -49,6 +49,9 @@
         <button class="nav-item" data-vista="proveedores">
           <span class="nav-icon">&#9881;</span> Proveedores
         </button>
+        <button class="nav-item nav-solo-admin" data-vista="contabilidad">
+          <span class="nav-icon">&#9861;</span> Contabilidad
+        </button>
         <button class="nav-item" data-vista="bitacora">
           <span class="nav-icon">&#9776;</span> Bitacora
         </button>
@@ -85,10 +88,11 @@
         <section id="vista-dashboard" class="vista active">
           <div class="stats-grid" id="statsGrid"></div>
           <div class="panel">
-            <h3>Stock bajo o agotado</h3>
+            <h3>Alertas de stock</h3>
+            <p class="texto-ayuda">Productos agotados, bajo minimo, por reordenar o por encima del maximo.</p>
             <table class="tabla">
               <thead>
-                <tr><th>Codigo</th><th>Producto</th><th>Categoria</th><th>Stock</th><th>Minimo</th></tr>
+                <tr><th>Codigo</th><th>Producto</th><th>Categoria</th><th>Stock</th><th>Minimo</th><th>Maximo</th><th>Estado</th></tr>
               </thead>
               <tbody id="stockBajoBody"></tbody>
             </table>
@@ -109,10 +113,13 @@
           <div class="toolbar">
             <input type="text" id="buscarProducto" placeholder="Buscar por nombre o codigo..." class="input-buscar" />
             <select id="filtroCategoria" class="input-select"></select>
+            <select id="filtroProveedorProducto" class="input-select"></select>
             <select id="filtroStock" class="input-select">
               <option value="">Todo el stock</option>
-              <option value="bajo">Stock bajo</option>
               <option value="agotado">Agotado</option>
+              <option value="bajo">Bajo minimo</option>
+              <option value="reorden">Por reordenar</option>
+              <option value="exceso">Sobre el maximo</option>
             </select>
             <button id="btnExportarProductos" class="btn btn-secondary">Exportar Excel</button>
             <button id="btnImprimirProductos" class="btn btn-secondary">Imprimir</button>
@@ -124,7 +131,8 @@
               <thead>
                 <tr>
                   <th>Codigo</th><th>Nombre</th><th>Categoria</th>
-                  <th>Stock</th><th>Minimo</th><th>Precio venta</th><th>Acciones</th>
+                  <th>Stock</th><th>Min</th><th>Max</th><th>Reorden</th>
+                  <th>Estado</th><th>Precio venta</th><th>Acciones</th>
                 </tr>
               </thead>
               <tbody id="productosBody"></tbody>
@@ -149,7 +157,11 @@
           <div class="panel">
             <table class="tabla">
               <thead>
-                <tr><th>Fecha</th><th>Producto</th><th>Tipo</th><th>Cantidad</th><th>Precio</th><th>Total</th><th>Responsable</th><th>Area</th><th>Observacion</th></tr>
+                <tr>
+                  <th>Fecha</th><th>Producto</th><th>Tipo</th><th>Cantidad</th>
+                  <th>Precio</th><th>Costo unit.</th><th>Total</th><th>Costo total</th>
+                  <th>Responsable</th><th>Documento</th><th>Acciones</th>
+                </tr>
               </thead>
               <tbody id="movimientosBody"></tbody>
             </table>
@@ -167,6 +179,44 @@
                 <tr><th>Nombre</th><th>RIF</th><th>Telefono</th><th>Email</th><th>Direccion</th><th>Acciones</th></tr>
               </thead>
               <tbody id="proveedoresBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Vista: Contabilidad -->
+        <section id="vista-contabilidad" class="vista">
+          <div class="toolbar">
+            <label class="check-label">Desde <input type="date" id="contabDesde" class="input-select" /></label>
+            <label class="check-label">Hasta <input type="date" id="contabHasta" class="input-select" /></label>
+            <button id="btnConsultarContab" class="btn btn-primary">Consultar</button>
+            <button id="btnExportarContab" class="btn btn-secondary">Exportar Excel</button>
+            <button id="btnImprimirContab" class="btn btn-secondary">Imprimir informe</button>
+          </div>
+          <div id="contabKpis" class="stats-grid"></div>
+          <div class="panel">
+            <h3>Inventario valorizado por categoria</h3>
+            <table class="tabla">
+              <thead>
+                <tr><th>Categoria</th><th>Productos</th><th>Unidades</th><th>Valor a costo</th><th>Valor a venta</th><th>Utilidad potencial</th></tr>
+              </thead>
+              <tbody id="contabCategoriasBody"></tbody>
+            </table>
+          </div>
+          <div class="panel">
+            <h3>Kardex valorizado (costo promedio ponderado)</h3>
+            <p class="texto-ayuda">
+              Cada movimiento con su costo unitario, costo total y el saldo de unidades y valor del producto.
+              Las entradas recalculan el costo promedio; las salidas se valorizan a ese costo.
+            </p>
+            <table class="tabla tabla-compacta">
+              <thead>
+                <tr>
+                  <th>Fecha</th><th>Producto</th><th>Tipo</th><th>Concepto</th><th>Documento</th>
+                  <th>Cantidad</th><th>Precio</th><th>Costo unit.</th><th>Costo total</th>
+                  <th>Saldo uds</th><th>Saldo valor</th>
+                </tr>
+              </thead>
+              <tbody id="kardexBody"></tbody>
             </table>
           </div>
         </section>
@@ -321,12 +371,20 @@
           </select>
         </div>
         <div class="campo">
+          <label>Concepto / motivo</label>
+          <select id="movConcepto" class="input-select"></select>
+        </div>
+        <div class="campo">
           <label>Cantidad</label>
           <input type="number" id="movCantidad" min="1" value="1" required />
         </div>
         <div class="campo">
-          <label>Precio unitario</label>
+          <label id="movPrecioLabel">Precio unitario</label>
           <input type="number" id="movPrecio" min="0" step="0.01" value="0" />
+        </div>
+        <div class="campo">
+          <label>Documento / referencia</label>
+          <input type="text" id="movDocumento" placeholder="Factura, orden, nota..." />
         </div>
         <div class="campo">
           <label>Proveedor (opcional)</label>

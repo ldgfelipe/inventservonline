@@ -12,6 +12,7 @@ const AREAS = [
   'Farmacia / Despacho',
   'Compras',
   'Ventas',
+  'Contabilidad',
 ];
 
 /* Catalogo de permisos. La clave se usa para autorizar cada accion. */
@@ -24,6 +25,7 @@ const PERMISOS = {
   'movimientos.entrada': 'Registrar entradas de stock',
   'movimientos.salida': 'Registrar salidas de stock',
   'trazabilidad.ver': 'Ver trazabilidad del producto',
+  'contabilidad.ver': 'Ver el area contable y el kardex valorizado',
   'reportes.ver': 'Ver reportes',
   'reportes.exportar': 'Exportar a Excel',
   'reportes.imprimir': 'Imprimir',
@@ -79,6 +81,7 @@ const ROLES = {
       'productos.ver',
       'movimientos.ver',
       'trazabilidad.ver',
+      'contabilidad.ver',
       'reportes.ver',
       'proveedores.ver',
     ],

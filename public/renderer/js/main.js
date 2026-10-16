@@ -13,6 +13,8 @@ const ESTADO = {
   usuario: null,
   editando: null,
   eventosListos: false,
+  contabilidad: null,
+  empresa: null,
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -102,6 +104,7 @@ function aplicarPermisosUI() {
     proveedores: 'proveedores.ver',
     bitacora: 'bitacora.ver',
     usuarios: 'usuarios.gestionar',
+    contabilidad: 'contabilidad.ver',
     config: 'config.ver',
   };
   document.querySelectorAll('.nav-item').forEach(n => {
@@ -121,6 +124,9 @@ function aplicarPermisosUI() {
   alternarBoton('btnNuevoProveedor', 'proveedores.gestionar');
   alternarBoton('btnEnviarWebhook', 'webhook.enviar');
   alternarBoton('btnExportarBitacora', 'reportes.exportar');
+  alternarBoton('btnConsultarContab', 'contabilidad.ver');
+  alternarBoton('btnExportarContab', 'contabilidad.ver');
+  alternarBoton('btnImprimirContab', 'contabilidad.ver');
 
   // Panel de configuracion visible solo con acceso a config o a webhook
   const panelWebhook = document.getElementById('webhookUrl');
@@ -146,6 +152,7 @@ async function iniciar() {
   // Cada carga de datos se protege por separado: si una falla (catalogo
   // incompleto, permiso ausente), el sistema igual queda navegable.
   await cargarSinRomper(cargarGiroActual, 'el giro actual');
+  await cargarSinRomper(cargarEmpresa, 'los datos de la empresa');
   await cargarSinRomper(cargarCategorias, 'las categorias');
   await cargarSinRomper(cargarProveedores, 'los proveedores');
   // Los eventos se registran una sola vez por sesion de pagina:
@@ -161,6 +168,7 @@ async function iniciar() {
     configurarEventosSesion();
     configurarEventosAsistente();
     configurarEventosImportador();
+    configurarEventosContabilidad();
     configurarMenu();
     ESTADO.eventosListos = true;
   }
@@ -189,6 +197,10 @@ async function cargarGiroActual() {
   ESTADO.camposGiro = ESTADO.giro ? await window.api.giros.campos(ESTADO.giro) : [];
 }
 
+async function cargarEmpresa() {
+  ESTADO.empresa = await window.api.empresa.obtener();
+}
+
 async function cargarCategorias() {
   ESTADO.categorias = await window.api.categorias.listar();
   const sel = document.getElementById('filtroCategoria');
@@ -203,12 +215,23 @@ async function cargarCategorias() {
 
 async function cargarProveedores() {
   ESTADO.proveedores = await window.api.proveedores.listar();
+  renderFiltroProveedores();
+}
+
+function renderFiltroProveedores() {
+  const sel = document.getElementById('filtroProveedorProducto');
+  if (!sel) return;
+  const actual = sel.value;
+  sel.innerHTML = '<option value="">Todos los proveedores</option>' +
+    ESTADO.proveedores.map(p => `<option value="${p.id}">${escaparHtml(p.nombre)}</option>`).join('');
+  if (actual) sel.value = actual;
 }
 
 async function cargarProductos() {
   ESTADO.productos = await window.api.producto.listar({
     busqueda: document.getElementById('buscarProducto').value.trim(),
     categoria_id: document.getElementById('filtroCategoria').value || undefined,
+    proveedor_id: document.getElementById('filtroProveedorProducto')?.value || undefined,
     stock: document.getElementById('filtroStock').value || undefined,
     limite: 500,
   });
@@ -226,39 +249,68 @@ async function cargarMovimientos() {
 }
 
 async function cargarDashboard() {
-  const [stats, stockBajo, ultimos] = await Promise.all([
+  const [stats, productos, ultimos] = await Promise.all([
     window.api.dashboard.stats(),
-    window.api.producto.listar({ stock: 'bajo', limite: 50 }),
+    window.api.producto.listar({ limite: 1000 }),
     window.api.movimientos.listar({ limite: 8 }),
   ]);
 
   document.getElementById('statsGrid').innerHTML = `
     <div class="stat-card primario"><h4>Total productos</h4><div class="valor">${stats.productos}</div></div>
     <div class="stat-card exito"><h4>Unidades en stock</h4><div class="valor">${stats.unidades}</div></div>
-    <div class="stat-card"><h4>Valor inventario</h4><div class="valor">${formatoMoneda(stats.valor)}</div></div>
-    <div class="stat-card warning"><h4>Stock bajo</h4><div class="valor">${stats.stockBajo}</div></div>
+    <div class="stat-card"><h4>Valor a costo</h4><div class="valor">${formatoMoneda(stats.valorCosto || 0)}</div></div>
+    <div class="stat-card"><h4>Valor a venta</h4><div class="valor">${formatoMoneda(stats.valor)}</div></div>
+    <div class="stat-card warning"><h4>Bajo minimo</h4><div class="valor">${stats.stockBajo}</div></div>
+    <div class="stat-card warning"><h4>Por reordenar</h4><div class="valor">${stats.porReordenar || 0}</div></div>
+    <div class="stat-card"><h4>Sobre el maximo</h4><div class="valor">${stats.stockExceso || 0}</div></div>
     <div class="stat-card error"><h4>Agotados</h4><div class="valor">${stats.agotados}</div></div>
     <div class="stat-card"><h4>Movimientos hoy</h4><div class="valor">${stats.movimientosHoy}</div></div>
   `;
 
-  document.getElementById('stockBajoBody').innerHTML = stockBajo.length
-    ? stockBajo.slice(0, 20).map(p => {
-        const clase = p.stock_actual === 0 ? 'badge-agotado' : 'badge-bajo';
-        return `<tr>
-          <td>${p.codigo || '-'}</td><td>${p.nombre}</td><td>${p.categoria_nombre || '-'}</td>
-          <td><span class="badge ${clase}">${p.stock_actual}</span></td><td>${p.stock_minimo || 0}</td>
-        </tr>`;
-      }).join('')
-    : '<tr><td colspan="5" class="vacio">Sin alertas de stock</td></tr>';
+  // Las alertas se ordenan por gravedad para que lo urgente quede arriba.
+  const orden = { agotado: 0, bajo: 1, reorden: 2, exceso: 3 };
+  const alertas = productos
+    .filter(p => p.alerta && p.alerta !== 'ok')
+    .sort((a, b) => (orden[a.alerta] ?? 9) - (orden[b.alerta] ?? 9))
+    .slice(0, 30);
+
+  document.getElementById('stockBajoBody').innerHTML = alertas.length
+    ? alertas.map(p => `<tr>
+        <td>${p.codigo || '-'}</td><td>${escaparHtml(p.nombre)}</td><td>${p.categoria_nombre || '-'}</td>
+        <td><span class="badge ${badgeAlerta(p.alerta)}">${p.stock_actual}</span></td>
+        <td>${p.stock_minimo || 0}</td><td>${p.stock_maximo || 0}</td>
+        <td>${etiquetaAlerta(p.alerta)}</td>
+      </tr>`).join('')
+    : '<tr><td colspan="7" class="vacio">Sin alertas de stock</td></tr>';
 
   document.getElementById('ultimosMovBody').innerHTML = ultimos.length
     ? ultimos.map(m => `<tr>
-        <td>${formatoFecha(m.fecha)}</td><td>${m.producto_nombre}</td>
+        <td>${formatoFecha(m.fecha)}</td><td>${escaparHtml(m.producto_nombre)}</td>
         <td><span class="badge ${m.tipo === 'entrada' ? 'badge-entrada' : 'badge-salida'}">${m.tipo}</span></td>
         <td>${m.cantidad}</td><td>${m.usuario_nombre || m.usuario_login || '-'}</td>
         <td>${m.observacion || '-'}</td>
       </tr>`).join('')
     : '<tr><td colspan="6" class="vacio">Sin movimientos registrados</td></tr>';
+}
+
+function badgeAlerta(alerta) {
+  return {
+    agotado: 'badge-agotado',
+    bajo: 'badge-bajo',
+    reorden: 'badge-reorden',
+    exceso: 'badge-exceso',
+    ok: 'badge-ok',
+  }[alerta] || 'badge-ok';
+}
+
+function etiquetaAlerta(alerta) {
+  return {
+    agotado: 'Agotado',
+    bajo: 'Bajo minimo',
+    reorden: 'Por reordenar',
+    exceso: 'Sobre el maximo',
+    ok: 'OK',
+  }[alerta] || 'OK';
 }
 
 /* ------------------ Render ------------------ */
@@ -267,47 +319,54 @@ function renderProductos() {
   const tb = document.getElementById('productosBody');
   tb.innerHTML = ESTADO.productos.length
     ? ESTADO.productos.map(p => {
-        let clase = 'badge-ok';
-        if (p.stock_actual === 0) clase = 'badge-agotado';
-        else if (p.stock_actual <= p.stock_minimo) clase = 'badge-bajo';
+        const alerta = p.alerta || 'ok';
         return `<tr>
-          <td>${p.codigo || '-'}</td><td>${p.nombre}</td><td>${p.categoria_nombre || '-'}</td>
-          <td><span class="badge ${clase}">${p.stock_actual}</span></td>
+          <td>${p.codigo || '-'}</td><td>${escaparHtml(p.nombre)}</td><td>${p.categoria_nombre || '-'}</td>
+          <td><span class="badge ${badgeAlerta(alerta)}">${p.stock_actual} ${escaparHtml(p.unidad || '')}</span></td>
           <td>${p.stock_minimo || 0}</td>
+          <td>${p.stock_maximo || 0}</td>
+          <td>${p.punto_reorden || 0}</td>
+          <td>${etiquetaAlerta(alerta)}</td>
           <td>${formatoMoneda(p.precio_venta || 0)}</td>
           <td>
-            <button class="btn btn-ghost btn-mini" onclick="editarProducto(${p.id})">Editar</button>
-            <button class="btn btn-ghost btn-mini" onclick="verTrazabilidad(${p.id})" title="Ver historial completo">Trazabilidad</button>
-            <button class="btn btn-ghost btn-mini btn-mini-peligro" onclick="eliminarProducto(${p.id})" title="Eliminar">Eliminar</button>
+            <button class="btn btn-ghost btn-mini" onclick="editarProducto('${p.id}')">Editar</button>
+            <button class="btn btn-ghost btn-mini" onclick="verTrazabilidad('${p.id}')" title="Ver historial completo">Trazabilidad</button>
+            <button class="btn btn-ghost btn-mini" onclick="entradaRapida('${p.id}')" title="Registrar entrada rapida">+ Entrada</button>
+            <button class="btn btn-ghost btn-mini btn-mini-peligro" onclick="eliminarProducto('${p.id}')" title="Eliminar">Eliminar</button>
           </td>
         </tr>`;
       }).join('')
-    : '<tr><td colspan="7" class="vacio">No hay productos</td></tr>';
+    : '<tr><td colspan="10" class="vacio">No hay productos</td></tr>';
 }
 
 function renderMovimientos() {
   const tb = document.getElementById('movimientosBody');
   tb.innerHTML = ESTADO.movimientos.length
     ? ESTADO.movimientos.map(m => `<tr>
-        <td>${formatoFecha(m.fecha)}</td><td>${m.producto_nombre}</td>
+        <td>${formatoFecha(m.fecha)}</td><td>${escaparHtml(m.producto_nombre)}</td>
         <td><span class="badge ${m.tipo === 'entrada' ? 'badge-entrada' : 'badge-salida'}">${m.tipo}</span></td>
         <td>${m.cantidad}</td>
         <td>${formatoMoneda(m.precio_unitario || 0)}</td>
+        <td>${formatoMoneda(m.costo_unitario || 0)}</td>
         <td>${formatoMoneda(m.total || 0)}</td>
+        <td>${formatoMoneda(m.costo_total || 0)}</td>
         <td>${m.usuario_nombre || m.usuario_login || '-'}</td>
-        <td>${m.usuario_area || '-'}</td>
-        <td>${m.observacion || '-'}</td>
+        <td>${m.documento || m.concepto || '-'}</td>
+        <td><button class="btn btn-ghost btn-mini" onclick="imprimirComprobanteMovimiento('${m.id}')">Imprimir</button></td>
       </tr>`).join('')
-    : '<tr><td colspan="9" class="vacio">Sin movimientos</td></tr>';
+    : '<tr><td colspan="11" class="vacio">Sin movimientos</td></tr>';
 }
 
 function renderProveedores() {
   const tb = document.getElementById('proveedoresBody');
   tb.innerHTML = ESTADO.proveedores.length
     ? ESTADO.proveedores.map(p => `<tr>
-        <td>${p.nombre}</td><td>${p.rif || '-'}</td><td>${p.telefono || '-'}</td>
+        <td>${escaparHtml(p.nombre)}</td><td>${p.rif || '-'}</td><td>${p.telefono || '-'}</td>
         <td>${p.email || '-'}</td><td>${p.direccion || '-'}</td>
-        <td><button class="btn btn-ghost btn-mini" onclick="editarProveedor(${p.id})">Editar</button></td>
+        <td>
+          <button class="btn btn-ghost btn-mini" onclick="editarProveedor('${p.id}')">Editar</button>
+          <button class="btn btn-ghost btn-mini" onclick="imprimirFichaProveedor('${p.id}')">Imprimir ficha</button>
+        </td>
       </tr>`).join('')
     : '<tr><td colspan="6" class="vacio">Sin proveedores</td></tr>';
 }
@@ -331,6 +390,7 @@ function navegar(vista) {
     proveedores: 'Proveedores',
     usuarios: 'Usuarios y permisos',
     bitacora: 'Bitacora y trazabilidad',
+    contabilidad: 'Contabilidad y kardex',
     config: 'Configuracion',
   }[vista] || vista;
 
@@ -339,6 +399,7 @@ function navegar(vista) {
   if (vista === 'movimientos') cargarMovimientos();
   if (vista === 'proveedores') renderProveedores();
   if (vista === 'usuarios') cargarVistaUsuarios();
+  if (vista === 'contabilidad') cargarContabilidad();
   if (vista === 'config') cargarOpcionesConfig();
   if (vista === 'bitacora') cargarVistaBitacora();
 }
@@ -349,6 +410,7 @@ function configurarMenu() {
       'vista:dashboard': 'dashboard', 'vista:productos': 'productos',
       'vista:movimientos': 'movimientos', 'vista:proveedores': 'proveedores',
       'vista:usuarios': 'usuarios', 'vista:bitacora': 'bitacora',
+      'vista:contabilidad': 'contabilidad',
       'vista:config': 'config',
       'accion:nuevo-producto': null, 'accion:exportar': null, 'accion:webhook': null,
       'accion:logout': null,
@@ -370,6 +432,7 @@ function configurarEventosProductos() {
     t = setTimeout(cargarProductos, 300);
   });
   document.getElementById('filtroCategoria').addEventListener('change', cargarProductos);
+  document.getElementById('filtroProveedorProducto').addEventListener('change', cargarProductos);
   document.getElementById('filtroStock').addEventListener('change', cargarProductos);
   document.getElementById('btnNuevoProducto').addEventListener('click', nuevoProducto);
   document.getElementById('btnExportarProductos').addEventListener('click', exportarProductosExcel);
@@ -402,18 +465,24 @@ async function renderCamposProducto(productoId = null, p = {}) {
   cont.innerHTML = `
     <div class="campo"><label>Codigo</label><input type="text" id="p_codigo" value="${p.codigo || ''}"></div>
     <div class="campo"><label>Categoria</label><select id="p_categoria" class="input-select">${
-      ESTADO.categorias.map(c => `<option value="${c.id}" ${p.categoria_id === c.id ? 'selected' : ''}>${c.nombre}</option>`).join('')
+      ESTADO.categorias.map(c => `<option value="${c.id}" ${p.categoria_id === c.id ? 'selected' : ''}>${escaparHtml(c.nombre)}</option>`).join('')
     }</select></div>
-    <div class="campo ancho-completo"><label>Nombre *</label><input type="text" id="p_nombre" value="${p.nombre || ''}" required></div>
+    <div class="campo ancho-completo"><label>Nombre *</label><input type="text" id="p_nombre" value="${escaparHtml(p.nombre || '')}" required></div>
     <div class="campo"><label>Stock actual</label><input type="number" id="p_stockActual" value="${p.stock_actual || 0}"></div>
+    <div class="campo"><label>Unidad de medida</label><input type="text" id="p_unidad" value="${p.unidad || 'unidad'}" placeholder="unidad, caja, kg..."></div>
     <div class="campo"><label>Stock minimo</label><input type="number" id="p_stockMinimo" value="${p.stock_minimo || 0}"></div>
+    <div class="campo"><label>Stock maximo</label><input type="number" id="p_stockMaximo" value="${p.stock_maximo || 0}"></div>
+    <div class="campo"><label>Punto de reorden</label><input type="number" id="p_puntoReorden" value="${p.punto_reorden || 0}"></div>
+    <div class="campo"><label>Costo promedio</label><input type="number" id="p_costoPromedio" value="${p.costo_promedio || 0}" disabled title="Se calcula solo con las entradas"></div>
     <div class="campo"><label>Precio de compra</label><input type="number" step="0.01" id="p_precioCompra" value="${p.precio_compra || 0}"></div>
     <div class="campo"><label>Precio de venta</label><input type="number" step="0.01" id="p_precioVenta" value="${p.precio_venta || 0}"></div>
+    <div class="campo"><label>Lote</label><input type="text" id="p_lote" value="${p.lote || ''}"></div>
+    <div class="campo"><label>Fecha de vencimiento</label><input type="date" id="p_vencimiento" value="${p.fecha_vencimiento || ''}"></div>
+    <div class="campo ancho-completo"><label>Ubicacion en almacen</label><input type="text" id="p_ubicacion" value="${escaparHtml(p.ubicacion || '')}" placeholder="Pasillo, estante, nivel..."></div>
     <div class="campo ancho-completo"><label>Proveedor</label><select id="p_proveedor" class="input-select">
       <option value="">Sin proveedor</option>
-      ${ESTADO.proveedores.map(pr => `<option value="${pr.id}" ${p.proveedor_id === pr.id ? 'selected' : ''}>${pr.nombre}</option>`).join('')}
+      ${ESTADO.proveedores.map(pr => `<option value="${pr.id}" ${p.proveedor_id === pr.id ? 'selected' : ''}>${escaparHtml(pr.nombre)}</option>`).join('')}
     </select></div>
-    <div class="campo ancho-completo"><label>Ubicacion</label><input type="text" id="p_ubicacion" value="${p.ubicacion || ''}"></div>
   `;
 
   if (ESTADO.camposGiro.length) {
@@ -442,6 +511,11 @@ async function guardarProducto(e) {
     proveedor_id: document.getElementById('p_proveedor').value || null,
     stock_actual: Number(document.getElementById('p_stockActual').value || 0),
     stock_minimo: Number(document.getElementById('p_stockMinimo').value || 0),
+    stock_maximo: Number(document.getElementById('p_stockMaximo').value || 0),
+    punto_reorden: Number(document.getElementById('p_puntoReorden').value || 0),
+    unidad: document.getElementById('p_unidad').value.trim() || 'unidad',
+    lote: document.getElementById('p_lote').value.trim() || null,
+    fecha_vencimiento: document.getElementById('p_vencimiento').value || null,
     precio_compra: Number(document.getElementById('p_precioCompra').value || 0),
     precio_venta: Number(document.getElementById('p_precioVenta').value || 0),
     ubicacion: document.getElementById('p_ubicacion').value,
@@ -467,12 +541,15 @@ function cerrarModalProducto() {
 }
 
 async function entradaRapida(id) {
+  const prod = ESTADO.productos.find(p => p.id === id);
   const cantidad = prompt('Cantidad a ingresar al stock:');
   if (!cantidad || Number(cantidad) <= 0) return;
+  const costo = prod ? (prod.costo_promedio || prod.precio_compra || 0) : 0;
   try {
     await window.api.movimientos.registrar({
       producto_id: id, tipo: 'entrada', cantidad: Number(cantidad),
-      precio_unitario: 0, observacion: 'Entrada rapida',
+      precio_unitario: costo, concepto: 'Carga inicial',
+      observacion: 'Entrada rapida',
     });
     cargarProductos();
     notificar('Stock actualizado');
@@ -511,6 +588,10 @@ function configurarEventosMovimientos() {
   document.getElementById('btnImprimirMovimientos').addEventListener('click', imprimirMovimientos);
   document.getElementById('filtroTipoMov').addEventListener('change', cargarMovimientos);
   document.getElementById('filtroMovArea').addEventListener('change', cargarMovimientos);
+  document.getElementById('movTipo').addEventListener('change', () => {
+    actualizarConceptosMovimiento();
+    completarPrecioSugerido();
+  });
   document.getElementById('btnCerrarTrazabilidad').addEventListener('click', () => cerrarModal('modalTrazabilidad'));
   let tBusq;
   document.getElementById('buscarMovProducto').addEventListener('input', () => {
@@ -519,41 +600,68 @@ function configurarEventosMovimientos() {
   });
 }
 
+/* El concepto y la etiqueta del precio cambian segun sea entrada o salida. */
+const CONCEPTOS_MOVIMIENTO = {
+  entrada: ['Compra a proveedor', 'Devolucion de cliente', 'Ajuste de inventario (entrada)',
+            'Carga inicial', 'Transferencia entre almacenes', 'Otro'],
+  salida:  ['Venta al detal', 'Venta al mayor', 'Consumo interno', 'Ajuste de inventario (salida)',
+            'Merma o producto danado', 'Devolucion a proveedor', 'Transferencia entre almacenes', 'Otro'],
+};
+
+function actualizarConceptosMovimiento() {
+  const tipo = document.getElementById('movTipo').value === 'salida' ? 'salida' : 'entrada';
+  const sel = document.getElementById('movConcepto');
+  sel.innerHTML = CONCEPTOS_MOVIMIENTO[tipo].map(c => `<option value="${c}">${c}</option>`).join('');
+  document.getElementById('movPrecioLabel').textContent =
+    tipo === 'entrada' ? 'Costo unitario de compra' : 'Precio unitario de venta';
+}
+
 async function nuevoMovimiento() {
   await cargarProveedores();
   if (!ESTADO.productos.length) await cargarProductos();
   document.getElementById('formMovimiento').reset();
   document.getElementById('movCantidad').value = 1;
   document.getElementById('movPrecio').value = 0;
+  document.getElementById('movDocumento').value = '';
+  actualizarConceptosMovimiento();
   const sel = document.getElementById('movProducto');
   sel.innerHTML = ESTADO.productos.length
-    ? ESTADO.productos.map(p => `<option value="${p.id}" data-precio="${p.precio_venta || 0}">${p.nombre} (Stock: ${p.stock_actual})</option>`).join('')
+    ? ESTADO.productos.map(p => `<option value="${p.id}" data-precio="${p.precio_venta || 0}" data-costo="${p.costo_promedio || p.precio_compra || 0}">${escaparHtml(p.nombre)} (Stock: ${p.stock_actual})</option>`).join('')
     : '<option value="">Sin productos registrados</option>';
   document.getElementById('movProveedor').innerHTML =
-    '<option value="">Sin proveedor</option>' + ESTADO.proveedores.map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
+    '<option value="">Sin proveedor</option>' + ESTADO.proveedores.map(p => `<option value="${p.id}">${escaparHtml(p.nombre)}</option>`).join('');
+  completarPrecioSugerido();
   abrirModal('modalMovimiento');
 }
 
 function completarPrecioSugerido() {
   const sel = document.getElementById('movProducto');
   const opt = sel.options[sel.selectedIndex];
-  if (opt && opt.dataset.precio) document.getElementById('movPrecio').value = opt.dataset.precio;
+  if (!opt) return;
+  const tipo = document.getElementById('movTipo').value;
+  const valor = tipo === 'entrada' ? opt.dataset.costo : opt.dataset.precio;
+  if (valor) document.getElementById('movPrecio').value = valor;
 }
 
 async function guardarMovimiento(e) {
   e.preventDefault();
   const selProducto = document.getElementById('movProducto');
+  if (!selProducto.value) return notificar('No hay productos registrados', true);
   const nombreProducto = selProducto.options[selProducto.selectedIndex].text.split(' (Stock:')[0];
   const tipo = document.getElementById('movTipo').value;
   const cantidad = Number(document.getElementById('movCantidad').value);
   const observacion = document.getElementById('movObservacion').value;
+  const concepto = document.getElementById('movConcepto').value;
+  const documento = document.getElementById('movDocumento').value.trim();
   try {
     const res = await window.api.movimientos.registrar({
-      producto_id: Number(selProducto.value),
+      producto_id: selProducto.value,
       tipo,
       cantidad,
       precio_unitario: Number(document.getElementById('movPrecio').value),
       proveedor_id: document.getElementById('movProveedor').value || null,
+      concepto,
+      documento,
       observacion,
     });
     cerrarModal('modalMovimiento');
@@ -562,11 +670,18 @@ async function guardarMovimiento(e) {
     cargarMovimientos();
 
     if (confirm('Deseas imprimir el comprobante de este movimiento?')) {
-      await imprimirTicketMovimiento({
+      await imprimirComprobante({
         producto: nombreProducto,
         tipo,
         cantidad,
+        precio: Number(document.getElementById('movPrecio').value),
+        costo_unitario: res.costo_unitario,
+        costo_total: res.costo_total,
+        total: res.total,
         stock_final: res.stock_actual,
+        saldo_valor: res.saldo_valor,
+        concepto,
+        documento,
         observacion,
       });
     }
@@ -597,63 +712,197 @@ async function exportarMovimientosExcel() {
   if (res.ok) notificar('Exportado a ' + res.ruta);
 }
 
-/* ------------------ Impresion ------------------ */
+/* ------------------ Impresion ------------------
+   Todos los formatos salen con el encabezado de la empresa, para que
+   sirvan como documento interno o respaldo ante el cliente/proveedor. */
 
+function encabezadoImpresion(titulo, subtitulo) {
+  const empresa = ESTADO.empresa || {};
+  const fecha = new Date().toLocaleString('es-VE');
+  return `<div class="doc-encabezado">
+      <div>
+        <h1>${escaparHtml(empresa.nombre || 'Sistema de Inventarios')}</h1>
+        <div class="doc-meta">${empresa.rif ? 'RIF: ' + escaparHtml(empresa.rif) + ' · ' : ''}Giro: ${escaparHtml(ESTADO.giro || '-')}</div>
+      </div>
+      <div class="doc-meta" style="text-align:right">${escaparHtml(fecha)}<br>Usuario: ${escaparHtml(ESTADO.usuario?.nombre || '-')}</div>
+    </div>
+    <h2 class="doc-titulo">${escaparHtml(titulo)}</h2>
+    ${subtitulo ? `<div class="doc-meta">${escaparHtml(subtitulo)}</div>` : ''}`;
+}
+
+function envolverDocumento(titulo, cuerpo) {
+  return `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>${escaparHtml(titulo)}</title>
+    <style>
+      @page { size: letter; margin: 14mm; }
+      body { font-family: Arial, Helvetica, sans-serif; color:#111; font-size: 12px; }
+      .doc-encabezado { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #111; padding-bottom:8px; margin-bottom:12px; }
+      .doc-encabezado h1 { font-size: 16px; margin: 0 0 4px; }
+      .doc-titulo { font-size: 15px; margin: 0 0 4px; text-transform: uppercase; }
+      .doc-meta { color:#555; font-size: 11px; }
+      table { width:100%; border-collapse:collapse; font-size:12px; margin-top:10px; }
+      th,td { border:1px solid #999; padding:5px 7px; text-align:left; }
+      th { background:#eee; }
+      td.num, th.num { text-align:right; }
+      .totales { margin-top:10px; margin-left:auto; width:340px; }
+      .totales div { display:flex; justify-content:space-between; padding:3px 0; border-bottom:1px dashed #bbb; }
+      .totales .fuerte { font-weight:700; border-bottom:none; border-top:2px solid #111; margin-top:4px; padding-top:6px; }
+      .firmas { display:flex; gap:40px; margin-top:50px; }
+      .firma { flex:1; border-top:1px solid #111; padding-top:6px; text-align:center; font-size:11px; }
+      .nota { margin-top:14px; color:#555; font-size:11px; }
+    </style></head><body>${cuerpo}</body></html>`;
+}
+
+async function imprimirDocumento(titulo, cuerpo) {
+  try {
+    await window.api.imprimir.html(envolverDocumento(titulo, cuerpo));
+  } catch (err) {
+    notificar('No se pudo imprimir: ' + err.message, true);
+  }
+}
+
+/* Comprobante / acta de un movimiento (entrada o salida) */
+async function imprimirComprobante(datos) {
+  const esEntrada = datos.tipo === 'entrada';
+  const titulo = esEntrada ? 'Acta de recepcion de mercancia' : 'Comprobante de despacho';
+  const cuerpo = `
+    ${encabezadoImpresion(titulo, 'Fecha del documento: ' + new Date().toLocaleString('es-VE'))}
+    <table>
+      <tbody>
+        <tr><th style="width:32%">Concepto</th><td>${escaparHtml(datos.concepto || '-')}</td></tr>
+        <tr><th>Documento / referencia</th><td>${escaparHtml(datos.documento || '-')}</td></tr>
+        <tr><th>Producto</th><td>${escaparHtml(datos.producto || '-')}</td></tr>
+        <tr><th>Cantidad</th><td>${datos.cantidad} ${escaparHtml(datos.unidad || '')}</td></tr>
+        <tr><th>${esEntrada ? 'Costo unitario de compra' : 'Precio unitario de venta'}</th><td>${formatoMoneda(datos.precio || 0)}</td></tr>
+        <tr><th>Costo unitario promedio</th><td>${formatoMoneda(datos.costo_unitario || 0)}</td></tr>
+        <tr><th>Observacion</th><td>${escaparHtml(datos.observacion || '-')}</td></tr>
+      </tbody>
+    </table>
+    <div class="totales">
+      <div><span>Valor del movimiento</span><span>${formatoMoneda(datos.total || 0)}</span></div>
+      <div><span>Costo del movimiento</span><span>${formatoMoneda(datos.costo_total || 0)}</span></div>
+      <div class="fuerte"><span>Stock resultante</span><span>${datos.stock_final ?? '-'} ${escaparHtml(datos.unidad || '')}</span></div>
+    </div>
+    <div class="firmas">
+      <div class="firma">${esEntrada ? 'Recibido por' : 'Despachado por'}</div>
+      <div class="firma">Autorizado por</div>
+    </div>`;
+  await imprimirDocumento(titulo, cuerpo);
+}
+
+async function imprimirComprobanteMovimiento(id) {
+  const m = ESTADO.movimientos.find(x => x.id === id);
+  if (!m) return notificar('Movimiento no encontrado', true);
+  await imprimirComprobante({
+    producto: m.producto_nombre, tipo: m.tipo, cantidad: m.cantidad,
+    precio: m.precio_unitario, costo_unitario: m.costo_unitario, costo_total: m.costo_total,
+    total: m.total, stock_final: m.stock_resultante, saldo_valor: m.saldo_valor,
+    concepto: m.concepto, documento: m.documento, observacion: m.observacion,
+  });
+}
+
+/* Inventario valorizado (reporte de productos) */
 async function imprimirProductos() {
   if (!ESTADO.productos.length) await cargarProductos();
-  const res = await window.api.imprimir.reporte({
-    titulo: 'Reporte de Inventario - Giro ' + (ESTADO.giro || '-'),
-    columnas: [
-      { campo: 'codigo', titulo: 'Codigo' },
-      { campo: 'nombre', titulo: 'Nombre' },
-      { campo: 'categoria', titulo: 'Categoria' },
-      { campo: 'stock', titulo: 'Stock' },
-      { campo: 'precio', titulo: 'Precio' },
-    ],
-    filas: ESTADO.productos.map(p => ({
-      codigo: p.codigo || '', nombre: p.nombre, categoria: p.categoria_nombre || '',
-      stock: p.stock_actual, precio: formatoMoneda(p.precio_venta || 0),
-    })),
-  });
-  if (!res.ok) notificar('Impresion cancelada o con error', true);
+  const filas = ESTADO.productos.map(p => {
+    const valorCosto = (p.stock_actual || 0) * (p.costo_promedio || p.precio_compra || 0);
+    const valorVenta = (p.stock_actual || 0) * (p.precio_venta || 0);
+    return `<tr>
+      <td>${escaparHtml(p.codigo || '-')}</td>
+      <td>${escaparHtml(p.nombre)}</td>
+      <td>${escaparHtml(p.categoria_nombre || '-')}</td>
+      <td class="num">${p.stock_actual} ${escaparHtml(p.unidad || '')}</td>
+      <td class="num">${p.stock_minimo || 0} / ${p.stock_maximo || 0}</td>
+      <td class="num">${formatoMoneda(p.costo_promedio || p.precio_compra || 0)}</td>
+      <td class="num">${formatoMoneda(valorCosto)}</td>
+      <td class="num">${formatoMoneda(valorVenta)}</td>
+      <td>${etiquetaAlerta(p.alerta || 'ok')}</td>
+    </tr>`;
+  }).join('');
+  const totalCosto = ESTADO.productos.reduce((s, p) => s + (p.stock_actual || 0) * (p.costo_promedio || p.precio_compra || 0), 0);
+  const totalVenta = ESTADO.productos.reduce((s, p) => s + (p.stock_actual || 0) * (p.precio_venta || 0), 0);
+  const cuerpo = `
+    ${encabezadoImpresion('Inventario valorizado', `Productos: ${ESTADO.productos.length}`)}
+    <table>
+      <thead>
+        <tr>
+          <th>Codigo</th><th>Producto</th><th>Categoria</th><th class="num">Stock</th>
+          <th class="num">Min/Max</th><th class="num">Costo</th><th class="num">Valor costo</th>
+          <th class="num">Valor venta</th><th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>${filas || '<tr><td colspan="9">Sin productos</td></tr>'}</tbody>
+    </table>
+    <div class="totales">
+      <div><span>Valor total a costo</span><span>${formatoMoneda(totalCosto)}</span></div>
+      <div class="fuerte"><span>Valor total a venta</span><span>${formatoMoneda(totalVenta)}</span></div>
+    </div>`;
+  await imprimirDocumento('Inventario valorizado', cuerpo);
 }
 
+/* Reporte de entradas y salidas con valorizacion */
 async function imprimirMovimientos() {
   if (!ESTADO.movimientos.length) await cargarMovimientos();
-  const res = await window.api.imprimir.reporte({
-    titulo: 'Reporte de Movimientos',
-    columnas: [
-      { campo: 'fecha', titulo: 'Fecha' },
-      { campo: 'producto', titulo: 'Producto' },
-      { campo: 'tipo', titulo: 'Tipo' },
-      { campo: 'cantidad', titulo: 'Cantidad' },
-      { campo: 'total', titulo: 'Total' },
-    ],
-    filas: ESTADO.movimientos.map(m => ({
-      fecha: formatoFecha(m.fecha), producto: m.producto_nombre, tipo: m.tipo,
-      cantidad: m.cantidad, total: formatoMoneda(m.total || 0),
-    })),
-  });
-  if (!res.ok) notificar('Impresion cancelada o con error', true);
+  const filas = ESTADO.movimientos.map(m => `<tr>
+      <td>${formatoFecha(m.fecha)}</td>
+      <td>${escaparHtml(m.producto_nombre)}</td>
+      <td>${m.tipo}</td>
+      <td>${escaparHtml(m.concepto || '-')}</td>
+      <td class="num">${m.cantidad}</td>
+      <td class="num">${formatoMoneda(m.precio_unitario || 0)}</td>
+      <td class="num">${formatoMoneda(m.costo_total || 0)}</td>
+      <td class="num">${formatoMoneda(m.total || 0)}</td>
+    </tr>`).join('');
+  const totalVenta = ESTADO.movimientos.filter(m => m.tipo === 'salida').reduce((s, m) => s + (m.total || 0), 0);
+  const totalCosto = ESTADO.movimientos.filter(m => m.tipo === 'salida').reduce((s, m) => s + (m.costo_total || 0), 0);
+  const cuerpo = `
+    ${encabezadoImpresion('Reporte de entradas y salidas', `Movimientos: ${ESTADO.movimientos.length}`)}
+    <table>
+      <thead>
+        <tr><th>Fecha</th><th>Producto</th><th>Tipo</th><th>Concepto</th>
+        <th class="num">Cantidad</th><th class="num">Precio</th><th class="num">Costo total</th><th class="num">Valor total</th></tr>
+      </thead>
+      <tbody>${filas || '<tr><td colspan="8">Sin movimientos</td></tr>'}</tbody>
+    </table>
+    <div class="totales">
+      <div><span>Valor de las salidas</span><span>${formatoMoneda(totalVenta)}</span></div>
+      <div><span>Costo de las salidas</span><span>${formatoMoneda(totalCosto)}</span></div>
+      <div class="fuerte"><span>Margen bruto</span><span>${formatoMoneda(totalVenta - totalCosto)}</span></div>
+    </div>`;
+  await imprimirDocumento('Reporte de entradas y salidas', cuerpo);
 }
 
-async function imprimirTicketMovimiento(datos) {
-  const res = await window.api.imprimir.ticket({
-    titulo: 'Comprobante de Movimiento',
-    lineas: [
-      { tipo: 'titulo', texto: 'Sistema de Inventarios' },
-      { tipo: 'separador' },
-      { texto: 'Fecha', valor: new Date().toLocaleString() },
-      { texto: 'Producto', valor: datos.producto },
-      { texto: 'Tipo', valor: datos.tipo === 'entrada' ? 'Entrada' : 'Salida' },
-      { texto: 'Cantidad', valor: String(datos.cantidad) },
-      { texto: 'Stock final', valor: String(datos.stock_final) },
-      { tipo: 'separador' },
-      { texto: 'Observacion', valor: datos.observacion || '-' },
-      { tipo: 'separador' },
-    ],
-  });
-  if (!res.ok) notificar('Impresion cancelada o con error', true);
+/* Ficha de proveedor con los productos que suministra */
+async function imprimirFichaProveedor(id) {
+  const prov = ESTADO.proveedores.find(p => p.id === id);
+  if (!prov) return notificar('Proveedor no encontrado', true);
+  let productos = [];
+  try { productos = await window.api.producto.listar({ proveedor_id: id, limite: 1000 }); } catch { /* opcional */ }
+  const filas = productos.map(p => `<tr>
+      <td>${escaparHtml(p.codigo || '-')}</td><td>${escaparHtml(p.nombre)}</td>
+      <td>${escaparHtml(p.categoria_nombre || '-')}</td>
+      <td class="num">${p.stock_actual}</td>
+      <td class="num">${formatoMoneda(p.costo_promedio || p.precio_compra || 0)}</td>
+      <td class="num">${formatoMoneda((p.stock_actual || 0) * (p.costo_promedio || p.precio_compra || 0))}</td>
+    </tr>`).join('');
+  const valorTotal = productos.reduce((s, p) => s + (p.stock_actual || 0) * (p.costo_promedio || p.precio_compra || 0), 0);
+  const cuerpo = `
+    ${encabezadoImpresion('Ficha de proveedor', 'Datos de contacto y productos suministrados')}
+    <table>
+      <tbody>
+        <tr><th style="width:30%">Proveedor</th><td>${escaparHtml(prov.nombre)}</td></tr>
+        <tr><th>RIF</th><td>${escaparHtml(prov.rif || '-')}</td></tr>
+        <tr><th>Telefono</th><td>${escaparHtml(prov.telefono || '-')}</td></tr>
+        <tr><th>Email</th><td>${escaparHtml(prov.email || '-')}</td></tr>
+        <tr><th>Direccion</th><td>${escaparHtml(prov.direccion || '-')}</td></tr>
+      </tbody>
+    </table>
+    <h3 style="font-size:13px;margin:16px 0 4px">Productos suministrados (${productos.length})</h3>
+    <table>
+      <thead><tr><th>Codigo</th><th>Producto</th><th>Categoria</th><th class="num">Stock</th><th class="num">Costo</th><th class="num">Valor</th></tr></thead>
+      <tbody>${filas || '<tr><td colspan="6">Sin productos asociados</td></tr>'}</tbody>
+    </table>
+    <div class="totales"><div class="fuerte"><span>Valor total a costo</span><span>${formatoMoneda(valorTotal)}</span></div></div>`;
+  await imprimirDocumento('Ficha de proveedor', cuerpo);
 }
 
 /* ------------------ Proveedores ------------------ */
@@ -1486,6 +1735,167 @@ async function eliminarProducto(id) {
   }
 }
 
+/* ------------------ Contabilidad ------------------ */
+
+function formatoInputFecha(d) {
+  const mes = String(d.getMonth() + 1).padStart(2, '0');
+  const dia = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mes}-${dia}`;
+}
+
+function configurarEventosContabilidad() {
+  const desde = document.getElementById('contabDesde');
+  const hasta = document.getElementById('contabHasta');
+  if (!desde || !hasta) return;
+  const hoy = new Date();
+  desde.value = formatoInputFecha(new Date(hoy.getFullYear(), hoy.getMonth(), 1));
+  hasta.value = formatoInputFecha(hoy);
+  document.getElementById('btnConsultarContab').addEventListener('click', cargarContabilidad);
+  document.getElementById('btnExportarContab').addEventListener('click', exportarContabilidad);
+  document.getElementById('btnImprimirContab').addEventListener('click', imprimirContabilidad);
+}
+
+async function cargarContabilidad() {
+  const desde = document.getElementById('contabDesde').value || undefined;
+  const hasta = document.getElementById('contabHasta').value || undefined;
+  try {
+    ESTADO.contabilidad = await window.api.contabilidad.resumen({ desde, hasta });
+    renderContabilidad();
+  } catch (err) {
+    ESTADO.contabilidad = null;
+    document.getElementById('contabKpis').innerHTML =
+      `<div class="stat-card error"><h4>Contabilidad no disponible</h4><div class="valor" style="font-size:13px">${escaparHtml(err.message)}</div></div>`;
+    document.getElementById('contabCategoriasBody').innerHTML = '';
+    document.getElementById('kardexBody').innerHTML = '';
+  }
+}
+
+function renderContabilidad() {
+  const r = ESTADO.contabilidad;
+  if (!r) return;
+  const s = r.resumen || {};
+
+  document.getElementById('contabKpis').innerHTML = `
+    <div class="stat-card primario"><h4>Valor a costo</h4><div class="valor">${formatoMoneda(s.valorCosto || 0)}</div></div>
+    <div class="stat-card"><h4>Valor a venta</h4><div class="valor">${formatoMoneda(s.valorVenta || 0)}</div></div>
+    <div class="stat-card exito"><h4>Utilidad en inventario</h4><div class="valor">${formatoMoneda(s.utilidadInventario || 0)}</div></div>
+    <div class="stat-card"><h4>Entradas (costo)</h4><div class="valor">${formatoMoneda(s.entradasCosto || 0)}</div><div class="texto-ayuda">${s.entradasUnidades || 0} unidades</div></div>
+    <div class="stat-card"><h4>Salidas (costo)</h4><div class="valor">${formatoMoneda(s.salidasCosto || 0)}</div><div class="texto-ayuda">${s.salidasUnidades || 0} unidades</div></div>
+    <div class="stat-card"><h4>Ventas (valor)</h4><div class="valor">${formatoMoneda(s.salidasVenta || 0)}</div></div>
+    <div class="stat-card ${(s.margen || 0) < 0 ? 'error' : 'exito'}"><h4>Margen bruto del periodo</h4><div class="valor">${formatoMoneda(s.margen || 0)}</div></div>
+    <div class="stat-card"><h4>Unidades en stock</h4><div class="valor">${s.unidades || 0}</div><div class="texto-ayuda">${s.productos || 0} productos</div></div>
+  `;
+
+  const cats = r.categorias || [];
+  document.getElementById('contabCategoriasBody').innerHTML = cats.length
+    ? cats.map(c => `<tr>
+        <td>${escaparHtml(c.categoria)}</td><td>${c.productos}</td><td>${c.unidades}</td>
+        <td>${formatoMoneda(c.valor_costo || 0)}</td>
+        <td>${formatoMoneda(c.valor_venta || 0)}</td>
+        <td>${formatoMoneda((c.valor_venta || 0) - (c.valor_costo || 0))}</td>
+      </tr>`).join('')
+    : '<tr><td colspan="6" class="vacio">Sin datos</td></tr>';
+
+  const kardex = r.kardex || [];
+  document.getElementById('kardexBody').innerHTML = kardex.length
+    ? kardex.map(m => `<tr>
+        <td>${formatoFecha(m.fecha)}</td>
+        <td>${escaparHtml(m.producto_nombre || '-')}</td>
+        <td><span class="badge ${m.tipo === 'entrada' ? 'badge-entrada' : 'badge-salida'}">${m.tipo}</span></td>
+        <td>${escaparHtml(m.concepto || '-')}</td>
+        <td>${escaparHtml(m.documento || '-')}</td>
+        <td>${m.cantidad}</td>
+        <td>${formatoMoneda(m.precio_unitario || 0)}</td>
+        <td>${formatoMoneda(m.costo_unitario || 0)}</td>
+        <td>${formatoMoneda(m.costo_total || 0)}</td>
+        <td>${m.stock_resultante ?? '-'}</td>
+        <td>${formatoMoneda(m.saldo_valor || 0)}</td>
+      </tr>`).join('')
+    : '<tr><td colspan="11" class="vacio">Sin movimientos en el periodo</td></tr>';
+}
+
+async function exportarContabilidad() {
+  if (!ESTADO.contabilidad) await cargarContabilidad();
+  const kardex = (ESTADO.contabilidad && ESTADO.contabilidad.kardex) || [];
+  if (!kardex.length) return notificar('No hay movimientos para exportar en el periodo', true);
+  await window.api.export.excel({
+    filas: kardex.map(m => ({
+      fecha: m.fecha, producto: m.producto_nombre || '', tipo: m.tipo,
+      concepto: m.concepto || '', documento: m.documento || '',
+      cantidad: m.cantidad, precio: m.precio_unitario, costo_unitario: m.costo_unitario,
+      costo_total: m.costo_total, saldo_unidades: m.stock_resultante, saldo_valor: m.saldo_valor,
+    })),
+    columnas: [
+      { campo: 'fecha', titulo: 'Fecha', ancho: 20 },
+      { campo: 'producto', titulo: 'Producto', ancho: 30 },
+      { campo: 'tipo', titulo: 'Tipo', ancho: 10 },
+      { campo: 'concepto', titulo: 'Concepto', ancho: 24 },
+      { campo: 'documento', titulo: 'Documento', ancho: 18 },
+      { campo: 'cantidad', titulo: 'Cantidad', ancho: 10 },
+      { campo: 'precio', titulo: 'Precio', ancho: 12 },
+      { campo: 'costo_unitario', titulo: 'Costo unit.', ancho: 12 },
+      { campo: 'costo_total', titulo: 'Costo total', ancho: 14 },
+      { campo: 'saldo_unidades', titulo: 'Saldo uds', ancho: 11 },
+      { campo: 'saldo_valor', titulo: 'Saldo valor', ancho: 14 },
+    ],
+    nombreArchivo: 'kardex_valorizado.xlsx',
+    hoja: 'Kardex',
+  });
+  notificar('Kardex exportado');
+}
+
+async function imprimirContabilidad() {
+  if (!ESTADO.contabilidad) await cargarContabilidad();
+  const r = ESTADO.contabilidad;
+  if (!r) return notificar('No hay informe contable para imprimir', true);
+  const s = r.resumen || {};
+  const cats = r.categorias || [];
+  const kardex = r.kardex || [];
+
+  const filasCat = cats.map(c => `<tr>
+      <td>${escaparHtml(c.categoria)}</td><td class="num">${c.productos}</td><td class="num">${c.unidades}</td>
+      <td class="num">${formatoMoneda(c.valor_costo || 0)}</td><td class="num">${formatoMoneda(c.valor_venta || 0)}</td>
+    </tr>`).join('');
+
+  const filasKar = kardex.map(m => `<tr>
+      <td>${formatoFecha(m.fecha)}</td><td>${escaparHtml(m.producto_nombre || '-')}</td>
+      <td>${m.tipo}</td><td>${escaparHtml(m.concepto || '-')}</td>
+      <td class="num">${m.cantidad}</td>
+      <td class="num">${formatoMoneda(m.costo_unitario || 0)}</td>
+      <td class="num">${formatoMoneda(m.costo_total || 0)}</td>
+      <td class="num">${formatoMoneda(m.saldo_valor || 0)}</td>
+    </tr>`).join('');
+
+  const cuerpo = `
+    ${encabezadoImpresion('Informe contable de inventario', `Periodo del ${r.desde} al ${r.hasta}`)}
+    <table>
+      <tbody>
+        <tr><th style="width:34%">Valor del inventario a costo</th><td class="num">${formatoMoneda(s.valorCosto || 0)}</td></tr>
+        <tr><th>Valor del inventario a venta</th><td class="num">${formatoMoneda(s.valorVenta || 0)}</td></tr>
+        <tr><th>Utilidad potencial en inventario</th><td class="num">${formatoMoneda(s.utilidadInventario || 0)}</td></tr>
+        <tr><th>Entradas del periodo (costo)</th><td class="num">${formatoMoneda(s.entradasCosto || 0)}</td></tr>
+        <tr><th>Salidas del periodo (costo de lo vendido)</th><td class="num">${formatoMoneda(s.salidasCosto || 0)}</td></tr>
+        <tr><th>Ventas del periodo (valor)</th><td class="num">${formatoMoneda(s.salidasVenta || 0)}</td></tr>
+        <tr><th>Margen bruto del periodo</th><td class="num">${formatoMoneda(s.margen || 0)}</td></tr>
+      </tbody>
+    </table>
+    <h3 style="font-size:13px;margin:16px 0 4px">Inventario por categoria</h3>
+    <table>
+      <thead><tr><th>Categoria</th><th class="num">Productos</th><th class="num">Unidades</th><th class="num">Valor costo</th><th class="num">Valor venta</th></tr></thead>
+      <tbody>${filasCat || '<tr><td colspan="5">Sin datos</td></tr>'}</tbody>
+    </table>
+    <h3 style="font-size:13px;margin:16px 0 4px">Kardex valorizado (${kardex.length} movimientos)</h3>
+    <table>
+      <thead><tr><th>Fecha</th><th>Producto</th><th>Tipo</th><th>Concepto</th><th class="num">Cant.</th><th class="num">Costo unit.</th><th class="num">Costo total</th><th class="num">Saldo valor</th></tr></thead>
+      <tbody>${filasKar || '<tr><td colspan="8">Sin movimientos</td></tr>'}</tbody>
+    </table>
+    <div class="firmas">
+      <div class="firma">Elaborado por</div>
+      <div class="firma">Revisado por</div>
+    </div>`;
+  await imprimirDocumento('Informe contable de inventario', cuerpo);
+}
+
 /* ------------------ Utilidades ------------------ */
 
 function abrirModal(id) { document.getElementById(id).classList.add('abierto'); }
@@ -1525,4 +1935,5 @@ window.editarUsuario = editarUsuario;
 window.resetearClave = resetearClave;
 window.eliminarUsuarioRegistro = eliminarUsuarioRegistro;
 window.abrirImportador = abrirImportador;
-window.verTrazabilidad = verTrazabilidad;
+window.imprimirComprobanteMovimiento = imprimirComprobanteMovimiento;
+window.imprimirFichaProveedor = imprimirFichaProveedor;

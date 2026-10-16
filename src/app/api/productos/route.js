@@ -2,7 +2,21 @@ import { error, sesion, exigir, auditar, evento, manejar } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 
-/* GET /api/productos?busqueda=&categoria_id=&stock=bajo|agotado&limite= */
+/* Calcula la alerta de stock de un producto.
+   Prioridad: agotado > bajo > exceso > por reordenar. */
+export function alertaDe(p) {
+  const actual = Number(p.stock_actual) || 0;
+  const minimo = Number(p.stock_minimo) || 0;
+  const maximo = Number(p.stock_maximo) || 0;
+  const reorden = Number(p.punto_reorden) || 0;
+  if (actual <= 0) return 'agotado';
+  if (minimo > 0 && actual <= minimo) return 'bajo';
+  if (maximo > 0 && actual > maximo) return 'exceso';
+  if (reorden > 0 && actual <= reorden) return 'reorden';
+  return 'ok';
+}
+
+/* GET /api/productos?busqueda=&categoria_id=&proveedor_id=&stock=bajo|agotado|reorden|exceso&limite= */
 async function listar(request) {
   const { perfil, sb } = await sesion(request);
   exigir(perfil, 'productos.ver');
@@ -10,6 +24,7 @@ async function listar(request) {
   const { searchParams } = new URL(request.url);
   const busqueda = (searchParams.get('busqueda') || '').trim();
   const categoria = searchParams.get('categoria_id');
+  const proveedor = searchParams.get('proveedor_id');
   const stock = searchParams.get('stock');
   const limite = Math.min(Number(searchParams.get('limite')) || 200, 1000);
 
@@ -18,8 +33,8 @@ async function listar(request) {
     .select('*, categorias(nombre)')
     .eq('empresa_id', perfil.empresa_id)
     .eq('activo', true)
-    .order('id', { ascending: false })
-    .limit(limite);
+    .order('nombre', { ascending: true })
+    .limit(stock ? 1000 : limite);
 
   if (busqueda) {
     // PostgREST interpreta comas y parentesis dentro de or(). Se limpian
@@ -28,17 +43,22 @@ async function listar(request) {
     if (termino) consulta = consulta.or(`nombre.ilike.%${termino}%,codigo.ilike.%${termino}%`);
   }
   if (categoria) consulta = consulta.eq('categoria_id', categoria);
-  if (stock === 'bajo') consulta = consulta.gt('stock_actual', 0).lte('stock_minimo', 'stock_actual');
-  if (stock === 'agotado') consulta = consulta.lte('stock_actual', 0);
+  if (proveedor) consulta = consulta.eq('proveedor_id', proveedor);
 
   const { data, error: err } = await consulta;
   if (err) return error('Error consultando productos: ' + err.message, 500);
 
-  const filas = (data || []).map((p) => ({
+  let filas = (data || []).map((p) => ({
     ...p,
     categoria_nombre: p.categorias ? p.categorias.nombre : null,
     categorias: undefined,
+    alerta: alertaDe(p),
   }));
+
+  // Las alertas de stock se deciden en el servidor para que el filtro
+  // sea consistente entre el panel, el dashboard y la API.
+  if (stock) filas = filas.filter((p) => p.alerta === stock);
+  if (filas.length > limite) filas = filas.slice(0, limite);
 
   return Response.json({ ok: true, productos: filas, total: filas.length });
 }
@@ -58,23 +78,39 @@ async function crear(request) {
   const datos = cuerpo.datos || cuerpo;
   if (!datos.nombre || !String(datos.nombre).trim()) return error('El nombre es obligatorio');
 
-  const { data, error: err } = await sb
+  // Columnas base (existen desde el esquema inicial) y columnas nuevas
+  // que llegan con la migracion 010. Si la base aun no la tiene, se
+  // reintenta sin ellas para no bloquear la creacion del producto.
+  const base = {
+    empresa_id: perfil.empresa_id,
+    codigo: datos.codigo || null,
+    nombre: String(datos.nombre).trim(),
+    categoria_id: datos.categoria_id || null,
+    proveedor_id: datos.proveedor_id || null,
+    stock_minimo: Number(datos.stock_minimo) || 0,
+    stock_maximo: Number(datos.stock_maximo) || 0,
+    stock_actual: Number(datos.stock_actual) || 0,
+    precio_compra: Number(datos.precio_compra) || 0,
+    precio_venta: Number(datos.precio_venta) || 0,
+    ubicacion: datos.ubicacion || null,
+  };
+  const extra = {
+    punto_reorden: Number(datos.punto_reorden) || 0,
+    costo_promedio: Number(datos.precio_compra) || 0,
+    unidad: (datos.unidad || 'unidad').trim() || 'unidad',
+    lote: datos.lote || null,
+    fecha_vencimiento: datos.fecha_vencimiento || null,
+  };
+
+  let { data, error: err } = await sb
     .from('productos')
-    .insert({
-      empresa_id: perfil.empresa_id,
-      codigo: datos.codigo || null,
-      nombre: String(datos.nombre).trim(),
-      categoria_id: datos.categoria_id || null,
-      proveedor_id: datos.proveedor_id || null,
-      stock_minimo: Number(datos.stock_minimo) || 0,
-      stock_maximo: Number(datos.stock_maximo) || 0,
-      stock_actual: Number(datos.stock_actual) || 0,
-      precio_compra: Number(datos.precio_compra) || 0,
-      precio_venta: Number(datos.precio_venta) || 0,
-      ubicacion: datos.ubicacion || null,
-    })
+    .insert({ ...base, ...extra })
     .select('id')
     .single();
+
+  if (err && /column|punto_reorden|unidad|lote|fecha_vencimiento|costo_promedio|schema cache/i.test(err.message)) {
+    ({ data, error: err } = await sb.from('productos').insert(base).select('id').single());
+  }
 
   if (err) {
     if (err.code === '23505') return error('Ya existe un producto con ese codigo', 409);
