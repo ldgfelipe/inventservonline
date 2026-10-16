@@ -75,17 +75,20 @@ function responder(p, texto, extra) {
   if (Array.isArray(extra)) acciones = extra;
   else if (extra && typeof extra === 'object' && extra.columnas) tablas.push(extra);
 
-  return {
+  /* OJO: una ruta de App Router debe devolver un `Response`. Si devolvemos
+     un objeto plano, Next no puede responder y el cliente recibe un 500
+     con el cuerpo vacio. Por eso envolvemos con Response.json. */
+  return Response.json({
     ok: true,
     intencion: (p && p.intencion) || 'desconocido',
     texto,
     tablas,
     acciones,
-  };
+  });
 }
 
 /* POST /api/asistente { texto } */
-async function procesar(request) {
+async function consultar(request) {
   const { perfil, sb, sbRpc } = await sesion(request);
   let cuerpo;
   try { cuerpo = await request.json(); } catch { cuerpo = {}; }
@@ -99,17 +102,8 @@ async function procesar(request) {
   const texto = String(cuerpo.texto || '').trim();
   if (!texto) return error('Escribe tu consulta');
 
-  const paso = Number(cuerpo.paso || 0);
-  if (paso === 1) return Response.json({ ok: true, diag: 'tras leer texto', texto });
-
   const p = interpretar(texto);
-  if (paso === 2) return Response.json({ ok: true, diag: 'interpretar ok', intencion: p.intencion });
-
   await evento(sb, perfil, 'asistente.consulta', p.intencion);
-  if (paso === 3) return Response.json({ ok: true, diag: 'evento ok' });
-
-  const prueba = responder(p, 'prueba', [{ id: 'x', etiqueta: 'X', tipo: 'ayuda' }]);
-  if (paso === 4) return Response.json({ ok: true, diag: 'responder ok', prueba });
 
   const negar = (permiso) => ({
     ok: true, intencion: p.intencion,
@@ -231,20 +225,6 @@ async function procesar(request) {
     }
   } catch (err) {
     return responder(p, 'Ocurrio un error al consultar: ' + err.message);
-  }
-}
-
-/* Envoltura de diagnostico: si algo falla, devuelve el error real en el
-   cuerpo (en produccion se revierte a un mensaje generico). */
-async function consultar(request) {
-  try {
-    return await procesar(request);
-  } catch (err) {
-    console.error('[asistente] fallo:', err);
-    return Response.json(
-      { ok: false, error: 'ASISTENTE_DIAG: ' + String((err && err.stack) || err) },
-      { status: 500 },
-    );
   }
 }
 
