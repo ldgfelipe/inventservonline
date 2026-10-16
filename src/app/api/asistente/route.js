@@ -85,7 +85,7 @@ function responder(p, texto, extra) {
 }
 
 /* POST /api/asistente { texto } */
-async function consultar(request) {
+async function procesar(request) {
   const { perfil, sb, sbRpc } = await sesion(request);
   let cuerpo;
   try { cuerpo = await request.json(); } catch { cuerpo = {}; }
@@ -222,6 +222,20 @@ async function consultar(request) {
     }
   } catch (err) {
     return responder(p, 'Ocurrio un error al consultar: ' + err.message);
+  }
+}
+
+/* Envoltura de diagnostico: si algo falla, devuelve el error real en el
+   cuerpo (en produccion se revierte a un mensaje generico). */
+async function consultar(request) {
+  try {
+    return await procesar(request);
+  } catch (err) {
+    console.error('[asistente] fallo:', err);
+    return Response.json(
+      { ok: false, error: 'ASISTENTE_DIAG: ' + String((err && err.stack) || err) },
+      { status: 500 },
+    );
   }
 }
 
