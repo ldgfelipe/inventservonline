@@ -79,14 +79,15 @@ async function registrar(request) {
     p_proveedor: cuerpo.proveedor_id || null,
     p_concepto: cuerpo.concepto || null,
     p_documento: cuerpo.documento || null,
+    p_almacen: cuerpo.almacen_id || null,
   };
 
   let { data, error: err } = await sbRpc.rpc('registrar_movimiento', args);
 
-  // Compatibilidad: si la base todavia no tiene la migracion 010, la
-  // funcion no acepta concepto/documento. Reintentamos sin ellos.
+  // Compatibilidad: si la base todavia no tiene la migracion 015 (sin
+  // p_almacen) o la 010 (sin concepto/documento), se reintenta sin ellos.
   if (err && /registrar_movimiento|argument|schema cache/i.test(err.message)) {
-    const { p_concepto, p_documento, ...basicos } = args;
+    const { p_almacen, p_concepto, p_documento, ...basicos } = args;
     ({ data, error: err } = await sbRpc.rpc('registrar_movimiento', basicos));
   }
 

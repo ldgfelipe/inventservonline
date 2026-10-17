@@ -664,6 +664,12 @@ async function nuevoMovimiento() {
     : '<option value="">Sin productos registrados</option>';
   document.getElementById('movProveedor').innerHTML =
     '<option value="">Sin proveedor</option>' + ESTADO.proveedores.map(p => `<option value="${p.id}">${escaparHtml(p.nombre)}</option>`).join('');
+  window.api.almacenes.listar().then((as) => {
+    ESTADO.almacenes = as || [];
+    const sa = document.getElementById('movAlmacen');
+    if (sa) sa.innerHTML = '<option value="">Principal</option>' +
+      (as || []).map(a => `<option value="${a.id}">${escaparHtml(a.nombre)}</option>`).join('');
+  }).catch(() => {});
   completarPrecioSugerido();
   abrirModal('modalMovimiento');
 }
@@ -697,6 +703,7 @@ async function guardarMovimiento(e) {
       concepto,
       documento,
       observacion,
+      almacen_id: document.getElementById('movAlmacen').value || null,
     });
     cerrarModal('modalMovimiento');
     notificar('Movimiento registrado');

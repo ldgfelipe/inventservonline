@@ -184,6 +184,7 @@ Ejecuta los archivos de `sql/` **en orden** en el SQL Editor de Supabase. Todos 
 | `012_pais_y_moneda.sql` | Pais y moneda por empresa |
 | `013_planes_freemium.sql` | Planes, suscripcion, multi-almacen y pagos SaaS |
 | `014_comercial.sql` | Clientes, ventas, cobros, CxC, compras, CxP y pagos a proveedores |
+| `015_multi_almacen.sql` | Multi-almacen real: registrar_movimiento/venta/compra con almacen + producto_almacen |
 
 ## Planes, freemium y limites
 
@@ -201,6 +202,13 @@ Ejecuta los archivos de `sql/` **en orden** en el SQL Editor de Supabase. Todos 
 - La **transferencia manual** se registra en `POST /api/pagos/transferencia` con la URL del comprobante: queda `en_revision` hasta que un super-admin la aprueba en `POST /api/admin/pagos`.
 - Los **webhooks** verifican firma (`STRIPE_WEBHOOK_SECRET`, `MERCADOPAGO_WEBHOOK_SECRET`, verificacion de PayPal) y responden `400` si la firma no es valida.
 - La app funciona **sin credenciales**: una pasarela no configurada responde `503 PasarelaNoConfigurada`. Ver `.env.example` para las variables (`APP_URL`, `STRIPE_*`, `MERCADOPAGO_*`, `PAYPAL_*`).
+
+## Multi-almacen real
+
+- `registrar_movimiento` acepta `p_almacen` (default: almacen principal de la empresa) y mantiene `producto_almacen` (desglose de stock por ubicacion), ademas de actualizar `productos.stock_actual` (total consolidado) y registrar `almacen_id` en `movimientos`.
+- `registrar_venta` y `registrar_compra` propagan `p_almacen` a cada movimiento.
+- El selector de almacen esta en el modal de movimiento y en los modales de venta/compra.
+- `productos.stock_actual` sigue siendo el total; el desglose por ubicacion vive en `producto_almacen`.
 
 ## Modulo comercial (POS / cobranza + cuentas por pagar)
 
