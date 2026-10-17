@@ -259,6 +259,11 @@ window.api = {
     guardar: (payload) => pedir('/api/email/config', { metodo: 'POST', json: payload }),
     probar: () => pedir('/api/email/config', { metodo: 'POST', json: { test: true } }),
   },
+  whatsapp: {
+    config: () => pedir('/api/whatsapp/config').then((r) => r.config),
+    guardar: (payload) => pedir('/api/whatsapp/config', { metodo: 'POST', json: payload }),
+    probar: () => pedir('/api/whatsapp/config', { metodo: 'POST', json: { test: true } }),
+  },
   monedas: {
     listar: () => pedir('/api/monedas'),
   },

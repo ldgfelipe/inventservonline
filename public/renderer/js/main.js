@@ -1067,6 +1067,11 @@ async function configurarEventosConfig() {
   if (btnGuardarEmail) btnGuardarEmail.addEventListener('click', guardarEmailConfig);
   const btnProbarEmail = document.getElementById('btnProbarEmail');
   if (btnProbarEmail) btnProbarEmail.addEventListener('click', probarEmailConfig);
+
+  const btnGuardarWa = document.getElementById('btnGuardarWa');
+  if (btnGuardarWa) btnGuardarWa.addEventListener('click', guardarWaConfig);
+  const btnProbarWa = document.getElementById('btnProbarWa');
+  if (btnProbarWa) btnProbarWa.addEventListener('click', probarWaConfig);
 }
 
 async function cargarOpcionesConfig() {
@@ -1080,6 +1085,7 @@ async function cargarOpcionesConfig() {
   if (puedeUI('config.ver')) cargarAdopcion();
   renderSuscripcion();
   cargarEmailConfig();
+  cargarWaConfig();
 }
 
 /* ---------- Empresa, pais y moneda ---------- */
@@ -2866,6 +2872,37 @@ async function probarEmailConfig() {
   try {
     await window.api.email.probar();
     notificar('Correo de prueba enviado');
+  } catch (err) { notificar('Error: ' + err.message, true); }
+}
+
+async function cargarWaConfig() {
+  try {
+    const c = await window.api.whatsapp.config();
+    if (!c) return;
+    const chk = document.getElementById('waActivo');
+    if (chk) chk.checked = !!c.activo;
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v != null ? v : ''; };
+    set('waPhoneNumberId', c.phone_number_id);
+    set('waToPhones', c.to_phones);
+  } catch (err) { /* ignore */ }
+}
+
+async function guardarWaConfig() {
+  try {
+    await window.api.whatsapp.guardar({
+      activo: document.getElementById('waActivo').checked,
+      phone_number_id: document.getElementById('waPhoneNumberId').value.trim(),
+      access_token: document.getElementById('waAccessToken').value,
+      to_phones: document.getElementById('waToPhones').value.trim(),
+    });
+    notificar('Configuracion de WhatsApp guardada');
+  } catch (err) { notificar('Error: ' + err.message, true); }
+}
+
+async function probarWaConfig() {
+  try {
+    await window.api.whatsapp.probar();
+    notificar('Mensaje de prueba enviado');
   } catch (err) { notificar('Error: ' + err.message, true); }
 }
 

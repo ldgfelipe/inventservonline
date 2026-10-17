@@ -491,6 +491,26 @@
             </div>
           </div>
           <div class="panel">
+            <h3>Notificaciones por WhatsApp</h3>
+            <p class="texto-ayuda">Envia las alertas por WhatsApp Business (Meta Cloud API).</p>
+            <label class="check-label"><input type="checkbox" id="waActivo" /> Activar WhatsApp</label>
+            <div class="campo-en-linea" style="margin-top:8px">
+              <input type="text" id="waPhoneNumberId" placeholder="Phone Number ID (Meta)" class="input-buscar" />
+            </div>
+            <div class="campo" style="margin-top:8px">
+              <label>Access Token (Meta)</label>
+              <input type="password" id="waAccessToken" class="input-buscar" />
+            </div>
+            <div class="campo" style="margin-top:8px">
+              <label>Telefonos destino (con codigo de pais, separados por coma)</label>
+              <input type="text" id="waToPhones" class="input-buscar" placeholder="584121234567, 5215512345678" />
+            </div>
+            <div class="campo-en-linea" style="margin-top:8px">
+              <button id="btnGuardarWa" class="btn btn-primary">Guardar</button>
+              <button id="btnProbarWa" class="btn btn-secondary">Enviar prueba</button>
+            </div>
+          </div>
+          <div class="panel">
             <h3>Uso y adopcion</h3>
             <p class="texto-ayuda">Permite medir si el sistema se usa de verdad y detectar abandono.</p>
             <div id="adopcionContenido"></div>

@@ -107,6 +107,15 @@ async function resolver(request) {
         });
       } catch { /* el email es opcional, no rompe la generacion */ }
     }
+    // Enviar resumen por WhatsApp si esta configurado
+    if (creadas > 0) {
+      try {
+        const { enviarWhatsApp } = await import('@/lib/whatsapp');
+        const { data: notifs } = await sb.from('notificaciones').select('titulo, mensaje').eq('empresa_id', perfil.empresa_id).eq('leida', false).order('created_at', { ascending: false }).limit(20);
+        const texto = `Alertas inventserOnline (${creadas} nuevas):\n` + (notifs || []).map((n) => `- ${n.titulo}: ${n.mensaje}`).join('\n');
+        await enviarWhatsApp(sb, perfil.empresa_id, { mensaje: texto });
+      } catch { /* opcional */ }
+    }
     return Response.json({ ok: true, creadas });
   }
 }
