@@ -2198,6 +2198,16 @@ function configurarEventosComercial() {
   if (fCobro) fCobro.addEventListener('submit', (e) => { e.preventDefault(); registrarCobro(); });
   const fPago = document.getElementById('formPagoProv');
   if (fPago) fPago.addEventListener('submit', (e) => { e.preventDefault(); registrarPagoProv(); });
+  const bAc = document.getElementById('btnAbrirCaja');
+  if (bAc) bAc.addEventListener('click', async () => {
+    const monto = Number(document.getElementById('cajaMontoInicial').value) || 0;
+    try {
+      await window.api.caja.abrir(monto);
+      notificar('Caja abierta');
+      document.getElementById('cajaMontoInicial').value = '';
+      await cargarSesionesCaja();
+    } catch (err) { notificar('Error: ' + err.message, true); }
+  });
 }
 
 async function cargarClientes() {
@@ -2593,16 +2603,46 @@ async function cargarCaja() {
   try {
     const r = await window.api.caja.resumen();
     const cont = document.getElementById('cajaResumen');
-    if (!cont) return;
-    const metodos = Object.entries(r.por_metodo || {}).map(([k, v]) => '<div>' + k + ': ' + formatoMoneda(v) + '</div>').join('');
-    cont.innerHTML = '<div style="font-size:18px;font-weight:bold">Total hoy: ' + formatoMoneda(r.total) + '</div>' +
-      '<div style="margin-top:8px">' + (metodos || 'Sin cobros') + '</div>' +
-      '<div style="margin-top:8px">' + ((r.cobros || []).length) + ' cobros</div>';
+    if (cont) {
+      const metodos = Object.entries(r.por_metodo || {}).map(([k, v]) => '<div>' + k + ': ' + formatoMoneda(v) + '</div>').join('');
+      cont.innerHTML = '<div style="font-size:18px;font-weight:bold">Total hoy: ' + formatoMoneda(r.total) + '</div>' +
+        '<div style="margin-top:8px">' + (metodos || 'Sin cobros') + '</div>' +
+        '<div style="margin-top:8px">' + ((r.cobros || []).length) + ' cobros</div>';
+    }
   } catch (err) {
     const cont = document.getElementById('cajaResumen');
     if (cont) cont.innerHTML = 'No se pudo cargar la caja: ' + escaparHtml(err.message);
   }
+  await cargarSesionesCaja();
 }
+
+async function cargarSesionesCaja() {
+  try {
+    const sesiones = await window.api.caja.sesiones();
+    const tb = document.getElementById('cajaSesionesBody');
+    if (!tb) return;
+    tb.innerHTML = (sesiones || []).map(s => '<tr>' +
+      '<td>' + formatoFecha(s.fecha_apertura) + '</td>' +
+      '<td>' + formatoMoneda(s.monto_inicial) + '</td>' +
+      '<td>' + (s.monto_final_esperado != null ? formatoMoneda(s.monto_final_esperado) : '-') + '</td>' +
+      '<td>' + (s.monto_final_real != null ? formatoMoneda(s.monto_final_real) : '-') + '</td>' +
+      '<td>' + (s.diferencia != null ? formatoMoneda(s.diferencia) : '-') + '</td>' +
+      '<td>' + escaparHtml(s.estado) + '</td>' +
+      '<td>' + (s.estado === 'abierta' ? '<button class="btn btn-ghost btn-mini" onclick="cerrarCaja(\'' + s.id + '\')">Cerrar</button>' : '') + '</td>' +
+    '</tr>').join('') || '<tr><td colspan="7" class="vacio">Sin sesiones</td></tr>';
+  } catch (err) { /* ignore */ }
+}
+
+window.cerrarCaja = async function (id) {
+  const monto = prompt('Monto real en caja:');
+  if (monto === null) return;
+  const notas = prompt('Notas (opcional):') || '';
+  try {
+    const r = await window.api.caja.cerrar(id, Number(monto) || 0, notas);
+    notificar('Caja cerrada. Diferencia: ' + formatoMoneda(r.diferencia));
+    await cargarSesionesCaja();
+  } catch (err) { notificar('Error: ' + err.message, true); }
+};
 
 window.abrirCobro = window.abrirCobro;
 window.abrirPagoProv = window.abrirPagoProv;

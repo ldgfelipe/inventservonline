@@ -273,6 +273,17 @@
             <h3>Caja del dia</h3>
             <div id="cajaResumen"></div>
           </div>
+          <div class="panel">
+            <h3>Sesiones de caja</h3>
+            <div class="campo-en-linea">
+              <input type="number" id="cajaMontoInicial" placeholder="Monto inicial" class="input-buscar" />
+              <button id="btnAbrirCaja" class="btn btn-primary">Abrir caja</button>
+            </div>
+            <table class="tabla" style="margin-top:8px">
+              <thead><tr><th>Apertura</th><th>Inicial</th><th>Esperado</th><th>Real</th><th>Diferencia</th><th>Estado</th><th></th></tr></thead>
+              <tbody id="cajaSesionesBody"></tbody>
+            </table>
+          </div>
         </section>
 
 
