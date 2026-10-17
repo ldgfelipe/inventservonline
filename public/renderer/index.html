@@ -511,6 +511,45 @@
             </div>
           </div>
           <div class="panel">
+            <h3>Facturacion electronica</h3>
+            <p class="texto-ayuda">Configura el timbrado electronico segun tu pais. Si tu proveedor no esta soportado, solicita la integracion.</p>
+            <div class="campo-en-linea" style="margin-top:8px">
+              <select id="factPais" class="input-select" title="Pais">
+                <option value="MX">Mexico</option>
+                <option value="VE">Venezuela</option>
+                <option value="CO">Colombia</option>
+                <option value="AR">Argentina</option>
+                <option value="CL">Chile</option>
+                <option value="PE">Peru</option>
+                <option value="ES">Espana</option>
+                <option value="US">Estados Unidos</option>
+              </select>
+              <select id="factProveedor" class="input-select" title="Proveedor">
+                <option value="manual">Manual (sin timbrado)</option>
+                <option value="facturama">Facturama (Mexico)</option>
+              </select>
+            </div>
+            <div class="campo-en-linea" style="margin-top:8px">
+              <input type="text" id="factRfc" placeholder="RFC / RIF / NIT" class="input-buscar" />
+              <input type="text" id="factRegimen" placeholder="Regimen fiscal" class="input-buscar" />
+            </div>
+            <div class="campo-en-linea" style="margin-top:8px">
+              <input type="text" id="factSerie" placeholder="Serie" class="input-buscar" style="width:80px" />
+              <input type="number" id="factFolio" placeholder="Folio inicial" class="input-buscar" style="width:100px" />
+              <label class="check-label"><input type="checkbox" id="factActivo" /> Activar</label>
+            </div>
+            <div class="campo" style="margin-top:8px">
+              <label>Credenciales (JSON, ej. {"usuario":"x","password":"y"})</label>
+              <textarea id="factCredenciales" class="input-buscar" rows="2" style="width:100%"></textarea>
+            </div>
+            <div class="campo-en-linea" style="margin-top:8px">
+              <button id="btnGuardarFact" class="btn btn-primary">Guardar configuracion</button>
+              <button id="btnSolicitarFact" class="btn btn-secondary">Solicitar integracion</button>
+            </div>
+            <div id="factStatus" class="texto-ayuda" style="margin-top:8px"></div>
+            <div id="factSolicitudes" style="margin-top:8px"></div>
+          </div>
+          <div class="panel">
             <h3>Uso y adopcion</h3>
             <p class="texto-ayuda">Permite medir si el sistema se usa de verdad y detectar abandono.</p>
             <div id="adopcionContenido"></div>
@@ -910,6 +949,21 @@
         <button id="btnMarcarTodasNotif" class="btn btn-ghost">Marcar todas leidas</button>
       </div>
       <div id="notifLista" style="max-height:400px;overflow:auto"></div>
+    </div>
+  </div>
+
+  <div id="modalSolicitudFact" class="modal">
+    <div class="modal-content">
+      <h3>Solicitar integracion de facturacion</h3>
+      <form id="formSolicitudFact">
+        <div class="campo"><label>Pais</label><input type="text" id="solPais" required placeholder="MX, VE, CO..." /></div>
+        <div class="campo"><label>Proveedor (opcional)</label><input type="text" id="solProveedor" placeholder="Facturama, SW Sapien, SAT..." /></div>
+        <div class="campo"><label>Descripcion</label><textarea id="solDescripcion" rows="3" placeholder="Describe lo que necesitas..."></textarea></div>
+        <div class="acciones-formulario">
+          <button type="button" class="btn btn-ghost" onclick="cerrarModal('modalSolicitudFact')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Enviar solicitud</button>
+        </div>
+      </form>
     </div>
   </div>
 

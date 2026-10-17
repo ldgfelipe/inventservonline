@@ -1072,6 +1072,13 @@ async function configurarEventosConfig() {
   if (btnGuardarWa) btnGuardarWa.addEventListener('click', guardarWaConfig);
   const btnProbarWa = document.getElementById('btnProbarWa');
   if (btnProbarWa) btnProbarWa.addEventListener('click', probarWaConfig);
+
+  const btnGuardarFact = document.getElementById('btnGuardarFact');
+  if (btnGuardarFact) btnGuardarFact.addEventListener('click', guardarFacturacion);
+  const btnSolicitarFact = document.getElementById('btnSolicitarFact');
+  if (btnSolicitarFact) btnSolicitarFact.addEventListener('click', () => abrirModal('modalSolicitudFact'));
+  const fSol = document.getElementById('formSolicitudFact');
+  if (fSol) fSol.addEventListener('submit', (e) => { e.preventDefault(); solicitarIntegracion(); });
 }
 
 async function cargarOpcionesConfig() {
@@ -1086,6 +1093,7 @@ async function cargarOpcionesConfig() {
   renderSuscripcion();
   cargarEmailConfig();
   cargarWaConfig();
+  cargarFacturacion();
 }
 
 /* ---------- Empresa, pais y moneda ---------- */
@@ -2296,7 +2304,8 @@ function renderVentas() {
         '<td>' + escaparHtml(v.estado) + '</td>' +
         '<td><button class="btn btn-ghost btn-mini" onclick="verVenta(\'' + v.id + '\')">Ver</button> ' +
             '<button class="btn btn-ghost btn-mini" onclick="imprimirFacturaVenta(\'' + v.id + '\')">Factura</button> ' +
-            '<button class="btn btn-ghost btn-mini" onclick="window.open(window.api.ventas.facturaUrl(\'' + v.id + '\'),\'_blank\')">PDF</button></td>' +
+            '<button class="btn btn-ghost btn-mini" onclick="window.open(window.api.ventas.facturaUrl(\'' + v.id + '\'),\'_blank\')">PDF</button> ' +
+            '<button class="btn btn-ghost btn-mini" onclick="timbrarVenta(\'' + v.id + '\')">Timbrar</button></td>' +
       '</tr>').join('')
     : '<tr><td colspan="6" class="vacio">Sin ventas</td></tr>';
 }
@@ -2930,6 +2939,91 @@ async function probarWaConfig() {
     notificar('Mensaje de prueba enviado');
   } catch (err) { notificar('Error: ' + err.message, true); }
 }
+
+async function cargarFacturacion() {
+  try {
+    const c = await window.api.facturacion.config();
+    if (c) {
+      const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v != null ? v : ''; };
+      const selPais = document.getElementById('factPais');
+      if (selPais && c.pais) selPais.value = c.pais;
+      const selProv = document.getElementById('factProveedor');
+      if (selProv && c.proveedor) selProv.value = c.proveedor;
+      set('factRfc', c.rfc);
+      set('factRegimen', c.regimen_fiscal);
+      set('factSerie', c.serie);
+      set('factFolio', c.folio_inicial);
+      const chk = document.getElementById('factActivo');
+      if (chk) chk.checked = !!c.activo;
+      const st = document.getElementById('factStatus');
+      if (st) st.textContent = 'Estado: ' + (c.status || 'no_configurado') + (c.ultimo_error ? ' - ' + c.ultimo_error : '') + (c.tiene_credenciales ? ' (credenciales guardadas)' : '');
+    }
+    await cargarSolicitudesFact();
+  } catch (err) { /* ignore */ }
+}
+
+async function guardarFacturacion() {
+  let credenciales = null;
+  const raw = (document.getElementById('factCredenciales').value || '').trim();
+  if (raw) {
+    try { credenciales = JSON.parse(raw); } catch { notificar('Credenciales: JSON invalido', true); return; }
+  }
+  try {
+    await window.api.facturacion.guardar({
+      pais: document.getElementById('factPais').value,
+      proveedor: document.getElementById('factProveedor').value,
+      rfc: document.getElementById('factRfc').value.trim(),
+      regimen_fiscal: document.getElementById('factRegimen').value.trim(),
+      serie: document.getElementById('factSerie').value.trim(),
+      folio_inicial: Number(document.getElementById('factFolio').value) || 1,
+      activo: document.getElementById('factActivo').checked,
+      credenciales,
+    });
+    notificar('Configuracion de facturacion guardada');
+    await cargarFacturacion();
+  } catch (err) { notificar('Error: ' + err.message, true); }
+}
+
+async function solicitarIntegracion() {
+  const pais = document.getElementById('solPais').value.trim().toUpperCase();
+  if (!pais) return notificar('Falta el pais', true);
+  try {
+    await window.api.facturacion.solicitar({
+      pais,
+      proveedor: document.getElementById('solProveedor').value.trim(),
+      descripcion: document.getElementById('solDescripcion').value.trim(),
+    });
+    cerrarModal('modalSolicitudFact');
+    document.getElementById('formSolicitudFact').reset();
+    notificar('Solicitud enviada. Un administrador la revisara.');
+    await cargarSolicitudesFact();
+  } catch (err) { notificar('Error: ' + err.message, true); }
+}
+
+async function cargarSolicitudesFact() {
+  try {
+    const sols = await window.api.facturacion.solicitudes();
+    const cont = document.getElementById('factSolicitudes');
+    if (!cont) return;
+    cont.innerHTML = (sols || []).length
+      ? '<h4 style="font-size:13px;margin:8px 0 4px">Mis solicitudes</h4>' + (sols || []).map((s) =>
+          '<div style="padding:6px;border-bottom:1px solid #eee;font-size:12px">' +
+          '<strong>' + escaparHtml(s.pais) + '</strong> - ' + escaparHtml(s.proveedor || '-') +
+          ' <span class="chip">' + escaparHtml(s.estado) + '</span>' +
+          (s.notas_admin ? '<div style="color:#555;margin-top:2px">' + escaparHtml(s.notas_admin) + '</div>' : '') +
+          '</div>').join('')
+      : '';
+  } catch (err) { /* ignore */ }
+}
+
+// Boton Timbrar en ventas: agregar a la lista
+window.timbrarVenta = async function (id) {
+  try {
+    const r = await window.api.facturacion.timbrar(id);
+    if (r.ok) notificar('Timbrado: ' + (r.uuid || r.folio || 'OK'));
+    else notificar('Error al timbrar: ' + (r.error || ''), true);
+  } catch (err) { notificar('Error: ' + err.message, true); }
+};
 
 /* ------------------ Utilidades ------------------ */
 
