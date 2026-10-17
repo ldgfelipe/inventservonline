@@ -2650,12 +2650,36 @@ async function cargarSesionesCaja() {
 }
 
 window.cerrarCaja = async function (id) {
-  const monto = prompt('Monto real en caja:');
-  if (monto === null) return;
+  // Obtener sesion para mostrar desglose esperado
+  let sesion = null;
+  try {
+    const sesiones = await window.api.caja.sesiones();
+    sesion = (sesiones || []).find((s) => s.id === id);
+  } catch (e) { /* ignore */ }
+  const desglose = (sesion && sesion.desglose_esperado) || {};
+  const metodos = Object.keys(desglose);
+  let montoReal = 0;
+  const desgloseReal = {};
+  if (metodos.length) {
+    let msg = 'Desglose esperado:\n';
+    for (const m of metodos) { msg += m + ': ' + desglose[m] + '\n'; }
+    msg += '\nIngresa el monto real total en caja:';
+    const input = prompt(msg);
+    if (input === null) return;
+    montoReal = Number(input) || 0;
+  } else {
+    const input = prompt('Monto real en caja:');
+    if (input === null) return;
+    montoReal = Number(input) || 0;
+  }
   const notas = prompt('Notas (opcional):') || '';
   try {
-    const r = await window.api.caja.cerrar(id, Number(monto) || 0, notas);
-    notificar('Caja cerrada. Diferencia: ' + formatoMoneda(r.diferencia));
+    const r = await window.api.caja.cerrarDetallado(id, montoReal, desgloseReal, notas);
+    let extra = '';
+    if (r.desglose_esperado) {
+      extra = '\nDesglose esperado: ' + Object.entries(r.desglose_esperado).map(([k, v]) => k + '=' + v).join(', ');
+    }
+    notificar('Caja cerrada. Diferencia: ' + formatoMoneda(r.diferencia) + extra);
     await cargarSesionesCaja();
   } catch (err) { notificar('Error: ' + err.message, true); }
 };

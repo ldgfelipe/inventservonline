@@ -240,6 +240,7 @@ window.api = {
     sesiones: () => pedir('/api/caja/sesiones').then((r) => r.sesiones || []),
     abrir: (monto) => pedir('/api/caja/sesiones', { metodo: 'POST', json: { monto_inicial: monto } }),
     cerrar: (sesionId, montoReal, notas) => pedir('/api/caja/cerrar', { metodo: 'POST', json: { sesion_id: sesionId, monto_real: montoReal, notas } }),
+    cerrarDetallado: (sesionId, montoReal, desgloseReal, notas) => pedir('/api/caja/cerrar-detallado', { metodo: 'POST', json: { sesion_id: sesionId, monto_real: montoReal, desglose_real: desgloseReal, notas } }),
   },
   reportes: {
     ventas: (filtros = {}) => pedir('/api/reportes/ventas' + qs({ desde: filtros.desde, hasta: filtros.hasta })),
