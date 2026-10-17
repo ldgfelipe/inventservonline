@@ -1109,6 +1109,8 @@ async function renderEmpresaMoneda() {
   document.getElementById('empresaRif').value = emp.rif || '';
   if (emp.pais) selPais.value = emp.pais;
   if (emp.moneda) selMoneda.value = emp.moneda;
+  const ivaEl = document.getElementById('inputTasaIva');
+  if (ivaEl) ivaEl.value = (emp.tasa_iva != null ? emp.tasa_iva : 0);
 
   renderVistaPreviaMoneda();
 }
@@ -1118,10 +1120,11 @@ async function guardarEmpresaMoneda() {
   const rif = document.getElementById('empresaRif').value.trim();
   const pais = document.getElementById('selectPais').value;
   const moneda = document.getElementById('selectMoneda').value;
+  const tasaIva = Number(document.getElementById('inputTasaIva').value) || 0;
   if (!nombre) return notificar('El nombre de la empresa no puede quedar vacio', true);
 
   try {
-    const resp = await window.api.empresa.guardar({ nombre, rif, pais, moneda });
+    const resp = await window.api.empresa.guardar({ nombre, rif, pais, moneda, tasa_iva: tasaIva });
     ESTADO.empresa = resp.empresa;
     ESTADO.monedaInfo = resp.empresa && resp.empresa.moneda_info || null;
     renderVistaPreviaMoneda();
@@ -2265,7 +2268,8 @@ function renderVentas() {
         '<td>' + escaparHtml(v.cliente_nombre || 'Mostrador') + '</td>' +
         '<td>' + formatoMoneda(v.total) + '</td>' +
         '<td>' + escaparHtml(v.estado) + '</td>' +
-        '<td><button class="btn btn-ghost btn-mini" onclick="verVenta(\'' + v.id + '\')">Ver</button></td>' +
+        '<td><button class="btn btn-ghost btn-mini" onclick="verVenta(\'' + v.id + '\')">Ver</button> ' +
+            '<button class="btn btn-ghost btn-mini" onclick="imprimirFacturaVenta(\'' + v.id + '\')">Factura</button></td>' +
       '</tr>').join('')
     : '<tr><td colspan="6" class="vacio">Sin ventas</td></tr>';
 }
@@ -2703,6 +2707,33 @@ async function cargarReporteCaja() {
     }
   } catch (err) { notificar('Error: ' + err.message, true); }
 }
+
+window.imprimirFacturaVenta = async function (id) {
+  try {
+    const r = await window.api.ventas.obtener(id);
+    const v = r.venta;
+    const det = r.detalle || [];
+    const emp = ESTADO.empresa || {};
+    const tasa = Number(emp.tasa_iva) || 0;
+    const subtotal = Number(v.subtotal) || 0;
+    const iva = Math.round(subtotal * tasa / 100 * 100) / 100;
+    const filas = det.map(d => '<tr><td>' + escaparHtml(d.producto_nombre || '') + '</td><td>' + d.cantidad + '</td><td>' + formatoMoneda(d.precio_unitario) + '</td><td>' + formatoMoneda(d.subtotal) + '</td></tr>').join('');
+    const html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Factura ' + escaparHtml(v.numero) + '</title><style>body{font-family:Arial,sans-serif;font-size:12px;margin:20px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #999;padding:4px 6px}th{background:#eee}.totales{text-align:right;margin-top:10px}.totales div{margin:2px 0}</style></head><body>' +
+      '<h2>Factura ' + escaparHtml(v.numero) + '</h2>' +
+      '<div>Empresa: ' + escaparHtml(emp.nombre || '') + '</div>' +
+      '<div>RIF: ' + escaparHtml(emp.rif || '') + '</div>' +
+      '<div>Cliente: ' + escaparHtml(v.cliente_nombre || 'Mostrador') + '</div>' +
+      '<div>Fecha: ' + formatoFecha(v.fecha) + '</div>' +
+      '<table style="margin-top:10px"><thead><tr><th>Producto</th><th>Cant</th><th>Precio</th><th>Subtotal</th></tr></thead><tbody>' + filas + '</tbody></table>' +
+      '<div class="totales">' +
+        '<div>Subtotal: ' + formatoMoneda(subtotal) + '</div>' +
+        '<div>Descuento: ' + formatoMoneda(v.descuento || 0) + '</div>' +
+        '<div>IVA (' + tasa + '%): ' + formatoMoneda(iva) + '</div>' +
+        '<div><strong>Total: ' + formatoMoneda(v.total) + '</strong></div>' +
+      '</div></body></html>';
+    window.api.imprimir.html(html);
+  } catch (err) { notificar('Error: ' + err.message, true); }
+};
 
 /* ------------------ Utilidades ------------------ */
 

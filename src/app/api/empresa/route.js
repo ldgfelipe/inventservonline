@@ -5,7 +5,7 @@ export const runtime = 'nodejs';
 
 /* Columnas de empresa. pais y moneda llegaron con la migracion 012; si
    la base es anterior, reintentamos sin ellas para no romper el panel. */
-const COLS = 'nombre, rif, giro_actual, plan, pais, moneda';
+const COLS = 'nombre, rif, giro_actual, plan, pais, moneda, tasa_iva';
 const COLS_SIN_MONEDA = 'nombre, rif, giro_actual, plan';
 
 function conMoneda(empresa) {
@@ -60,6 +60,11 @@ async function actualizar(request) {
     if (!esMonedaValida(moneda)) return error('La moneda seleccionada no es valida');
     cambios.moneda = moneda;
   }
+  if (cuerpo.tasa_iva !== undefined) {
+    const tasa = Number(cuerpo.tasa_iva);
+    if (!Number.isFinite(tasa) || tasa < 0 || tasa > 100) return error('La tasa de IVA debe estar entre 0 y 100');
+    cambios.tasa_iva = tasa;
+  }
 
   if (!Object.keys(cambios).length) return error('No hay cambios que guardar');
 
@@ -86,6 +91,22 @@ async function actualizar(request) {
     if (!err) {
       data = { ...(data || {}), pais: 'VE', moneda: 'VES' };
       aviso = 'Falta aplicar la migracion 012 (pais y moneda) en la base de datos.';
+    }
+  }
+  if (err && cambios.tasa_iva !== undefined && !cambios.pais && !cambios.moneda) {
+    const sinIva = { ...cambios };
+    delete sinIva.tasa_iva;
+    if (Object.keys(sinIva).length) {
+      ({ data, error: err } = await sb.from('empresas')
+        .update(sinIva).eq('id', perfil.empresa_id).select(COLS_SIN_MONEDA).maybeSingle());
+    } else {
+      err = null;
+      ({ data } = await sb.from('empresas')
+        .select(COLS_SIN_MONEDA).eq('id', perfil.empresa_id).maybeSingle());
+    }
+    if (!err) {
+      data = { ...(data || {}), tasa_iva: 0, pais: 'VE', moneda: 'VES' };
+      aviso = 'Falta aplicar la migracion 016 (tasa de IVA) en la base de datos.';
     }
   }
   if (err) return error('No se pudo guardar: ' + err.message, 500);
