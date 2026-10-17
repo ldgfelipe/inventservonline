@@ -14,6 +14,8 @@ export default function Admin() {
   const [nuevaClave, setNuevaClave] = useState({ descripcion: '', max_usos: 1, dias: 0 });
   const [pagos, setPagos] = useState([]);
   const [pagosCargando, setPagosCargando] = useState(false);
+  const [solicitudes, setSolicitudes] = useState([]);
+  const [solicitudesCargando, setSolicitudesCargando] = useState(false);
 
   useEffect(() => {
     fetch('/api/auth/sesion', { headers: auth() })
@@ -29,6 +31,7 @@ export default function Admin() {
     fetch('/api/giros').then((r) => r.json()).then((j) => setGiros(j.giros || [])).catch(() => {});
     fetch('/api/empresa', { headers: auth() }).then((r) => r.json()).then((j) => setEmpresa(j.empresa)).catch(() => {});
     cargarPagos();
+    cargarSolicitudes();
   }, [usuario]);
 
   function auth() {
@@ -41,6 +44,44 @@ export default function Admin() {
     const j = await r.json();
     if (r.ok) setClaves(j.claves || []);
     else setError(j.error || 'No se pudieron cargar las claves');
+  }
+
+  async function crearClave(e) {
+    e.preventDefault();
+    setError('');
+    setMensaje('');
+    const r = await fetch('/api/admin/claves', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...auth() },
+      body: JSON.stringify(nuevaClave),
+    });
+    const j = await r.json();
+    if (!r.ok) return setError(j.error || 'No se pudo crear');
+    setMensaje(`Clave creada: ${j.clave.codigo}  (guardala, no se volvera a mostrar)`);
+    setNuevaClave({ descripcion: '', max_usos: 1, dias: 0 });
+    cargarClaves();
+  }
+
+  async function alternar(id, activa) {
+    await fetch('/api/admin/claves', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...auth() },
+      body: JSON.stringify({ id, activa }),
+    });
+    cargarClaves();
+  }
+
+  async function cambiarGiro(nombre) {
+    const r = await fetch('/api/giros', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...auth() },
+      body: JSON.stringify({ nombre }),
+    });
+    if (r.ok) {
+      setMensaje('Giro actualizado a ' + nombre);
+      const j = await fetch('/api/empresa', { headers: auth() }).then((x) => x.json());
+      setEmpresa(j.empresa);
+    }
   }
 
   async function cargarPagos() {
@@ -67,43 +108,28 @@ export default function Admin() {
     cargarPagos();
   }
 
-  async function crearClave(e) {
-    e.preventDefault();
+  async function cargarSolicitudes() {
+    setSolicitudesCargando(true);
+    try {
+      const r = await fetch('/api/admin/facturacion/solicitudes', { headers: auth() });
+      const j = await r.json();
+      if (r.ok) setSolicitudes(j.solicitudes || []);
+      else setError(j.error || 'No se pudieron cargar las solicitudes');
+    } finally { setSolicitudesCargando(false); }
+  }
+
+  async function resolverSolicitud(id, estado, notas) {
     setError('');
     setMensaje('');
-    const r = await fetch('/api/admin/claves', {
+    const r = await fetch('/api/admin/facturacion/solicitudes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...auth() },
-      body: JSON.stringify(nuevaClave),
+      body: JSON.stringify({ id, estado, notas_admin: notas }),
     });
     const j = await r.json();
-    if (!r.ok) return setError(j.error || 'No se pudo crear');
-    // Esta es la UNICA vez que se ve el codigo completo
-    setMensaje(`Clave creada: ${j.clave.codigo}  (guardala, no se volvera a mostrar)`);
-    setNuevaClave({ descripcion: '', max_usos: 1, dias: 0 });
-    cargarClaves();
-  }
-
-  async function alternar(id, activa) {
-    await fetch('/api/admin/claves', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', ...auth() },
-      body: JSON.stringify({ id, activa }),
-    });
-    cargarClaves();
-  }
-
-  async function cambiarGiro(nombre) {
-    const r = await fetch('/api/giros', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', ...auth() },
-      body: JSON.stringify({ nombre }),
-    });
-    if (r.ok) {
-      setMensaje('Giro actualizado a ' + nombre);
-      const j = await fetch('/api/empresa', { headers: auth() }).then((x) => x.json());
-      setEmpresa(j.empresa);
-    }
+    if (!r.ok) return setError(j.error || 'No se pudo actualizar');
+    setMensaje('Solicitud actualizada: ' + estado);
+    cargarSolicitudes();
   }
 
   if (cargandoSesion) return <div className="cargando">Verificando sesion...</div>;
@@ -137,7 +163,7 @@ export default function Admin() {
       <header className="admin-header">
         <div>
           <h1>Administracion</h1>
-          <p className="sub">Hola {usuario.nombre}. Gestiona claves y el giro del sistema.</p>
+          <p className="sub">Hola {usuario.nombre}. Gestiona claves, pagos y solicitudes de facturacion.</p>
         </div>
         <Link className="btn btn-secundario" href="/panel">Ir al sistema</Link>
       </header>
@@ -243,6 +269,60 @@ export default function Admin() {
               </tr>
             ))}
             {pagos.length === 0 && <tr><td colSpan={7} className="vacio">Sin pagos pendientes</td></tr>}
+          </tbody>
+        </table>
+      </section>
+
+      <section className="panel-admin">
+        <h2>Solicitudes de facturacion electronica</h2>
+        <p className="ayuda">
+          Solicitudes de usuarios para integrar proveedores o paises no soportados.
+        </p>
+        <button className="btn btn-secundario" onClick={cargarSolicitudes} style={{ marginBottom: 12 }}>
+          {solicitudesCargando ? 'Cargando...' : 'Actualizar'}
+        </button>
+        <table className="tabla-admin">
+          <thead>
+            <tr><th>Empresa</th><th>Pais</th><th>Proveedor</th><th>Descripcion</th><th>Estado</th><th>Notas</th><th></th></tr>
+          </thead>
+          <tbody>
+            {solicitudes.map((s) => (
+              <tr key={s.id}>
+                <td>{s.empresa || s.empresa_id}</td>
+                <td>{s.pais}</td>
+                <td>{s.proveedor || '-'}</td>
+                <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.descripcion || '-'}</td>
+                <td>
+                  <select
+                    value={s.estado}
+                    onChange={(e) => resolverSolicitud(s.id, e.target.value, s.notas_admin || '')}
+                    className="input-select"
+                  >
+                    <option value="pendiente">Pendiente</option>
+                    <option value="en_investigacion">En investigacion</option>
+                    <option value="implementado">Implementado</option>
+                    <option value="rechazado">Rechazado</option>
+                  </select>
+                </td>
+                <td>
+                  <input
+                    type="text"
+                    defaultValue={s.notas_admin || ''}
+                    onBlur={(e) => { if (e.target.value !== (s.notas_admin || '')) resolverSolicitud(s.id, s.estado, e.target.value); }}
+                    placeholder="Notas..."
+                    style={{ width: 120 }}
+                  />
+                </td>
+                <td>
+                  {s.estado !== 'implementado' && (
+                    <button className="btn-mini" onClick={() => resolverSolicitud(s.id, 'implementado', s.notas_admin || '')}>
+                      Marcar implementado
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {solicitudes.length === 0 && <tr><td colSpan={7} className="vacio">Sin solicitudes</td></tr>}
           </tbody>
         </table>
       </section>
