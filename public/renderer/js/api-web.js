@@ -247,6 +247,12 @@ window.api = {
     cxp: () => pedir('/api/reportes/cxp'),
     caja: (filtros = {}) => pedir('/api/reportes/caja' + qs({ desde: filtros.desde, hasta: filtros.hasta })),
   },
+  notificaciones: {
+    listar: (soloNoLeidas) => pedir('/api/notificaciones' + (soloNoLeidas ? '?no_leidas=1' : '')).then((r) => ({ items: r.notificaciones || [], noLeidas: r.no_leidas || 0 })),
+    marcarLeida: (id) => pedir('/api/notificaciones', { metodo: 'POST', json: { accion: 'marcar_leida', id } }),
+    marcarTodas: () => pedir('/api/notificaciones', { metodo: 'POST', json: { accion: 'marcar_todas' } }),
+    generar: () => pedir('/api/notificaciones', { metodo: 'POST', json: { accion: 'generar' } }),
+  },
   monedas: {
     listar: () => pedir('/api/monedas'),
   },

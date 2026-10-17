@@ -19,6 +19,7 @@ const ESTADO = {
   catalogoMonedas: null,
   suscripcion: null,
   planes: null,
+  notificaciones: [],
   clientes: [],
   ventas: [],
   compras: [],
@@ -190,6 +191,7 @@ async function iniciar() {
     configurarEventosContabilidad();
     configurarEventosComercial();
     configurarEventosReportes();
+    configurarEventosNotificaciones();
     configurarMenu();
     ESTADO.eventosListos = true;
   }
@@ -2776,6 +2778,51 @@ window.imprimirFacturaVenta = async function (id) {
     window.api.imprimir.html(html);
   } catch (err) { notificar('Error: ' + err.message, true); }
 };
+
+function configurarEventosNotificaciones() {
+  const btn = document.getElementById('btnNotificaciones');
+  if (btn) btn.addEventListener('click', () => { abrirModal('modalNotificaciones'); cargarNotificaciones(); });
+  const bg = document.getElementById('btnGenerarNotif');
+  if (bg) bg.addEventListener('click', async () => {
+    try { const r = await window.api.notificaciones.generar(); notificar(r.creadas + ' alertas generadas'); await cargarNotificaciones(); } catch (err) { notificar('Error: ' + err.message, true); }
+  });
+  const bt = document.getElementById('btnMarcarTodasNotif');
+  if (bt) bt.addEventListener('click', async () => {
+    try { await window.api.notificaciones.marcarTodas(); await cargarNotificaciones(); } catch (err) { notificar('Error: ' + err.message, true); }
+  });
+}
+
+async function cargarNotificaciones() {
+  try {
+    const r = await window.api.notificaciones.listar();
+    ESTADO.notificaciones = r.items || [];
+    const badge = document.getElementById('notifBadge');
+    if (badge) {
+      if (r.noLeidas > 0) { badge.textContent = r.noLeidas; badge.style.display = 'inline-block'; }
+      else badge.style.display = 'none';
+    }
+    const lista = document.getElementById('notifLista');
+    if (lista) {
+      lista.innerHTML = (r.items || []).length
+        ? (r.items || []).map(n => '<div style="padding:8px;border-bottom:1px solid #eee;' + (n.leida ? 'opacity:0.6' : '') + '">' +
+            '<div style="font-weight:bold;font-size:13px">' + escaparHtml(n.titulo) + '</div>' +
+            '<div style="font-size:12px">' + escaparHtml(n.mensaje || '') + '</div>' +
+            '<div style="font-size:11px;color:#888;margin-top:2px">' + formatoFecha(n.created_at) + '</div>' +
+            (!n.leida ? '<button class="btn btn-ghost btn-mini" style="margin-top:4px" onclick="marcarNotifLeida(\'' + n.id + '\')">Marcar leida</button>' : '') +
+          '</div>').join('')
+        : '<p class="texto-ayuda">Sin notificaciones</p>';
+    }
+  } catch (err) { /* ignore */ }
+}
+
+window.marcarNotifLeida = async function (id) {
+  try { await window.api.notificaciones.marcarLeida(id); await cargarNotificaciones(); } catch (err) { notificar('Error: ' + err.message, true); }
+};
+
+// Generar alertas al iniciar y actualizar badge
+(async function initNotif() {
+  try { await window.api.notificaciones.generar(); await cargarNotificaciones(); } catch (e) { /* ignore */ }
+})();
 
 /* ------------------ Utilidades ------------------ */
 
