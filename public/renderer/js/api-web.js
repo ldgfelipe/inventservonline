@@ -254,6 +254,11 @@ window.api = {
     marcarTodas: () => pedir('/api/notificaciones', { metodo: 'POST', json: { accion: 'marcar_todas' } }),
     generar: () => pedir('/api/notificaciones', { metodo: 'POST', json: { accion: 'generar' } }),
   },
+  email: {
+    config: () => pedir('/api/email/config').then((r) => r.config),
+    guardar: (payload) => pedir('/api/email/config', { metodo: 'POST', json: payload }),
+    probar: () => pedir('/api/email/config', { metodo: 'POST', json: { test: true } }),
+  },
   monedas: {
     listar: () => pedir('/api/monedas'),
   },

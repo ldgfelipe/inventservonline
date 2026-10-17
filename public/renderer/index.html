@@ -466,6 +466,31 @@
             <div id="pagoResultado" class="consola" style="margin-top:8px;display:none"></div>
           </div>
           <div class="panel">
+            <h3>Notificaciones por correo</h3>
+            <p class="texto-ayuda">Envia las alertas de stock y CxC vencidas a tu correo.</p>
+            <label class="check-label"><input type="checkbox" id="emailActivo" /> Activar correo</label>
+            <div class="campo-en-linea" style="margin-top:8px">
+              <input type="text" id="emailSmtpHost" placeholder="SMTP host (ej. smtp.gmail.com)" class="input-buscar" />
+              <input type="number" id="emailSmtpPort" placeholder="Puerto" class="input-buscar" style="width:90px" />
+            </div>
+            <div class="campo-en-linea" style="margin-top:8px">
+              <input type="text" id="emailSmtpUser" placeholder="Usuario SMTP" class="input-buscar" />
+              <input type="password" id="emailSmtpPass" placeholder="Contrasena SMTP" class="input-buscar" />
+            </div>
+            <div class="campo-en-linea" style="margin-top:8px">
+              <input type="text" id="emailFromName" placeholder="Nombre remitente" class="input-buscar" />
+              <input type="email" id="emailFromEmail" placeholder="Email remitente" class="input-buscar" />
+            </div>
+            <div class="campo" style="margin-top:8px">
+              <label>Destinatarios (separados por coma)</label>
+              <input type="text" id="emailToEmails" class="input-buscar" placeholder="a@x.com, b@y.com" />
+            </div>
+            <div class="campo-en-linea" style="margin-top:8px">
+              <button id="btnGuardarEmail" class="btn btn-primary">Guardar</button>
+              <button id="btnProbarEmail" class="btn btn-secondary">Enviar prueba</button>
+            </div>
+          </div>
+          <div class="panel">
             <h3>Uso y adopcion</h3>
             <p class="texto-ayuda">Permite medir si el sistema se usa de verdad y detectar abandono.</p>
             <div id="adopcionContenido"></div>

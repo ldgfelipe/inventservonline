@@ -1062,6 +1062,11 @@ async function configurarEventosConfig() {
   if (fTr) fTr.addEventListener('submit', (e) => { e.preventDefault(); registrarTransferencia(); });
   const btnCancelTr = document.getElementById('btnCancelTransferencia');
   if (btnCancelTr) btnCancelTr.addEventListener('click', () => cerrarModal('modalTransferencia'));
+
+  const btnGuardarEmail = document.getElementById('btnGuardarEmail');
+  if (btnGuardarEmail) btnGuardarEmail.addEventListener('click', guardarEmailConfig);
+  const btnProbarEmail = document.getElementById('btnProbarEmail');
+  if (btnProbarEmail) btnProbarEmail.addEventListener('click', probarEmailConfig);
 }
 
 async function cargarOpcionesConfig() {
@@ -1074,6 +1079,7 @@ async function cargarOpcionesConfig() {
   renderCamposGiro();
   if (puedeUI('config.ver')) cargarAdopcion();
   renderSuscripcion();
+  cargarEmailConfig();
 }
 
 /* ---------- Empresa, pais y moneda ---------- */
@@ -2823,6 +2829,45 @@ window.marcarNotifLeida = async function (id) {
 (async function initNotif() {
   try { await window.api.notificaciones.generar(); await cargarNotificaciones(); } catch (e) { /* ignore */ }
 })();
+
+async function cargarEmailConfig() {
+  try {
+    const c = await window.api.email.config();
+    if (!c) return;
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v != null ? v : ''; };
+    const chk = document.getElementById('emailActivo');
+    if (chk) chk.checked = !!c.activo;
+    set('emailSmtpHost', c.smtp_host);
+    set('emailSmtpPort', c.smtp_port);
+    set('emailSmtpUser', c.smtp_user);
+    set('emailFromName', c.from_name);
+    set('emailFromEmail', c.from_email);
+    set('emailToEmails', c.to_emails);
+  } catch (err) { /* ignore */ }
+}
+
+async function guardarEmailConfig() {
+  try {
+    await window.api.email.guardar({
+      activo: document.getElementById('emailActivo').checked,
+      smtp_host: document.getElementById('emailSmtpHost').value.trim(),
+      smtp_port: Number(document.getElementById('emailSmtpPort').value) || 587,
+      smtp_user: document.getElementById('emailSmtpUser').value.trim(),
+      smtp_pass: document.getElementById('emailSmtpPass').value,
+      from_name: document.getElementById('emailFromName').value.trim(),
+      from_email: document.getElementById('emailFromEmail').value.trim(),
+      to_emails: document.getElementById('emailToEmails').value.trim(),
+    });
+    notificar('Configuracion de correo guardada');
+  } catch (err) { notificar('Error: ' + err.message, true); }
+}
+
+async function probarEmailConfig() {
+  try {
+    await window.api.email.probar();
+    notificar('Correo de prueba enviado');
+  } catch (err) { notificar('Error: ' + err.message, true); }
+}
 
 /* ------------------ Utilidades ------------------ */
 

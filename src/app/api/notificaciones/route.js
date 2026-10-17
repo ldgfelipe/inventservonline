@@ -94,10 +94,21 @@ async function resolver(request) {
         }
       }
     }
+    // Enviar resumen por email si esta configurado
+    if (creadas > 0) {
+      try {
+        const { enviarCorreo } = await import('@/lib/email');
+        const { data: notifs } = await sb.from('notificaciones').select('titulo, mensaje').eq('empresa_id', perfil.empresa_id).eq('leida', false).order('created_at', { ascending: false }).limit(20);
+        const lista = (notifs || []).map((n) => `<li><strong>${n.titulo}</strong>: ${n.mensaje}</li>`).join('');
+        await enviarCorreo(sb, perfil.empresa_id, {
+          asunto: `Alertas de inventario (${creadas} nuevas) - inventserOnline`,
+          texto: (notifs || []).map((n) => `${n.titulo}: ${n.mensaje}`).join('\n'),
+          html: `<p>Se generaron ${creadas} nuevas alertas:</p><ul>${lista}</ul>`,
+        });
+      } catch { /* el email es opcional, no rompe la generacion */ }
+    }
     return Response.json({ ok: true, creadas });
   }
-
-  return error('Accion invalida');
 }
 
 export const GET = manejar(listar);
