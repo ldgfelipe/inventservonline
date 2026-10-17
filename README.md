@@ -188,6 +188,13 @@ Ejecuta los archivos de `sql/` **en orden** en el SQL Editor de Supabase. Todos 
 | `013_planes_freemium.sql` | Planes, suscripcion, multi-almacen y pagos SaaS |
 | `014_comercial.sql` | Clientes, ventas, cobros, CxC, compras, CxP y pagos a proveedores |
 | `015_multi_almacen.sql` | Multi-almacen real: registrar_movimiento/venta/compra con almacen + producto_almacen |
+| `016_facturacion_iva.sql` | Tasa de IVA por empresa (facturacion) |
+| `017_caja_arqueo.sql` | Cierre de caja / arqueo |
+| `018_notificaciones.sql` | Notificaciones in-app |
+| `019_email_config.sql` | Configuracion de correo (notificaciones por email) |
+| `020_whatsapp_config.sql` | Configuracion de WhatsApp (notificaciones) |
+| `021_caja_detallado.sql` | Cierre de caja detallado (arqueo por metodo) |
+| `022_facturacion_electronica.sql` | Config de facturacion + solicitudes de integracion |
 
 ## Planes, freemium y limites
 
@@ -221,6 +228,14 @@ Ejecuta los archivos de `sql/` **en orden** en el SQL Editor de Supabase. Todos 
 - Cobros y pagos a proveedores se aplican a la factura indicada o, si no se indica, en orden FIFO a las cuentas pendientes del cliente/proveedor.
 - Permisos nuevos: `clientes.*`, `ventas.*`, `cobros.registrar`, `caja.ver`, `cxc.ver`, `compras.*`, `cxp.*`. Admin y supervisor los tienen; almacenista opera ventas/compras; consultor solo lectura.
 - La UI de POS (pantalla de venta, caja, CxC/CxP) queda como siguiente paso.
+
+## Facturacion electronica (integraciones por pais)
+
+- `src/lib/facturacion/` implementa un **registro de proveedores** con dispatch: `manual` (sin timbrado) y `facturama` (Mexico, stub). Agregar un proveedor nuevo = crear un modulo en `providers/` e importarlo en `index.js`.
+- `facturacion_config` guarda pais, proveedor, credenciales (JSONB), RFC, regimen fiscal, uso CFDI, serie, folio, activo, status.
+- `facturacion_solicitudes` permite a los usuarios solicitar integracion de un proveedor/pais no soportado; el super-admin las gestiona desde `/api/admin/facturacion/solicitudes`.
+- Endpoints: `/api/facturacion/config`, `/api/facturacion/timbrar`, `/api/facturacion/solicitudes`, `/api/admin/facturacion/solicitudes`.
+- Flujo: el usuario selecciona pais + proveedor soportado y configura credenciales; si necesita otro, crea una solicitud. El super-admin la investiga e implementa.
 
 ## Administrador de la plataforma
 

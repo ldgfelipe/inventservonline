@@ -266,6 +266,17 @@ window.api = {
     guardar: (payload) => pedir('/api/whatsapp/config', { metodo: 'POST', json: payload }),
     probar: () => pedir('/api/whatsapp/config', { metodo: 'POST', json: { test: true } }),
   },
+  facturacion: {
+    config: () => pedir('/api/facturacion/config').then((r) => r.config),
+    guardar: (payload) => pedir('/api/facturacion/config', { metodo: 'POST', json: payload }),
+    timbrar: (ventaId) => pedir('/api/facturacion/timbrar', { metodo: 'POST', json: { venta_id: ventaId } }),
+    solicitudes: () => pedir('/api/facturacion/solicitudes').then((r) => r.solicitudes || []),
+    solicitar: (payload) => pedir('/api/facturacion/solicitudes', { metodo: 'POST', json: payload }),
+  },
+  adminFacturacion: {
+    solicitudes: () => pedir('/api/admin/facturacion/solicitudes').then((r) => r.solicitudes || []),
+    resolver: (id, estado, notas) => pedir('/api/admin/facturacion/solicitudes', { metodo: 'POST', json: { id, estado, notas_admin: notas } }),
+  },
   monedas: {
     listar: () => pedir('/api/monedas'),
   },
