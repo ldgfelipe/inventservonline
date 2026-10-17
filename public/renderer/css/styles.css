@@ -91,6 +91,8 @@ body {
   border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 .logo-icon { color: var(--color-primario); font-size: 22px; }
+.logo-img { height: 32px; width: auto; object-fit: contain; }
+.login-logo-img { height: 60px; width: auto; object-fit: contain; }
 .nav { flex: 1; padding: 12px 8px; display: flex; flex-direction: column; gap: 2px; }
 .nav-item {
   display: flex;
