@@ -246,6 +246,7 @@ window.api = {
     cxc: () => pedir('/api/reportes/cxc'),
     cxp: () => pedir('/api/reportes/cxp'),
     caja: (filtros = {}) => pedir('/api/reportes/caja' + qs({ desde: filtros.desde, hasta: filtros.hasta })),
+    stockAlmacen: () => pedir('/api/reportes/stock-almacen'),
   },
   notificaciones: {
     listar: (soloNoLeidas) => pedir('/api/notificaciones' + (soloNoLeidas ? '?no_leidas=1' : '')).then((r) => ({ items: r.notificaciones || [], noLeidas: r.no_leidas || 0 })),

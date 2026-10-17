@@ -56,7 +56,33 @@ async function resolver(request) {
         }
       }
     }
-    // CxC vencidas
+    // Stock por almacen agotado
+    const { data: stockAlm } = await sb.from('producto_almacen').select('producto_id, almacen_id, cantidad').eq('empresa_id', perfil.empresa_id);
+    const { data: almacenes } = await sb.from('almacenes').select('id, nombre').eq('empresa_id', perfil.empresa_id).eq('activo', true);
+    const almMap = {};
+    for (const a of almacenes || []) almMap[a.id] = a.nombre;
+    const stockPorProd = {};
+    for (const s of stockAlm || []) {
+      if (!stockPorProd[s.producto_id]) stockPorProd[s.producto_id] = [];
+      stockPorProd[s.producto_id].push(s);
+    }
+    for (const p of prods || []) {
+      const filas = stockPorProd[p.id] || [];
+      for (const f of filas) {
+        if (Number(f.cantidad) <= 0 && Number(p.stock_actual) > 0) {
+          const { data: existe } = await sb.from('notificaciones').select('id').eq('empresa_id', perfil.empresa_id).eq('tipo', 'stock').eq('entidad', 'almacen').eq('entidad_id', f.almacen_id).eq('leida', false).maybeSingle();
+          if (!existe) {
+            await sb.from('notificaciones').insert({
+              empresa_id: perfil.empresa_id, tipo: 'stock',
+              titulo: 'Stock agotado en almacen',
+              mensaje: `${p.nombre} esta agotado en ${almMap[f.almacen_id] || 'un almacen'} (hay stock en otras ubicaciones).`,
+              entidad: 'almacen', entidad_id: f.almacen_id,
+            });
+            creadas++;
+          }
+        }
+      }
+    }
     const hoy = new Date().toISOString().slice(0, 10);
     const { data: cxc } = await sb.from('cuentas_por_cobrar').select('id, saldo, fecha_vencimiento, clientes(nombre)').eq('empresa_id', perfil.empresa_id).in('estado', ['pendiente', 'parcial']);
     for (const c of cxc || []) {
