@@ -15,6 +15,11 @@ const R = {
   valor: /(valor del inventario|valor inventario|cuanto vale el inventario|cuanto vale|valorizado|valor total|capital en inventario)/,
   conteo: /(cuantos productos|cuantos articulos|cuantos items|cuantas referencias|cuantos registros|total de productos)/,
   top: /(mas movido|mas vendido|top producto|mayor movimiento|mas activo|mas salida)/,
+  ventas: /(ventas|cuanto vendi|vendimos|facturacion|facturado|resumen de ventas)/,
+  cxc: /(cuentas por cobrar|por cobrar|deudores|cobros pendientes|quien me debe|saldo de clientes)/,
+  cxp: /(cuentas por pagar|por pagar a proveedores|proveedores que debo|debo a proveedores|saldo a proveedores)/,
+  caja: /(caja|cobros de hoy|ingresos de hoy|cuanto cobre hoy|resumen de caja)/,
+  margen: /(margen|ganancia|utilidad|rentabilidad|cuanto gane)/,
   importar: /(importar|cargar archivo|subir excel|cargar excel|cargar csv|carga masiva|subir archivo)/,
   crear: /(crear producto|nuevo producto|alta de producto|agregar producto|registrar producto|crear articulo)/,
   ayuda: /(ayuda|que puedes hacer|como funciona|comandos|opciones|no se usar|tutorial|para que sirves|que sabes hacer|no entiendo)/,
@@ -33,6 +38,11 @@ const DESCRIPCION = {
   valor_inventario: 'Valor total del inventario',
   conteo_total: 'Cantidad de productos',
   top_movidos: 'Productos mas movidos',
+  ventas_recientes: 'Ventas recientes',
+  cxc_pendientes: 'Cuentas por cobrar pendientes',
+  cxp_pendientes: 'Cuentas por pagar pendientes',
+  caja_hoy: 'Resumen de caja',
+  margen: 'Margen y ganancia',
   historial: 'Historial de movimientos',
   consultar_stock: 'Consultar stock de un producto',
   info_producto: 'Ficha de un producto',
@@ -80,6 +90,11 @@ function interpretar(texto) {
   if (R.valor.test(plano)) return { ...base, intencion: 'valor_inventario' };
   if (R.conteo.test(plano)) return { ...base, intencion: 'conteo_total' };
   if (R.top.test(plano)) return { ...base, intencion: 'top_movidos' };
+  if (R.ventas.test(plano)) return { ...base, intencion: 'ventas_recientes' };
+  if (R.cxc.test(plano)) return { ...base, intencion: 'cxc_pendientes' };
+  if (R.cxp.test(plano)) return { ...base, intencion: 'cxp_pendientes' };
+  if (R.caja.test(plano)) return { ...base, intencion: 'caja_hoy' };
+  if (R.margen.test(plano)) return { ...base, intencion: 'margen' };
 
   // 5. Herramientas
   if (R.importar.test(plano)) return { ...base, intencion: 'usar_importador' };

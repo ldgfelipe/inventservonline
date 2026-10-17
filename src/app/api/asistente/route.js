@@ -168,6 +168,71 @@ async function consultar(request) {
           tabla('Mas movidos', data || [], ['nombre', 'movimientos', 'entradas', 'salidas'], ['Producto', 'Movs', 'Entradas', 'Salidas']));
       }
 
+      case 'ventas_recientes': {
+        if (!puede(perfil.rol, 'ventas.ver')) return responder(p, negar('ventas.ver').texto);
+        const { data } = await sb.from('ventas')
+          .select('numero, fecha, total, clientes(nombre)')
+          .eq('empresa_id', perfil.empresa_id).order('fecha', { ascending: false }).limit(10);
+        const filas = (data || []).map((v) => ({ numero: v.numero, fecha: formatoFecha(v.fecha), cliente: v.clientes ? v.clientes.nombre : 'Mostrador', total: moneda(v.total) }));
+        return responder(p, (data && data.length) ? `Ultimas ${data.length} ventas:` : 'Aun no hay ventas registradas.',
+          tabla('Ventas recientes', filas, ['numero', 'fecha', 'cliente', 'total'], ['Numero', 'Fecha', 'Cliente', 'Total']));
+      }
+
+      case 'cxc_pendientes': {
+        if (!puede(perfil.rol, 'cxc.ver')) return responder(p, negar('cxc.ver').texto);
+        const { data } = await sb.from('cuentas_por_cobrar')
+          .select('saldo, estado, clientes(nombre), ventas(numero)')
+          .eq('empresa_id', perfil.empresa_id).in('estado', ['pendiente', 'parcial'])
+          .order('created_at', { ascending: false }).limit(20);
+        const filas = (data || []).map((c) => ({ cliente: c.clientes ? c.clientes.nombre : '-', venta: c.ventas ? c.ventas.numero : '-', saldo: moneda(c.saldo), estado: c.estado }));
+        const total = (data || []).reduce((a, c) => a + Number(c.saldo), 0);
+        return responder(p, (data && data.length) ? `Cuentas por cobrar pendientes (${moneda(total)}):` : 'No hay cuentas por cobrar pendientes.',
+          tabla('CxC pendientes', filas, ['cliente', 'venta', 'saldo', 'estado'], ['Cliente', 'Venta', 'Saldo', 'Estado']));
+      }
+
+      case 'cxp_pendientes': {
+        if (!puede(perfil.rol, 'cxp.ver')) return responder(p, negar('cxp.ver').texto);
+        const { data } = await sb.from('cuentas_por_pagar')
+          .select('saldo, estado, proveedores(nombre), compras(numero)')
+          .eq('empresa_id', perfil.empresa_id).in('estado', ['pendiente', 'parcial'])
+          .order('created_at', { ascending: false }).limit(20);
+        const filas = (data || []).map((c) => ({ proveedor: c.proveedores ? c.proveedores.nombre : '-', compra: c.compras ? c.compras.numero : '-', saldo: moneda(c.saldo), estado: c.estado }));
+        const total = (data || []).reduce((a, c) => a + Number(c.saldo), 0);
+        return responder(p, (data && data.length) ? `Cuentas por pagar pendientes (${moneda(total)}):` : 'No hay cuentas por pagar pendientes.',
+          tabla('CxP pendientes', filas, ['proveedor', 'compra', 'saldo', 'estado'], ['Proveedor', 'Compra', 'Saldo', 'Estado']));
+      }
+
+      case 'caja_hoy': {
+        if (!puede(perfil.rol, 'caja.ver')) return responder(p, negar('caja.ver').texto);
+        const hoy = new Date().toISOString().slice(0, 10);
+        const { data } = await sb.from('cobros')
+          .select('monto, metodo').eq('empresa_id', perfil.empresa_id)
+          .gte('fecha', hoy + 'T00:00:00').lte('fecha', hoy + 'T23:59:59');
+        const total = (data || []).reduce((a, c) => a + Number(c.monto), 0);
+        const porMetodo = {};
+        for (const c of data || []) porMetodo[c.metodo] = (porMetodo[c.metodo] || 0) + Number(c.monto);
+        const texto = `Caja de hoy: ${moneda(total)} en ${(data || []).length} cobros.` +
+          (Object.keys(porMetodo).length ? ' ' + Object.entries(porMetodo).map(([k, v]) => `${k}: ${moneda(v)}`).join(', ') + '.' : '');
+        return responder(p, texto);
+      }
+
+      case 'margen': {
+        if (!puede(perfil.rol, 'reportes.ver')) return responder(p, negar('reportes.ver').texto);
+        const { data: ventas } = await sb.from('ventas')
+          .select('total').eq('empresa_id', perfil.empresa_id).eq('estado', 'confirmada');
+        const ids = (ventas || []).map((v) => v.id);
+        let costos = 0;
+        if (ids.length) {
+          const { data: det } = await sb.from('venta_detalle')
+            .select('cantidad, costo_unitario').in('venta_id', ids);
+          costos = (det || []).reduce((a, d) => a + Number(d.cantidad) * Number(d.costo_unitario), 0);
+        }
+        const total = (ventas || []).reduce((a, v) => a + Number(v.total), 0);
+        const margen = total - costos;
+        const pct = total > 0 ? (margen / total) * 100 : 0;
+        return responder(p, `Ventas confirmadas: ${moneda(total)}. Costo: ${moneda(costos)}. Margen: ${moneda(margen)} (${pct.toFixed(1)}%).`);
+      }
+
       case 'consultar_stock':
       case 'info_producto': {
         if (!puede(perfil.rol, 'productos.ver')) return responder(p, negar('productos.ver').texto);
@@ -229,7 +294,7 @@ async function consultar(request) {
           [{ id: 'importar', etiqueta: 'Abrir importador', tipo: 'abrir_importador' }]);
 
       case 'ayuda':
-        return responder(p, 'Puedo ayudarte con: stock de un producto, productos con stock bajo, agotados, valor total del inventario, movimientos por persona, y registrar entradas o salidas. Escribe algo como "cuanto cemento tengo".');
+        return responder(p, 'Puedo ayudarte con: stock de un producto, productos con stock bajo, agotados, valor total del inventario, movimientos por persona, registrar entradas o salidas, ventas recientes, cuentas por cobrar, cuentas por pagar, caja del dia y margen de ganancia. Escribe algo como "cuanto cemento tengo" o "ventas de hoy".');
 
       default:
         return responder(p, 'No entendi eso. Prueba con "¿cuanto cemento tengo?", "stock bajo" o "registrar entrada de 50 de cemento".',
