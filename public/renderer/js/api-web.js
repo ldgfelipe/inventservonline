@@ -215,6 +215,7 @@ window.api = {
     listar: (o = {}) => pedir('/api/ventas' + qs({ limite: o.limite || 200 })).then((r) => r.ventas),
     obtener: (id) => pedir('/api/ventas/' + id),
     crear: (payload) => pedir('/api/ventas', { metodo: 'POST', json: payload }),
+    facturaUrl: (id) => '/api/ventas/' + id + '/factura',
   },
   cobros: {
     listar: (o = {}) => pedir('/api/cobros' + qs({ limite: o.limite || 200 })).then((r) => r.cobros),

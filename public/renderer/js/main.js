@@ -2295,7 +2295,8 @@ function renderVentas() {
         '<td>' + formatoMoneda(v.total) + '</td>' +
         '<td>' + escaparHtml(v.estado) + '</td>' +
         '<td><button class="btn btn-ghost btn-mini" onclick="verVenta(\'' + v.id + '\')">Ver</button> ' +
-            '<button class="btn btn-ghost btn-mini" onclick="imprimirFacturaVenta(\'' + v.id + '\')">Factura</button></td>' +
+            '<button class="btn btn-ghost btn-mini" onclick="imprimirFacturaVenta(\'' + v.id + '\')">Factura</button> ' +
+            '<button class="btn btn-ghost btn-mini" onclick="window.open(window.api.ventas.facturaUrl(\'' + v.id + '\'),\'_blank\')">PDF</button></td>' +
       '</tr>').join('')
     : '<tr><td colspan="6" class="vacio">Sin ventas</td></tr>';
 }
