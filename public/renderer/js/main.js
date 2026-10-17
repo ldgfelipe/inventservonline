@@ -118,6 +118,7 @@ function aplicarPermisosUI() {
     usuarios: 'usuarios.gestionar',
     contabilidad: 'contabilidad.ver',
     config: 'config.ver',
+    reportes: 'reportes.ver',
     clientes: 'clientes.ver',
     ventas: 'ventas.ver',
     compras: 'compras.ver',
@@ -188,6 +189,7 @@ async function iniciar() {
     configurarEventosImportador();
     configurarEventosContabilidad();
     configurarEventosComercial();
+    configurarEventosReportes();
     configurarMenu();
     ESTADO.eventosListos = true;
   }
@@ -414,6 +416,7 @@ function navegar(vista) {
     bitacora: 'Bitacora y trazabilidad',
     contabilidad: 'Contabilidad y kardex',
     config: 'Configuracion',
+    reportes: 'Reportes comerciales',
     clientes: 'Clientes',
     ventas: 'Ventas',
     compras: 'Compras',
@@ -430,6 +433,7 @@ function navegar(vista) {
   if (vista === 'contabilidad') cargarContabilidad();
   if (vista === 'config') cargarOpcionesConfig();
   if (vista === 'bitacora') cargarVistaBitacora();
+  if (vista === 'reportes') cargarReportes();
   if (vista === 'clientes') cargarClientes();
   if (vista === 'ventas') cargarVentas();
   if (vista === 'compras') cargarCompras();
@@ -2598,6 +2602,107 @@ async function cargarCaja() {
 
 window.abrirCobro = window.abrirCobro;
 window.abrirPagoProv = window.abrirPagoProv;
+
+function configurarEventosReportes() {
+  const b = document.getElementById('btnCargarReporteVentas');
+  if (b) b.addEventListener('click', cargarReporteVentas);
+  const b2 = document.getElementById('btnCargarCajaReporte');
+  if (b2) b2.addEventListener('click', cargarReporteCaja);
+}
+
+async function cargarReportes() {
+  await cargarReporteVentas();
+  await cargarReporteCxc();
+  await cargarReporteCxp();
+  await cargarReporteCaja();
+}
+
+async function cargarReporteVentas() {
+  const desde = document.getElementById('repDesde').value;
+  const hasta = document.getElementById('repHasta').value;
+  try {
+    const r = await window.api.reportes.ventas({ desde, hasta });
+    const tb = document.getElementById('reporteVentasBody');
+    if (tb) {
+      tb.innerHTML = (r.filas || []).map(f => '<tr>' +
+        '<td>' + escaparHtml(f.numero) + '</td>' +
+        '<td>' + formatoFecha(f.fecha) + '</td>' +
+        '<td>' + escaparHtml(f.cliente || '-') + '</td>' +
+        '<td>' + formatoMoneda(f.total) + '</td>' +
+        '<td>' + formatoMoneda(f.costo) + '</td>' +
+        '<td>' + formatoMoneda(f.margen) + '</td>' +
+        '<td>' + f.margen_pct + '%</td>' +
+      '</tr>').join('') || '<tr><td colspan="7" class="vacio">Sin ventas</td></tr>';
+    }
+    const t = document.getElementById('reporteVentasTotales');
+    if (t && r.totales) {
+      t.innerHTML = 'Ventas: ' + r.totales.ventas + ' | Total: ' + formatoMoneda(r.totales.total) +
+        ' | Costo: ' + formatoMoneda(r.totales.costo) + ' | Margen: ' + formatoMoneda(r.totales.margen);
+    }
+  } catch (err) { notificar('Error: ' + err.message, true); }
+}
+
+async function cargarReporteCxc() {
+  try {
+    const r = await window.api.reportes.cxc();
+    const tb = document.getElementById('reporteCxcBody');
+    if (tb) {
+      tb.innerHTML = (r.filas || []).map(f => '<tr>' +
+        '<td>' + escaparHtml(f.cliente || '-') + '</td>' +
+        '<td>' + formatoMoneda(f.saldo) + '</td>' +
+        '<td>' + f.dias + '</td>' +
+        '<td>' + f.bucket + '</td>' +
+      '</tr>').join('') || '<tr><td colspan="4" class="vacio">Sin CxC</td></tr>';
+    }
+    const res = document.getElementById('reporteCxcResumen');
+    if (res && r.resumen) {
+      res.innerHTML = '0-30: ' + formatoMoneda(r.resumen['0-30']) +
+        ' | 31-60: ' + formatoMoneda(r.resumen['31-60']) +
+        ' | 61-90: ' + formatoMoneda(r.resumen['61-90']) +
+        ' | 90+: ' + formatoMoneda(r.resumen['90+']) +
+        ' | Total: ' + formatoMoneda(r.resumen.total);
+    }
+  } catch (err) { notificar('Error: ' + err.message, true); }
+}
+
+async function cargarReporteCxp() {
+  try {
+    const r = await window.api.reportes.cxp();
+    const tb = document.getElementById('reporteCxpBody');
+    if (tb) {
+      tb.innerHTML = (r.filas || []).map(f => '<tr>' +
+        '<td>' + escaparHtml(f.proveedor || '-') + '</td>' +
+        '<td>' + formatoMoneda(f.saldo) + '</td>' +
+        '<td>' + f.dias + '</td>' +
+        '<td>' + f.bucket + '</td>' +
+      '</tr>').join('') || '<tr><td colspan="4" class="vacio">Sin CxP</td></tr>';
+    }
+    const res = document.getElementById('reporteCxpResumen');
+    if (res && r.resumen) {
+      res.innerHTML = '0-30: ' + formatoMoneda(r.resumen['0-30']) +
+        ' | 31-60: ' + formatoMoneda(r.resumen['31-60']) +
+        ' | 61-90: ' + formatoMoneda(r.resumen['61-90']) +
+        ' | 90+: ' + formatoMoneda(r.resumen['90+']) +
+        ' | Total: ' + formatoMoneda(r.resumen.total);
+    }
+  } catch (err) { notificar('Error: ' + err.message, true); }
+}
+
+async function cargarReporteCaja() {
+  const desde = document.getElementById('cajaDesde').value;
+  const hasta = document.getElementById('cajaHasta').value;
+  try {
+    const r = await window.api.reportes.caja({ desde, hasta });
+    const cont = document.getElementById('reporteCajaResumen');
+    if (cont) {
+      const metodos = Object.entries(r.por_metodo || {}).map(([k, v]) => k + ': ' + formatoMoneda(v)).join(' | ');
+      const dias = Object.entries(r.por_dia || {}).map(([k, v]) => k + ': ' + formatoMoneda(v)).join(' | ');
+      cont.innerHTML = '<div>Total: ' + formatoMoneda(r.total) + ' (' + r.cobros + ' cobros)</div>' +
+        '<div style="margin-top:4px">' + (metodos || 'Sin cobros') + '</div>' +
+        '<div style="margin-top:4px;font-size:12px">' + (dias || '') + '</div>';
+    }
+  } catch (err) { notificar('Error: ' + err.message, true); }
+}
 
 /* ------------------ Utilidades ------------------ */
 

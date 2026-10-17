@@ -137,7 +137,10 @@ Todas las respuestas son JSON con `{ ok, ... }` y exigen `Authorization: Bearer 
 | `GET /api/cxp` | Cuentas por pagar |
 | `GET/POST /api/cobros` | Cobros (caja) |
 | `GET/POST /api/pagos-proveedor` | Pagos a proveedores |
-| `GET /api/caja` | Resumen de caja del dia |
+| `GET /api/reportes/ventas` | Reporte de ventas con margen |
+| `GET /api/reportes/cxc` | Antiguedad de CxC |
+| `GET /api/reportes/cxp` | Antiguedad de CxP |
+| `GET /api/reportes/caja` | Resumen de caja por periodo |
 | `GET/POST /api/clientes` | Clientes |
 | `POST /api/pagos/checkout` | Inicia un pago (Stripe / Mercado Pago / PayPal) |
 | `POST /api/pagos/transferencia` | Registra una transferencia con comprobante (queda en revision) |

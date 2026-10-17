@@ -238,6 +238,12 @@ window.api = {
   caja: {
     resumen: () => pedir('/api/caja'),
   },
+  reportes: {
+    ventas: (filtros = {}) => pedir('/api/reportes/ventas' + qs({ desde: filtros.desde, hasta: filtros.hasta })),
+    cxc: () => pedir('/api/reportes/cxc'),
+    cxp: () => pedir('/api/reportes/cxp'),
+    caja: (filtros = {}) => pedir('/api/reportes/caja' + qs({ desde: filtros.desde, hasta: filtros.hasta })),
+  },
   monedas: {
     listar: () => pedir('/api/monedas'),
   },

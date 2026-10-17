@@ -66,6 +66,10 @@
         </button>
         <button class="nav-item" data-vista="caja">
           <span class="nav-icon">&#128176;</span> Caja
+         </button>
+         <button class="nav-item" data-vista="reportes">
+           <span class="nav-icon">&#128202;</span> Reportes
+         </button>
         </button>
         <button class="nav-item nav-solo-admin" data-vista="contabilidad">
           <span class="nav-icon">&#9861;</span> Contabilidad
@@ -268,6 +272,49 @@
           <div class="panel">
             <h3>Caja del dia</h3>
             <div id="cajaResumen"></div>
+          </div>
+        </section>
+
+
+        <!-- Vista: Reportes -->
+        <section id="vista-reportes" class="vista">
+          <div class="panel">
+            <h3>Ventas y margen</h3>
+            <div class="campo-en-linea">
+              <input type="date" id="repDesde" class="input-buscar" />
+              <input type="date" id="repHasta" class="input-buscar" />
+              <button id="btnCargarReporteVentas" class="btn btn-primary">Consultar</button>
+            </div>
+            <div id="reporteVentasTotales" style="margin:8px 0"></div>
+            <table class="tabla">
+              <thead><tr><th>Numero</th><th>Fecha</th><th>Cliente</th><th>Total</th><th>Costo</th><th>Margen</th><th>%</th></tr></thead>
+              <tbody id="reporteVentasBody"></tbody>
+            </table>
+          </div>
+          <div class="panel">
+            <h3>Antiguedad CxC</h3>
+            <div id="reporteCxcResumen"></div>
+            <table class="tabla">
+              <thead><tr><th>Cliente</th><th>Saldo</th><th>Dias</th><th>Rango</th></tr></thead>
+              <tbody id="reporteCxcBody"></tbody>
+            </table>
+          </div>
+          <div class="panel">
+            <h3>Antiguedad CxP</h3>
+            <div id="reporteCxpResumen"></div>
+            <table class="tabla">
+              <thead><tr><th>Proveedor</th><th>Saldo</th><th>Dias</th><th>Rango</th></tr></thead>
+              <tbody id="reporteCxpBody"></tbody>
+            </table>
+          </div>
+          <div class="panel">
+            <h3>Caja por dia</h3>
+            <div class="campo-en-linea">
+              <input type="date" id="cajaDesde" class="input-buscar" />
+              <input type="date" id="cajaHasta" class="input-buscar" />
+              <button id="btnCargarCajaReporte" class="btn btn-primary">Consultar</button>
+            </div>
+            <div id="reporteCajaResumen"></div>
           </div>
         </section>
 
