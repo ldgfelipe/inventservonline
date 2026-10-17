@@ -1944,6 +1944,7 @@ async function exportarBitacoraExcel() {
 async function verTrazabilidad(id) {
   try {
     const t = await window.api.trazabilidad.producto(id);
+    const prod = await window.api.producto.obtener(id).catch(() => null);
     document.getElementById('tituloTrazabilidad').textContent = 'Trazabilidad: ' + t.producto.nombre;
     const campos = {};
     (t.camposGiro || []).forEach(c => campos[c.id] = c.nombre);
@@ -1971,7 +1972,8 @@ async function verTrazabilidad(id) {
       <div class="traza-bloque">
         <h4>Datos del producto</h4>
         <div class="traza-linea"><span class="traza-etiqueta">Codigo</span><span>${t.producto.codigo || '-'}</span></div>
-        <div class="traza-linea"><span class="traza-etiqueta">Stock actual</span><span>${t.producto.stock_actual}</span></div>
+        <div class="traza-linea"><span class="traza-etiqueta">Stock actual (total)</span><span>${t.producto.stock_actual}</span></div>
+        ${prod && prod.stock_por_almacen && prod.stock_por_almacen.length ? `<div class="traza-bloque"><h4>Stock por almacen</h4>${prod.stock_por_almacen.map(s => `<div class="traza-linea"><span class="traza-etiqueta">${escaparHtml(s.almacen || 'Almacen')}</span><span>${s.cantidad}${s.principal ? ' (principal)' : ''}</span></div>`).join('')}</div>` : ''}
         <div class="traza-linea"><span class="traza-etiqueta">Registrado el</span><span>${formatoFecha(t.producto.created_at)}</span></div>
         <div class="traza-linea"><span class="traza-etiqueta">Ultima actualizacion</span><span>${formatoFecha(t.producto.updated_at)}</span></div>
       </div>

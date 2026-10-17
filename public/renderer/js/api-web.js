@@ -124,7 +124,7 @@ window.api = {
       stock: filtro.stock,
       limite: filtro.limite || 500,
     })).then((r) => r.productos),
-    obtener: (id) => pedir('/api/productos/' + id).then((r) => r.producto),
+    obtener: (id) => pedir('/api/productos/' + id).then((r) => ({ ...r.producto, stock_por_almacen: r.stock_por_almacen || [] })),
     guardar: (payload) => {
       if (payload.id) {
         return pedir('/api/productos/' + payload.id, { metodo: 'PATCH', json: payload });

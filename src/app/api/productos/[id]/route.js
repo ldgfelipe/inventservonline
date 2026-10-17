@@ -17,7 +17,19 @@ async function obtener(request, { params }) {
 
   if (err) return error(err.message, 500);
   if (!data) return error('Producto no encontrado', 404);
-  return Response.json({ ok: true, producto: data });
+
+  // Desglose de stock por almacen (multi-almacen real).
+  const { data: stock } = await sb.from('producto_almacen')
+    .select('almacen_id, cantidad, almacenes(nombre, principal)')
+    .eq('empresa_id', perfil.empresa_id).eq('producto_id', id);
+  const stockPorAlmacen = (stock || []).map((s) => ({
+    almacen_id: s.almacen_id,
+    almacen: s.almacenes ? s.almacenes.nombre : null,
+    principal: s.almacenes ? s.almacenes.principal : false,
+    cantidad: s.cantidad,
+  }));
+
+  return Response.json({ ok: true, producto: data, stock_por_almacen: stockPorAlmacen });
 }
 
 /* PATCH /api/productos/[id] */
