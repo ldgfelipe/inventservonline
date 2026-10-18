@@ -401,8 +401,15 @@ function renderProveedores() {
 
 function configurarNavegacion() {
   document.querySelectorAll('.nav-item').forEach(btn => {
-    btn.addEventListener('click', () => navegar(btn.dataset.vista));
+    btn.addEventListener('click', () => {
+      navegar(btn.dataset.vista);
+      cerrarMenuMovil();
+    });
   });
+  const btnMenu = document.getElementById('btnMenu');
+  if (btnMenu) btnMenu.addEventListener('click', toggleMenuMovil);
+  const backdrop = document.getElementById('sidebarBackdrop');
+  if (backdrop) backdrop.addEventListener('click', cerrarMenuMovil);
 }
 
 function navegar(vista) {
@@ -3024,6 +3031,20 @@ window.timbrarVenta = async function (id) {
     else notificar('Error al timbrar: ' + (r.error || ''), true);
   } catch (err) { notificar('Error: ' + err.message, true); }
 };
+
+function toggleMenuMovil() {
+  const sidebar = document.querySelector('.sidebar');
+  const backdrop = document.getElementById('sidebarBackdrop');
+  if (!sidebar) return;
+  sidebar.classList.toggle('abierto');
+  if (backdrop) backdrop.classList.toggle('abierto', sidebar.classList.contains('abierto'));
+}
+function cerrarMenuMovil() {
+  const sidebar = document.querySelector('.sidebar');
+  const backdrop = document.getElementById('sidebarBackdrop');
+  if (sidebar) sidebar.classList.remove('abierto');
+  if (backdrop) backdrop.classList.remove('abierto');
+}
 
 /* ------------------ Utilidades ------------------ */
 

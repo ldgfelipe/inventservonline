@@ -610,3 +610,44 @@ body {
 .onboarding-item.hecho .marca { background: #dcfce7; color: #166534; }
 .notificacion.visible { opacity: 1; transform: translateY(0); }
 .notificacion.error { background: var(--color-error); }
+
+/* Hamburger + responsive sidebar */
+.btn-menu { display: none; font-size: 20px; padding: 6px 10px; }
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 900;
+}
+.sidebar-backdrop.abierto { display: block; }
+
+@media (max-width: 768px) {
+  .btn-menu { display: inline-block; }
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: 1000;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    width: 260px;
+    max-width: 85vw;
+    overflow-y: auto;
+  }
+  .sidebar.abierto { transform: translateX(0); }
+  .logo-img { height: 26px; }
+  .nav-item { padding: 12px 12px; font-size: 15px; }
+  .nav-icon { font-size: 18px; width: 22px; }
+  .main { width: 100%; }
+  .topbar { padding: 0 10px; gap: 8px; }
+  .topbar h2 { font-size: 16px; }
+  .tabla { display: block; overflow-x: auto; white-space: nowrap; }
+  .content { padding: 10px; }
+  .panel { padding: 12px; }
+  .modal-content { width: 95vw; max-width: 95vw; margin: 10px; }
+  .modal-content.modal-grande { width: 95vw; }
+}
+
+.sidebar { overflow-y: auto; }

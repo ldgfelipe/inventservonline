@@ -70,7 +70,6 @@
          <button class="nav-item" data-vista="reportes">
            <span class="nav-icon">&#128202;</span> Reportes
          </button>
-        </button>
         <button class="nav-item nav-solo-admin" data-vista="contabilidad">
           <span class="nav-icon">&#9861;</span> Contabilidad
         </button>
@@ -99,8 +98,10 @@
       </div>
     </aside>
 
+    <div id="sidebarBackdrop" class="sidebar-backdrop"></div>
     <main class="main">
       <header class="topbar">
+        <button id="btnMenu" class="btn btn-ghost btn-menu" title="Menu">&#9776;</button>
         <h2 id="tituloVista">Dashboard</h2>
         <div style="display:flex;align-items:center;gap:12px">
           <button id="btnNotificaciones" class="btn btn-ghost" title="Notificaciones" style="position:relative">
