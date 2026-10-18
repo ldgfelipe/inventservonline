@@ -277,6 +277,10 @@ window.api = {
     solicitudes: () => pedir('/api/admin/facturacion/solicitudes').then((r) => r.solicitudes || []),
     resolver: (id, estado, notas) => pedir('/api/admin/facturacion/solicitudes', { metodo: 'POST', json: { id, estado, notas_admin: notas } }),
   },
+  traslados: {
+    listar: () => pedir('/api/traslados').then((r) => r.traslados || []),
+    crear: (payload) => pedir('/api/traslados', { metodo: 'POST', json: payload }),
+  },
   monedas: {
     listar: () => pedir('/api/monedas'),
   },

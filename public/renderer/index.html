@@ -70,6 +70,9 @@
          <button class="nav-item" data-vista="reportes">
            <span class="nav-icon">&#128202;</span> Reportes
          </button>
+         <button class="nav-item" data-vista="traslados">
+           <span class="nav-icon">&#8646;</span> Traslados
+         </button>
         <button class="nav-item nav-solo-admin" data-vista="contabilidad">
           <span class="nav-icon">&#9861;</span> Contabilidad
         </button>
@@ -332,6 +335,20 @@
               <button id="btnCargarCajaReporte" class="btn btn-primary">Consultar</button>
             </div>
             <div id="reporteCajaResumen"></div>
+          </div>
+        </section>
+
+
+        <!-- Vista: Traslados -->
+        <section id="vista-traslados" class="vista">
+          <div class="toolbar">
+            <button id="btnNuevoTraslado" class="btn btn-primary">+ Traslado</button>
+          </div>
+          <div class="panel">
+            <table class="tabla">
+              <thead><tr><th>Fecha</th><th>Producto</th><th>Origen</th><th>Destino</th><th>Cantidad</th></tr></thead>
+              <tbody id="trasladosBody"></tbody>
+            </table>
           </div>
         </section>
 
@@ -963,6 +980,38 @@
         <div class="acciones-formulario">
           <button type="button" class="btn btn-ghost" onclick="cerrarModal('modalSolicitudFact')">Cancelar</button>
           <button type="submit" class="btn btn-primary">Enviar solicitud</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modalTraslado" class="modal">
+    <div class="modal-content">
+      <h3>Traslado entre almacenes</h3>
+      <form id="formTraslado">
+        <div class="campo">
+          <label>Producto</label>
+          <select id="trProducto" class="input-select" required></select>
+        </div>
+        <div class="campo">
+          <label>Almacen origen</label>
+          <select id="trOrigen" class="input-select" required></select>
+        </div>
+        <div class="campo">
+          <label>Almacen destino</label>
+          <select id="trDestino" class="input-select" required></select>
+        </div>
+        <div class="campo">
+          <label>Cantidad</label>
+          <input type="number" id="trCantidad" min="1" value="1" required />
+        </div>
+        <div class="campo">
+          <label>Observacion</label>
+          <input type="text" id="trObservacion" />
+        </div>
+        <div class="acciones-formulario">
+          <button type="button" class="btn btn-ghost" onclick="cerrarModal('modalTraslado')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Registrar traslado</button>
         </div>
       </form>
     </div>

@@ -120,6 +120,7 @@ function aplicarPermisosUI() {
     contabilidad: 'contabilidad.ver',
     config: 'config.ver',
     reportes: 'reportes.ver',
+    traslados: 'productos.editar',
     clientes: 'clientes.ver',
     ventas: 'ventas.ver',
     compras: 'compras.ver',
@@ -190,6 +191,7 @@ async function iniciar() {
     configurarEventosImportador();
     configurarEventosContabilidad();
     configurarEventosComercial();
+    configurarEventosTraslados();
     configurarEventosReportes();
     configurarEventosNotificaciones();
     configurarMenu();
@@ -426,6 +428,7 @@ function navegar(vista) {
     contabilidad: 'Contabilidad y kardex',
     config: 'Configuracion',
     reportes: 'Reportes comerciales',
+    traslados: 'Traslados entre almacenes',
     clientes: 'Clientes',
     ventas: 'Ventas',
     compras: 'Compras',
@@ -443,6 +446,7 @@ function navegar(vista) {
   if (vista === 'config') cargarOpcionesConfig();
   if (vista === 'bitacora') cargarVistaBitacora();
   if (vista === 'reportes') cargarReportes();
+  if (vista === 'traslados') cargarTraslados();
   if (vista === 'clientes') cargarClientes();
   if (vista === 'ventas') cargarVentas();
   if (vista === 'compras') cargarCompras();
@@ -3044,6 +3048,72 @@ function cerrarMenuMovil() {
   const backdrop = document.getElementById('sidebarBackdrop');
   if (sidebar) sidebar.classList.remove('abierto');
   if (backdrop) backdrop.classList.remove('abierto');
+}
+
+function configurarEventosTraslados() {
+  const btn = document.getElementById('btnNuevoTraslado');
+  if (btn) btn.addEventListener('click', abrirNuevoTraslado);
+  const f = document.getElementById('formTraslado');
+  if (f) f.addEventListener('submit', (e) => { e.preventDefault(); confirmarTraslado(); });
+}
+
+async function cargarTraslados() {
+  try { ESTADO.traslados = await window.api.traslados.listar(); } catch { ESTADO.traslados = []; }
+  renderTraslados();
+}
+function renderTraslados() {
+  const tb = document.getElementById('trasladosBody');
+  if (!tb) return;
+  tb.innerHTML = (ESTADO.traslados || []).length
+    ? ESTADO.traslados.map(t => '<tr>' +
+        '<td>' + formatoFecha(t.fecha) + '</td>' +
+        '<td>' + escaparHtml(t.producto_nombre || '-') + '</td>' +
+        '<td>' + escaparHtml(t.almacen_origen_nombre || '-') + '</td>' +
+        '<td>' + escaparHtml(t.almacen_destino_nombre || '-') + '</td>' +
+        '<td>' + t.cantidad + '</td>' +
+      '</tr>').join('')
+    : '<tr><td colspan="5" class="vacio">Sin traslados</td></tr>';
+}
+
+async function abrirNuevoTraslado() {
+  if (!ESTADO.productos.length) await cargarProductos();
+  const selP = document.getElementById('trProducto');
+  if (selP) selP.innerHTML = ESTADO.productos.map(p => '<option value="' + p.id + '">' + escaparHtml(p.nombre) + '</option>').join('');
+  let almacenes = ESTADO.almacenes;
+  if (!almacenes || !almacenes.length) {
+    try { almacenes = await window.api.almacenes.listar(); ESTADO.almacenes = almacenes || []; } catch { almacenes = []; }
+  }
+  const opts = (almacenes || []).map(a => '<option value="' + a.id + '">' + escaparHtml(a.nombre) + '</option>').join('');
+  const so = document.getElementById('trOrigen');
+  const sd = document.getElementById('trDestino');
+  if (so) so.innerHTML = opts;
+  if (sd) sd.innerHTML = opts;
+  document.getElementById('trCantidad').value = 1;
+  document.getElementById('trObservacion').value = '';
+  abrirModal('modalTraslado');
+}
+
+async function confirmarTraslado() {
+  const producto = document.getElementById('trProducto').value;
+  const origen = document.getElementById('trOrigen').value;
+  const destino = document.getElementById('trDestino').value;
+  const cantidad = Number(document.getElementById('trCantidad').value);
+  if (!producto) return notificar('Falta el producto', true);
+  if (!origen || !destino) return notificar('Faltan almacenes', true);
+  if (origen === destino) return notificar('Origen y destino deben ser diferentes', true);
+  if (!cantidad || cantidad <= 0) return notificar('Cantidad invalida', true);
+  try {
+    await window.api.traslados.crear({
+      producto_id: producto,
+      almacen_origen: origen,
+      almacen_destino: destino,
+      cantidad,
+      observacion: document.getElementById('trObservacion').value,
+    });
+    cerrarModal('modalTraslado');
+    notificar('Traslado registrado');
+    await cargarTraslados();
+  } catch (err) { notificar('Error: ' + err.message, true); }
 }
 
 /* ------------------ Utilidades ------------------ */
