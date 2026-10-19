@@ -20,6 +20,7 @@ import { dian } from './providers/dian.js';
 import { afip } from './providers/afip.js';
 import { sii } from './providers/sii.js';
 import { sunat } from './providers/sunat.js';
+import { aeat } from './providers/aeat.js';
 
 export const PROVEEDORES = {
   manual,
@@ -30,6 +31,7 @@ export const PROVEEDORES = {
   afip,
   sii,
   sunat,
+  aeat,
 };
 
 export const PAISES_SOPORTADOS = [
@@ -38,6 +40,7 @@ export const PAISES_SOPORTADOS = [
   { codigo: 'AR', nombre: 'Argentina', proveedores: ['manual', 'afip'] },
   { codigo: 'CL', nombre: 'Chile', proveedores: ['manual', 'sii'] },
   { codigo: 'PE', nombre: 'Peru', proveedores: ['manual', 'sunat'] },
+  { codigo: 'ES', nombre: 'Espana', proveedores: ['manual', 'aeat'] },
   { codigo: 'VE', nombre: 'Venezuela', proveedores: ['manual'] },
   { codigo: 'CO', nombre: 'Colombia', proveedores: ['manual'] },
   { codigo: 'AR', nombre: 'Argentina', proveedores: ['manual'] },
