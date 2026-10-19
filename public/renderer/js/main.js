@@ -1104,6 +1104,9 @@ async function configurarEventosConfig() {
   const btnProbarWa = document.getElementById('btnProbarWa');
   if (btnProbarWa) btnProbarWa.addEventListener('click', probarWaConfig);
 
+  const btnGuardarAlertas = document.getElementById('btnGuardarAlertas');
+  if (btnGuardarAlertas) btnGuardarAlertas.addEventListener('click', guardarAlertasConfig);
+
   const btnGuardarFact = document.getElementById('btnGuardarFact');
   if (btnGuardarFact) btnGuardarFact.addEventListener('click', guardarFacturacion);
   const btnSolicitarFact = document.getElementById('btnSolicitarFact');
@@ -1125,6 +1128,7 @@ async function cargarOpcionesConfig() {
   cargarEmailConfig();
   cargarWaConfig();
   cargarFacturacion();
+  cargarAlertasConfig();
 }
 
 /* ---------- Empresa, pais y moneda ---------- */
@@ -3205,6 +3209,38 @@ setTimeout(() => {
   const b = document.getElementById('btnCargarTrasladosRep');
   if (b) b.addEventListener('click', cargarTrasladosReport);
 }, 100);
+
+async function cargarAlertasConfig() {
+  try {
+    const c = await window.api.alertas.config();
+    if (!c) return;
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.checked = !!v; };
+    set('alertStockBajo', c.stock_bajo);
+    set('alertStockAgotado', c.stock_agotado);
+    set('alertStockAlmacen', c.stock_almacen);
+    set('alertCxcVencida', c.cxc_vencida);
+    set('alertCxpVencida', c.cxp_vencida);
+    set('alertCajaDif', c.caja_diferencia);
+    const u = document.getElementById('alertUmbral'); if (u) u.value = c.umbral_stock_pct != null ? c.umbral_stock_pct : 100;
+    const d = document.getElementById('alertDiasCxc'); if (d) d.value = c.dias_cxc != null ? c.dias_cxc : 0;
+  } catch (err) { /* ignore */ }
+}
+
+async function guardarAlertasConfig() {
+  try {
+    await window.api.alertas.guardar({
+      stock_bajo: document.getElementById('alertStockBajo').checked,
+      stock_agotado: document.getElementById('alertStockAgotado').checked,
+      stock_almacen: document.getElementById('alertStockAlmacen').checked,
+      cxc_vencida: document.getElementById('alertCxcVencida').checked,
+      cxp_vencida: document.getElementById('alertCxpVencida').checked,
+      caja_diferencia: document.getElementById('alertCajaDif').checked,
+      umbral_stock_pct: Number(document.getElementById('alertUmbral').value) || 100,
+      dias_cxc: Number(document.getElementById('alertDiasCxc').value) || 0,
+    });
+    notificar('Configuracion de alertas guardada');
+  } catch (err) { notificar('Error: ' + err.message, true); }
+}
 
 /* ------------------ Utilidades ------------------ */
 

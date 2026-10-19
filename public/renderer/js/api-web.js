@@ -281,6 +281,14 @@ window.api = {
     listar: () => pedir('/api/traslados').then((r) => r.traslados || []),
     crear: (payload) => pedir('/api/traslados', { metodo: 'POST', json: payload }),
   },
+  alertas: {
+    config: () => pedir('/api/alertas/config').then((r) => r.config),
+    guardar: (payload) => pedir('/api/alertas/config', { metodo: 'POST', json: payload }),
+  },
+  alertas: {
+    config: () => pedir('/api/alertas/config').then((r) => r.config),
+    guardar: (payload) => pedir('/api/alertas/config', { metodo: 'POST', json: payload }),
+  },
   monedas: {
     listar: () => pedir('/api/monedas'),
   },
