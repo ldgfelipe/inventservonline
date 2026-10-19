@@ -16,16 +16,19 @@ import { manual } from './providers/manual.js';
 import { facturama } from './providers/facturama.js';
 import { sw_sapien } from './providers/sw_sapien.js';
 import { sat_direct } from './providers/sat_direct.js';
+import { dian } from './providers/dian.js';
 
 export const PROVEEDORES = {
   manual,
   facturama,
   sw_sapien,
   sat_direct,
+  dian,
 };
 
 export const PAISES_SOPORTADOS = [
   { codigo: 'MX', nombre: 'Mexico', proveedores: ['manual', 'facturama', 'sw_sapien', 'sat_direct'] },
+  { codigo: 'CO', nombre: 'Colombia', proveedores: ['manual', 'dian'] },
   { codigo: 'VE', nombre: 'Venezuela', proveedores: ['manual'] },
   { codigo: 'CO', nombre: 'Colombia', proveedores: ['manual'] },
   { codigo: 'AR', nombre: 'Argentina', proveedores: ['manual'] },
