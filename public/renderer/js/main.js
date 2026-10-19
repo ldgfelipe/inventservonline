@@ -297,7 +297,26 @@ async function cargarDashboard() {
     <div class="stat-card"><h4>Movimientos hoy</h4><div class="valor">${stats.movimientosHoy}</div></div>
   `;
 
-  // Las alertas se ordenan por gravedad para que lo urgente quede arriba.
+  // Stock por almacen en el dashboard
+  try {
+    const r = await window.api.reportes.stockAlmacen();
+    const almacenes = r.almacenes || [];
+    const productos = r.productos || [];
+    const cont = document.getElementById('dashStockAlmacen');
+    if (cont) {
+      // Calcular totales por almacen
+      const totales = {};
+      for (const a of almacenes) totales[a.id] = 0;
+      for (const p of productos) {
+        for (const a of (p.por_almacen || [])) {
+          totales[a.almacen_id] = (totales[a.almacen_id] || 0) + (a.cantidad || 0);
+        }
+      }
+      cont.innerHTML = almacenes.map(a =>
+        '<div class="stat-card"><h4>' + escaparHtml(a.nombre) + (a.principal ? ' (P)' : '') + '</h4><div class="valor">' + (totales[a.id] || 0) + '</div></div>'
+      ).join('');
+    }
+  } catch (err) { /* ignore */ }
   const orden = { agotado: 0, bajo: 1, reorden: 2, exceso: 3 };
   const alertas = productos
     .filter(p => p.alerta && p.alerta !== 'ok')
