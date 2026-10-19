@@ -18,6 +18,7 @@ import { sw_sapien } from './providers/sw_sapien.js';
 import { sat_direct } from './providers/sat_direct.js';
 import { dian } from './providers/dian.js';
 import { afip } from './providers/afip.js';
+import { sii } from './providers/sii.js';
 
 export const PROVEEDORES = {
   manual,
@@ -26,12 +27,14 @@ export const PROVEEDORES = {
   sat_direct,
   dian,
   afip,
+  sii,
 };
 
 export const PAISES_SOPORTADOS = [
   { codigo: 'MX', nombre: 'Mexico', proveedores: ['manual', 'facturama', 'sw_sapien', 'sat_direct'] },
   { codigo: 'CO', nombre: 'Colombia', proveedores: ['manual', 'dian'] },
   { codigo: 'AR', nombre: 'Argentina', proveedores: ['manual', 'afip'] },
+  { codigo: 'CL', nombre: 'Chile', proveedores: ['manual', 'sii'] },
   { codigo: 'VE', nombre: 'Venezuela', proveedores: ['manual'] },
   { codigo: 'CO', nombre: 'Colombia', proveedores: ['manual'] },
   { codigo: 'AR', nombre: 'Argentina', proveedores: ['manual'] },
