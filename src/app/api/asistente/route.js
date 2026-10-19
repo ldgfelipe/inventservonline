@@ -205,6 +205,43 @@ async function consultar(request) {
           tabla('Stock por almacen', filas, campos, encabezados));
       }
 
+      case 'traslados_recientes': {
+        if (!puede(perfil.rol, 'movimientos.ver')) return responder(p, negar('movimientos.ver').texto);
+        const { data } = await sb.from('traslados')
+          .select('cantidad, fecha, productos(nombre), ao:almacenes!traslados_almacen_origen_fkey(nombre), ad:almacenes!traslados_almacen_destino_fkey(nombre)')
+          .eq('empresa_id', perfil.empresa_id).order('fecha', { ascending: false }).limit(10);
+        const filas = (data || []).map((t) => ({
+          fecha: formatoFecha(t.fecha),
+          producto: t.productos ? t.productos.nombre : '-',
+          origen: t.ao ? t.ao.nombre : '-',
+          destino: t.ad ? t.ad.nombre : '-',
+          cantidad: t.cantidad,
+        }));
+        return responder(p, (data && data.length) ? `Ultimos ${data.length} traslados:` : 'Aun no hay traslados registrados.',
+          tabla('Traslados', filas, ['fecha', 'producto', 'origen', 'destino', 'cantidad'], ['Fecha', 'Producto', 'Origen', 'Destino', 'Cant']));
+      }
+
+      case 'stock_por_almacen': {
+        if (!puede(perfil.rol, 'productos.ver')) return responder(p, negar('productos.ver').texto);
+        const { data: almacenes } = await sb.from('almacenes').select('id, nombre, principal').eq('empresa_id', perfil.empresa_id).eq('activo', true);
+        const { data: stock } = await sb.from('producto_almacen').select('producto_id, almacen_id, cantidad').eq('empresa_id', perfil.empresa_id);
+        const { data: productos } = await sb.from('productos').select('id, codigo, nombre, stock_actual').eq('empresa_id', perfil.empresa_id).eq('activo', true).limit(20);
+        const porProd = {};
+        for (const s of stock || []) {
+          if (!porProd[s.producto_id]) porProd[s.producto_id] = {};
+          porProd[s.producto_id][s.almacen_id] = s.cantidad;
+        }
+        const filas = (productos || []).map((prod) => {
+          const row = { codigo: prod.codigo, nombre: prod.nombre, total: prod.stock_actual };
+          for (const a of almacenes || []) row[a.nombre] = (porProd[prod.id] && porProd[prod.id][a.id]) || 0;
+          return row;
+        });
+        const campos = ['codigo', 'nombre', 'total', ...(almacenes || []).map((a) => a.nombre)];
+        const encabezados = ['Codigo', 'Producto', 'Total', ...(almacenes || []).map((a) => a.nombre)];
+        return responder(p, (productos && productos.length) ? 'Stock por almacen:' : 'No hay productos.',
+          tabla('Stock por almacen', filas, campos, encabezados));
+      }
+
       case 'ventas_recientes': {
         if (!puede(perfil.rol, 'ventas.ver')) return responder(p, negar('ventas.ver').texto);
         const { data } = await sb.from('ventas')
