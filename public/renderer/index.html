@@ -76,6 +76,9 @@
          <button class="nav-item" data-vista="stock-almacen">
            <span class="nav-icon">&#128203;</span> Stock por almacen
          </button>
+         <button class="nav-item" data-vista="traslados-report">
+           <span class="nav-icon">&#128200;</span> Reporte traslados
+         </button>
         <button class="nav-item nav-solo-admin" data-vista="contabilidad">
           <span class="nav-icon">&#9861;</span> Contabilidad
         </button>
@@ -365,6 +368,24 @@
             <table class="tabla">
               <thead><tr id="stockAlmacenHeader"></tr></thead>
               <tbody id="stockAlmacenBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+
+        <!-- Vista: Reporte de traslados -->
+        <section id="vista-traslados-report" class="vista">
+          <div class="panel">
+            <h3>Reporte de traslados entre almacenes</h3>
+            <div class="campo-en-linea">
+              <input type="date" id="trRepDesde" class="input-buscar" />
+              <input type="date" id="trRepHasta" class="input-buscar" />
+              <button id="btnCargarTrasladosRep" class="btn btn-primary">Consultar</button>
+            </div>
+            <div id="trasladosRepResumen" style="margin:8px 0"></div>
+            <table class="tabla">
+              <thead><tr><th>Fecha</th><th>Producto</th><th>Origen</th><th>Destino</th><th>Cantidad</th><th>Observacion</th></tr></thead>
+              <tbody id="trasladosRepBody"></tbody>
             </table>
           </div>
         </section>

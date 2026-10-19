@@ -122,6 +122,7 @@ function aplicarPermisosUI() {
     reportes: 'reportes.ver',
     traslados: 'productos.editar',
     'stock-almacen': 'productos.ver',
+    'traslados-report': 'productos.ver',
     clientes: 'clientes.ver',
     ventas: 'ventas.ver',
     compras: 'compras.ver',
@@ -431,6 +432,7 @@ function navegar(vista) {
     reportes: 'Reportes comerciales',
     traslados: 'Traslados entre almacenes',
     'stock-almacen': 'Stock por almacen',
+    'traslados-report': 'Reporte de traslados',
     clientes: 'Clientes',
     ventas: 'Ventas',
     compras: 'Compras',
@@ -450,6 +452,7 @@ function navegar(vista) {
   if (vista === 'reportes') cargarReportes();
   if (vista === 'traslados') cargarTraslados();
   if (vista === 'stock-almacen') cargarStockAlmacen();
+  if (vista === 'traslados-report') cargarTrasladosReport();
   if (vista === 'clientes') cargarClientes();
   if (vista === 'ventas') cargarVentas();
   if (vista === 'compras') cargarCompras();
@@ -3166,6 +3169,42 @@ async function cargarStockAlmacen() {
     if (tb) tb.innerHTML = '<tr><td colspan="4" class="vacio">No se pudo cargar: ' + escaparHtml(err.message) + '</td></tr>';
   }
 }
+
+async function cargarTrasladosReport() {
+  const desde = document.getElementById('trRepDesde').value;
+  const hasta = document.getElementById('trRepHasta').value;
+  try {
+    let traslados = await window.api.traslados.listar();
+    if (desde) traslados = traslados.filter(t => String(t.fecha).slice(0,10) >= desde);
+    if (hasta) traslados = traslados.filter(t => String(t.fecha).slice(0,10) <= hasta);
+    const tb = document.getElementById('trasladosRepBody');
+    if (tb) {
+      tb.innerHTML = (traslados || []).length
+        ? traslados.map(t => '<tr>' +
+            '<td>' + formatoFecha(t.fecha) + '</td>' +
+            '<td>' + escaparHtml(t.producto_nombre || '-') + '</td>' +
+            '<td>' + escaparHtml(t.almacen_origen_nombre || '-') + '</td>' +
+            '<td>' + escaparHtml(t.almacen_destino_nombre || '-') + '</td>' +
+            '<td>' + t.cantidad + '</td>' +
+            '<td>' + escaparHtml(t.observacion || '-') + '</td>' +
+          '</tr>').join('')
+        : '<tr><td colspan="6" class="vacio">Sin traslados</td></tr>';
+    }
+    const res = document.getElementById('trasladosRepResumen');
+    if (res) {
+      const total = (traslados || []).reduce((a, t) => a + (Number(t.cantidad) || 0), 0);
+      res.innerHTML = 'Total traslados: ' + (traslados || []).length + ' | Unidades movidas: ' + total;
+    }
+  } catch (err) {
+    const tb = document.getElementById('trasladosRepBody');
+    if (tb) tb.innerHTML = '<tr><td colspan="6" class="vacio">Error: ' + escaparHtml(err.message) + '</td></tr>';
+  }
+}
+// wire button
+setTimeout(() => {
+  const b = document.getElementById('btnCargarTrasladosRep');
+  if (b) b.addEventListener('click', cargarTrasladosReport);
+}, 100);
 
 /* ------------------ Utilidades ------------------ */
 
