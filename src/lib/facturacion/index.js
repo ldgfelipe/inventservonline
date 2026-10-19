@@ -19,6 +19,7 @@ import { sat_direct } from './providers/sat_direct.js';
 import { dian } from './providers/dian.js';
 import { afip } from './providers/afip.js';
 import { sii } from './providers/sii.js';
+import { sunat } from './providers/sunat.js';
 
 export const PROVEEDORES = {
   manual,
@@ -28,6 +29,7 @@ export const PROVEEDORES = {
   dian,
   afip,
   sii,
+  sunat,
 };
 
 export const PAISES_SOPORTADOS = [
@@ -35,6 +37,7 @@ export const PAISES_SOPORTADOS = [
   { codigo: 'CO', nombre: 'Colombia', proveedores: ['manual', 'dian'] },
   { codigo: 'AR', nombre: 'Argentina', proveedores: ['manual', 'afip'] },
   { codigo: 'CL', nombre: 'Chile', proveedores: ['manual', 'sii'] },
+  { codigo: 'PE', nombre: 'Peru', proveedores: ['manual', 'sunat'] },
   { codigo: 'VE', nombre: 'Venezuela', proveedores: ['manual'] },
   { codigo: 'CO', nombre: 'Colombia', proveedores: ['manual'] },
   { codigo: 'AR', nombre: 'Argentina', proveedores: ['manual'] },
