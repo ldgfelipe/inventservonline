@@ -121,6 +121,7 @@ function aplicarPermisosUI() {
     config: 'config.ver',
     reportes: 'reportes.ver',
     traslados: 'productos.editar',
+    'stock-almacen': 'productos.ver',
     clientes: 'clientes.ver',
     ventas: 'ventas.ver',
     compras: 'compras.ver',
@@ -429,6 +430,7 @@ function navegar(vista) {
     config: 'Configuracion',
     reportes: 'Reportes comerciales',
     traslados: 'Traslados entre almacenes',
+    'stock-almacen': 'Stock por almacen',
     clientes: 'Clientes',
     ventas: 'Ventas',
     compras: 'Compras',
@@ -447,6 +449,7 @@ function navegar(vista) {
   if (vista === 'bitacora') cargarVistaBitacora();
   if (vista === 'reportes') cargarReportes();
   if (vista === 'traslados') cargarTraslados();
+  if (vista === 'stock-almacen') cargarStockAlmacen();
   if (vista === 'clientes') cargarClientes();
   if (vista === 'ventas') cargarVentas();
   if (vista === 'compras') cargarCompras();
@@ -3114,6 +3117,40 @@ async function confirmarTraslado() {
     notificar('Traslado registrado');
     await cargarTraslados();
   } catch (err) { notificar('Error: ' + err.message, true); }
+}
+
+async function cargarStockAlmacen() {
+  try {
+    const r = await window.api.reportes.stockAlmacen();
+    const almacenes = r.almacenes || [];
+    const productos = r.productos || [];
+    // Header
+    const header = document.getElementById('stockAlmacenHeader');
+    if (header) {
+      header.innerHTML = '<th>Producto</th><th>Codigo</th><th>Total</th><th>Minimo</th>' +
+        almacenes.map((a) => '<th>' + escaparHtml(a.nombre) + (a.principal ? ' (P)' : '') + '</th>').join('');
+    }
+    const tb = document.getElementById('stockAlmacenBody');
+    if (tb) {
+      tb.innerHTML = productos.length
+        ? productos.map((p) => '<tr>' +
+            '<td>' + escaparHtml(p.nombre) + '</td>' +
+            '<td>' + escaparHtml(p.codigo || '-') + '</td>' +
+            '<td><strong>' + p.stock_total + '</strong></td>' +
+            '<td>' + p.stock_minimo + '</td>' +
+            (p.por_almacen || []).map((a) => '<td>' + a.cantidad + '</td>').join('') +
+          '</tr>').join('')
+        : '<tr><td colspan="' + (4 + almacenes.length) + '" class="vacio">Sin productos</td></tr>';
+    }
+    const res = document.getElementById('stockAlmacenResumen');
+    if (res) {
+      res.innerHTML = almacenes.map((a) => '<span class="chip">' + escaparHtml(a.nombre) + '</span>').join(' ') +
+        ' <span class="texto-ayuda">(P = principal)</span>';
+    }
+  } catch (err) {
+    const tb = document.getElementById('stockAlmacenBody');
+    if (tb) tb.innerHTML = '<tr><td colspan="4" class="vacio">No se pudo cargar: ' + escaparHtml(err.message) + '</td></tr>';
+  }
 }
 
 /* ------------------ Utilidades ------------------ */

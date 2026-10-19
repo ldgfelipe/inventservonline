@@ -73,6 +73,9 @@
          <button class="nav-item" data-vista="traslados">
            <span class="nav-icon">&#8646;</span> Traslados
          </button>
+         <button class="nav-item" data-vista="stock-almacen">
+           <span class="nav-icon">&#128203;</span> Stock por almacen
+         </button>
         <button class="nav-item nav-solo-admin" data-vista="contabilidad">
           <span class="nav-icon">&#9861;</span> Contabilidad
         </button>
@@ -348,6 +351,20 @@
             <table class="tabla">
               <thead><tr><th>Fecha</th><th>Producto</th><th>Origen</th><th>Destino</th><th>Cantidad</th></tr></thead>
               <tbody id="trasladosBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+
+        <!-- Vista: Stock por almacen -->
+        <section id="vista-stock-almacen" class="vista">
+          <div class="panel">
+            <h3>Stock por almacen</h3>
+            <p class="texto-ayuda">Desglose de existencias por ubicacion. El stock total es la suma de todos los almacenes.</p>
+            <div id="stockAlmacenResumen" style="margin:8px 0"></div>
+            <table class="tabla">
+              <thead><tr id="stockAlmacenHeader"></tr></thead>
+              <tbody id="stockAlmacenBody"></tbody>
             </table>
           </div>
         </section>
