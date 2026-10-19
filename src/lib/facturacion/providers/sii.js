@@ -27,7 +27,7 @@ export const sii = {
   },
 
   _buildXml: (venta, detalle, config) => {
-    const rut = config.rfc; // RUT
+    const rut = config.rfc;
     const fecha = new Date().toISOString().slice(0, 10);
     const subtotal = (detalle || []).reduce((a, d) => a + (Number(d.subtotal) || 0), 0);
     const iva = Math.round(subtotal * 0.19 * 100) / 100; // IVA Chile 19%
@@ -36,10 +36,9 @@ export const sii = {
     const detalleLines = (detalle || []).map((d, i) => {
       const prod = d.productos || {};
       const sub = Number(d.subtotal) || 0;
-      const ivaLinea = round2(sub * 0.19);
       return `<Detalle>
         <NroLinDet>${i + 1}</NroLinDet>
-        <CdgItem><TpoCodigo>INT1</TpoCodigo><VlrCodigo>${prod.codigo || ''}</VlrCodigo></CdgItem>
+        <CdgItem><TpoCodigo>INT1</TpoCodigo><VlrCodigo>${escapeXml(prod.codigo || '')}</VlrCodigo></CdgItem>
         <NmbItem>${escapeXml(prod.nombre || 'Producto')}</NmbItem>
         <DscItem>${escapeXml(prod.nombre || '')}</DscItem>
         <QtyItem>${d.cantidad}</QtyItem>
@@ -133,7 +132,6 @@ export const sii = {
       }
 
       const text = await r.text();
-      // Extraer folio/timbre de la respuesta
       const folioMatch = text.match(/<Folio>([^<]+)<\/Folio>/i) || text.match(/folio[^>]*>([^<]+)/i);
       const folio = folioMatch ? folioMatch[1] : (config.folio_inicial || 1);
 
