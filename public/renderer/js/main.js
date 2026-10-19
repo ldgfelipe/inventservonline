@@ -2762,6 +2762,10 @@ function configurarEventosReportes() {
   if (be) be.addEventListener('click', exportarReporteVentas);
   const be2 = document.getElementById('btnExportarTrasladosRep');
   if (be2) be2.addEventListener('click', exportarReporteTraslados);
+  const be3 = document.getElementById('btnExportarCxc');
+  if (be3) be3.addEventListener('click', exportarReporteCxc);
+  const be4 = document.getElementById('btnExportarCxp');
+  if (be4) be4.addEventListener('click', exportarReporteCxp);
 }
 
 async function cargarReportes() {
@@ -3339,6 +3343,52 @@ async function exportarReporteTraslados() {
       { campo: 'observacion', titulo: 'Observacion', ancho: 24 },
     ];
     const res = await window.api.export.excel({ filas, columnas, nombreArchivo: 'reporte_traslados.xlsx', hoja: 'Traslados' });
+    if (!res || !res.ok) notificar('No se pudo exportar', true);
+    else notificar('Reporte exportado');
+  } catch (err) { notificar('Error: ' + err.message, true); }
+}
+
+async function exportarReporteCxc() {
+  try {
+    const r = await window.api.reportes.cxc();
+    const filas = (r.filas || []).map((f) => ({
+      cliente: f.cliente || '-',
+      saldo: f.saldo,
+      estado: f.estado,
+      dias: f.dias,
+      rango: f.bucket,
+    }));
+    const columnas = [
+      { campo: 'cliente', titulo: 'Cliente', ancho: 24 },
+      { campo: 'saldo', titulo: 'Saldo', ancho: 14 },
+      { campo: 'estado', titulo: 'Estado', ancho: 12 },
+      { campo: 'dias', titulo: 'Dias', ancho: 10 },
+      { campo: 'rango', titulo: 'Rango', ancho: 10 },
+    ];
+    const res = await window.api.export.excel({ filas, columnas, nombreArchivo: 'reporte_cxc.xlsx', hoja: 'CxC' });
+    if (!res || !res.ok) notificar('No se pudo exportar', true);
+    else notificar('Reporte exportado');
+  } catch (err) { notificar('Error: ' + err.message, true); }
+}
+
+async function exportarReporteCxp() {
+  try {
+    const r = await window.api.reportes.cxp();
+    const filas = (r.filas || []).map((f) => ({
+      proveedor: f.proveedor || '-',
+      saldo: f.saldo,
+      estado: f.estado,
+      dias: f.dias,
+      rango: f.bucket,
+    }));
+    const columnas = [
+      { campo: 'proveedor', titulo: 'Proveedor', ancho: 24 },
+      { campo: 'saldo', titulo: 'Saldo', ancho: 14 },
+      { campo: 'estado', titulo: 'Estado', ancho: 12 },
+      { campo: 'dias', titulo: 'Dias', ancho: 10 },
+      { campo: 'rango', titulo: 'Rango', ancho: 10 },
+    ];
+    const res = await window.api.export.excel({ filas, columnas, nombreArchivo: 'reporte_cxp.xlsx', hoja: 'CxP' });
     if (!res || !res.ok) notificar('No se pudo exportar', true);
     else notificar('Reporte exportado');
   } catch (err) { notificar('Error: ' + err.message, true); }
