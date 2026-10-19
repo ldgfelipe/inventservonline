@@ -14,15 +14,16 @@
 
 import { manual } from './providers/manual.js';
 import { facturama } from './providers/facturama.js';
+import { sw_sapien } from './providers/sw_sapien.js';
 
 export const PROVEEDORES = {
   manual,
   facturama,
-  // sw_sapien, sat_direct: por implementar (solicitar integracion)
+  sw_sapien,
 };
 
 export const PAISES_SOPORTADOS = [
-  { codigo: 'MX', nombre: 'Mexico', proveedores: ['manual', 'facturama'] },
+  { codigo: 'MX', nombre: 'Mexico', proveedores: ['manual', 'facturama', 'sw_sapien'] },
   { codigo: 'VE', nombre: 'Venezuela', proveedores: ['manual'] },
   { codigo: 'CO', nombre: 'Colombia', proveedores: ['manual'] },
   { codigo: 'AR', nombre: 'Argentina', proveedores: ['manual'] },
