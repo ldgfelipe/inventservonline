@@ -511,6 +511,20 @@ async function editarProducto(id) {
   ESTADO.editando = id;
   document.getElementById('tituloModalProducto').textContent = 'Editar Producto';
   await renderCamposProducto(id, p);
+  // Mostrar desglose de stock por almacen
+  const cont = document.getElementById('productoStockAlmacen');
+  if (cont) {
+    const stock = p.stock_por_almacen || [];
+    if (stock.length) {
+      cont.innerHTML = '<h4 style="font-size:13px;margin:8px 0 4px">Stock por almacen</h4>' +
+        stock.map(s => '<div style="display:flex;justify-content:space-between;font-size:13px;padding:2px 0">' +
+          '<span>' + escaparHtml(s.almacen || 'Almacen') + (s.principal ? ' (principal)' : '') + '</span>' +
+          '<strong>' + s.cantidad + '</strong></div>').join('') +
+        '<div style="font-size:12px;color:#888;margin-top:4px">Total: ' + p.stock_actual + '</div>';
+    } else {
+      cont.innerHTML = '';
+    }
+  }
   abrirModal('modalProducto');
 }
 
