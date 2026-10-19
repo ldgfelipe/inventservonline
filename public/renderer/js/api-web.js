@@ -125,6 +125,13 @@ window.api = {
       limite: filtro.limite || 500,
     })).then((r) => r.productos),
     obtener: (id) => pedir('/api/productos/' + id).then((r) => ({ ...r.producto, stock_por_almacen: r.stock_por_almacen || [] })),
+    adjuntos: (id) => pedir('/api/productos/' + id + '/adjuntos').then((r) => r.adjuntos || []),
+    subirAdjunto: (id, archivo) => {
+      const form = new FormData();
+      form.append('archivo', archivo);
+      return pedir('/api/productos/' + id + '/adjuntos', { metodo: 'POST', cuerpo: form });
+    },
+    eliminarAdjunto: (id, adjuntoId) => pedir('/api/productos/' + id + '/adjuntos?adjunto_id=' + adjuntoId, { metodo: 'DELETE' }),
     guardar: (payload) => {
       if (payload.id) {
         return pedir('/api/productos/' + payload.id, { metodo: 'PATCH', json: payload });

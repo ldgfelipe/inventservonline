@@ -555,6 +555,8 @@ async function editarProducto(id) {
       cont.innerHTML = '';
     }
   }
+  // Cargar adjuntos
+  await cargarAdjuntos(id);
   abrirModal('modalProducto');
 }
 
@@ -598,6 +600,7 @@ async function renderCamposProducto(productoId = null, p = {}) {
     });
   }
 }
+
 
 async function guardarProducto(e) {
   e.preventDefault();
@@ -1118,8 +1121,19 @@ async function configurarEventosConfig() {
 
   const fTr = document.getElementById('formTransferencia');
   if (fTr) fTr.addEventListener('submit', (e) => { e.preventDefault(); registrarTransferencia(); });
-  const btnCancelTr = document.getElementById('btnCancelTransferencia');
-  if (btnCancelTr) btnCancelTr.addEventListener('click', () => cerrarModal('modalTransferencia'));
+  const btnSubirAdjunto = document.getElementById('btnSubirAdjunto');
+  if (btnSubirAdjunto) btnSubirAdjunto.addEventListener('click', async () => {
+    const id = document.getElementById('productoId').value;
+    if (!id) return notificar('Guarda el producto primero', true);
+    const archivo = document.getElementById('adjuntoArchivo').files[0];
+    if (!archivo) return notificar('Selecciona un archivo', true);
+    try {
+      await window.api.producto.subirAdjunto(id, archivo);
+      document.getElementById('adjuntoArchivo').value = '';
+      notificar('Adjunto subido');
+      await cargarAdjuntos(id);
+    } catch (err) { notificar('Error: ' + err.message, true); }
+  });
 
   const btnGuardarEmail = document.getElementById('btnGuardarEmail');
   if (btnGuardarEmail) btnGuardarEmail.addEventListener('click', guardarEmailConfig);
@@ -3440,6 +3454,32 @@ async function subirLogoEmpresa() {
     notificar('Logo actualizado');
   } catch (err) { notificar('Error: ' + err.message, true); }
 }
+
+async function cargarAdjuntos(productoId) {
+  const cont = document.getElementById('adjuntosLista');
+  if (!cont) return;
+  try {
+    const adj = await window.api.producto.adjuntos(productoId);
+    cont.innerHTML = (adj && adj.length)
+      ? adj.map((a) => '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #eee;font-size:13px">' +
+          '<a href="' + (a.url || '#') + '" target="_blank">' + escaparHtml(a.nombre || a.ruta) + '</a>' +
+          ' <span style="color:#888">' + (a.tamano ? (a.tamano / 1024).toFixed(1) + ' KB' : '') + '</span>' +
+          ' <button class="btn btn-ghost btn-mini" onclick="eliminarAdjunto(\'' + productoId + '\',\'' + a.id + '\')">Eliminar</button>' +
+        '</div>').join('')
+      : '<p class="texto-ayuda">Sin adjuntos</p>';
+  } catch (err) {
+    cont.innerHTML = '<p class="texto-ayuda">No se pudieron cargar los adjuntos</p>';
+  }
+}
+
+window.eliminarAdjunto = async function (productoId, adjuntoId) {
+  if (!confirm('Eliminar este adjunto?')) return;
+  try {
+    await window.api.producto.eliminarAdjunto(productoId, adjuntoId);
+    notificar('Adjunto eliminado');
+    await cargarAdjuntos(productoId);
+  } catch (err) { notificar('Error: ' + err.message, true); }
+};
 
 /* ------------------ Utilidades ------------------ */
 
