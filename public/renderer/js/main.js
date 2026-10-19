@@ -229,6 +229,14 @@ async function cargarEmpresa() {
   // moneda_info la resuelve la API (simbolo, decimales, formato). Si una
   // base antigua no la trae, formatoMoneda cae en el valor por defecto.
   ESTADO.monedaInfo = (ESTADO.empresa && ESTADO.empresa.moneda_info) || null;
+  // Logo de la empresa
+  if (ESTADO.empresa && ESTADO.empresa.logo_path) {
+    try {
+      const url = await window.api.archivos.url(ESTADO.empresa.logo_path);
+      const img = document.querySelector('.logo-img');
+      if (img) img.src = url;
+    } catch (e) { /* ignore */ }
+  }
 }
 
 async function cargarCategorias() {
@@ -1123,6 +1131,9 @@ async function configurarEventosConfig() {
   const btnProbarWa = document.getElementById('btnProbarWa');
   if (btnProbarWa) btnProbarWa.addEventListener('click', probarWaConfig);
 
+  const btnSubirLogo = document.getElementById('btnSubirLogo');
+  if (btnSubirLogo) btnSubirLogo.addEventListener('click', subirLogoEmpresa);
+
   const btnGuardarAlertas = document.getElementById('btnGuardarAlertas');
   if (btnGuardarAlertas) btnGuardarAlertas.addEventListener('click', guardarAlertasConfig);
 
@@ -1188,6 +1199,13 @@ async function renderEmpresaMoneda() {
   if (emp.moneda) selMoneda.value = emp.moneda;
   const ivaEl = document.getElementById('inputTasaIva');
   if (ivaEl) ivaEl.value = (emp.tasa_iva != null ? emp.tasa_iva : 0);
+  // Logo preview
+  const lp = document.getElementById('logoPreview');
+  if (lp) {
+    if (emp.logo_path) {
+      window.api.archivos.url(emp.logo_path).then((u) => { lp.innerHTML = '<img src="' + u + '" style="height:48px" />'; }).catch(() => { lp.innerHTML = ''; });
+    } else { lp.innerHTML = '<span class="texto-ayuda">Sin logo</span>'; }
+  }
 
   renderVistaPreviaMoneda();
 }
@@ -3398,6 +3416,28 @@ async function exportarReporteCxp() {
     const res = await window.api.export.excel({ filas, columnas, nombreArchivo: 'reporte_cxp.xlsx', hoja: 'CxP' });
     if (!res || !res.ok) notificar('No se pudo exportar', true);
     else notificar('Reporte exportado');
+  } catch (err) { notificar('Error: ' + err.message, true); }
+}
+
+async function subirLogoEmpresa() {
+  const archivo = document.getElementById('logoArchivo').files[0];
+  if (!archivo) return notificar('Selecciona un archivo', true);
+  try {
+    const r = await window.api.archivos.subir(archivo, 'logos');
+    await window.api.empresa.guardar({ logo_path: r.ruta });
+    ESTADO.empresa = await window.api.empresa.obtener();
+    // Actualizar sidebar
+    const logoImg = document.querySelector('.logo-img');
+    if (logoImg) {
+      window.api.archivos.url(r.ruta).then((u) => { logoImg.src = u; }).catch(() => {});
+    }
+    // Preview
+    const lp = document.getElementById('logoPreview');
+    if (lp) {
+      const u = await window.api.archivos.url(r.ruta);
+      lp.innerHTML = '<img src="' + u + '" style="height:48px" />';
+    }
+    notificar('Logo actualizado');
   } catch (err) { notificar('Error: ' + err.message, true); }
 }
 

@@ -5,8 +5,8 @@ export const runtime = 'nodejs';
 
 /* Columnas de empresa. pais y moneda llegaron con la migracion 012; si
    la base es anterior, reintentamos sin ellas para no romper el panel. */
-const COLS = 'nombre, rif, giro_actual, plan, pais, moneda, tasa_iva';
-const COLS_SIN_MONEDA = 'nombre, rif, giro_actual, plan';
+const COLS = 'nombre, rif, giro_actual, plan, pais, moneda, tasa_iva, logo_path';
+const COLS_SIN_MONEDA = 'nombre, rif, giro_actual, plan, logo_path';
 
 function conMoneda(empresa) {
   if (!empresa) return empresa;
@@ -65,6 +65,7 @@ async function actualizar(request) {
     if (!Number.isFinite(tasa) || tasa < 0 || tasa > 100) return error('La tasa de IVA debe estar entre 0 y 100');
     cambios.tasa_iva = tasa;
   }
+  if (cuerpo.logo_path !== undefined) cambios.logo_path = cuerpo.logo_path || null;
 
   if (!Object.keys(cambios).length) return error('No hay cambios que guardar');
 
