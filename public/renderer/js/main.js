@@ -1337,11 +1337,18 @@ async function iniciarPago(pasarela) {
 async function registrarTransferencia() {
   const plan = document.getElementById('trPlan').value;
   const ciclo = document.getElementById('trCiclo').value;
-  const comprobante = document.getElementById('trComprobante').value.trim();
+  const archivo = document.getElementById('trArchivo').files[0];
+  const comprobanteUrl = document.getElementById('trComprobante').value.trim();
   const referencia = document.getElementById('trReferencia').value.trim();
   const nota = document.getElementById('trNota').value.trim();
   try {
-    await window.api.pagos.transferencia({ plan, ciclo, comprobante_url: comprobante, referencia, nota });
+    let url = comprobanteUrl;
+    if (archivo) {
+      const r = await window.api.archivos.subir(archivo, 'comprobantes');
+      url = r.url || r.ruta;
+    }
+    if (!url) return notificar('Adjunta un archivo o una URL', true);
+    await window.api.pagos.transferencia({ plan, ciclo, comprobante_url: url, referencia, nota });
     cerrarModal('modalTransferencia');
     const f = document.getElementById('formTransferencia');
     if (f) f.reset();

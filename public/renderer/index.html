@@ -891,8 +891,12 @@
           </select>
         </div>
         <div class="campo">
-          <label>URL del comprobante</label>
-          <input type="url" id="trComprobante" placeholder="https://..." required />
+          <label>Comprobante (archivo)</label>
+          <input type="file" id="trArchivo" accept="image/*,.pdf" />
+        </div>
+        <div class="campo">
+          <label>O URL del comprobante</label>
+          <input type="url" id="trComprobante" placeholder="https://..." />
         </div>
         <div class="campo">
           <label>Referencia / nro. de operacion (opcional)</label>

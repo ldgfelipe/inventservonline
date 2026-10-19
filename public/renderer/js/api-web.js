@@ -289,6 +289,16 @@ window.api = {
     config: () => pedir('/api/alertas/config').then((r) => r.config),
     guardar: (payload) => pedir('/api/alertas/config', { metodo: 'POST', json: payload }),
   },
+  archivos: {
+    subir: (archivo, carpeta) => {
+      const form = new FormData();
+      form.append('archivo', archivo);
+      form.append('carpeta', carpeta || 'adjuntos');
+      return pedir('/api/archivos/subir', { metodo: 'POST', cuerpo: form });
+    },
+    url: (ruta) => pedir('/api/archivos?url=' + encodeURIComponent(ruta)).then((r) => r.url),
+    uso: () => pedir('/api/archivos').then((r) => r),
+  },
   monedas: {
     listar: () => pedir('/api/monedas'),
   },
