@@ -1129,6 +1129,7 @@ async function cargarOpcionesConfig() {
   cargarWaConfig();
   cargarFacturacion();
   cargarAlertasConfig();
+  cargarCanalesStatus();
 }
 
 /* ---------- Empresa, pais y moneda ---------- */
@@ -3240,6 +3241,25 @@ async function guardarAlertasConfig() {
     });
     notificar('Configuracion de alertas guardada');
   } catch (err) { notificar('Error: ' + err.message, true); }
+}
+
+async function cargarCanalesStatus() {
+  const cont = document.getElementById('canalesStatus');
+  if (!cont) return;
+  let emailOk = false, waOk = false;
+  try {
+    const c = await window.api.email.config();
+    emailOk = !!(c && c.activo && c.smtp_host && c.from_email && c.to_emails);
+  } catch (e) { /* ignore */ }
+  try {
+    const c = await window.api.whatsapp.config();
+    waOk = !!(c && c.activo && c.phone_number_id && c.to_phones);
+  } catch (e) { /* ignore */ }
+  cont.innerHTML =
+    '<div style="padding:6px 10px;border-radius:6px;background:' + (emailOk ? '#dcfce7' : '#fee2e2') + ';font-size:13px">' +
+      'Email: ' + (emailOk ? 'Activo' : 'No configurado') + '</div>' +
+    '<div style="padding:6px 10px;border-radius:6px;background:' + (waOk ? '#dcfce7' : '#fee2e2') + ';font-size:13px">' +
+      'WhatsApp: ' + (waOk ? 'Activo' : 'No configurado') + '</div>';
 }
 
 /* ------------------ Utilidades ------------------ */
