@@ -23,6 +23,8 @@ const R = {
   stockAlmacen: /(stock por almacen|stock en almacen|existencia por almacen|inventario por almacen|stock del almacen)/,
   traslados: /(traslado|traslados|movimiento entre almacenes|movimiento de almacen)/,
   stockAlmacen: /(stock por almacen|stock en almacen|existencia por almacen|inventario por almacen|stock del almacen)/,
+  traslados: /(traslado|traslados|movimiento entre almacenes|movimiento de almacen)/,
+  stockAlmacen: /(stock por almacen|stock en almacen|existencia por almacen|inventario por almacen|stock del almacen)/,
   ventas: /(ventas|cuanto vendi|vendimos|facturacion|facturado|resumen de ventas)/,
   cxc: /(cuentas por cobrar|por cobrar|deudores|cobros pendientes|quien me debe|saldo de clientes)/,
   cxp: /(cuentas por pagar|por pagar a proveedores|proveedores que debo|debo a proveedores|saldo a proveedores)/,
@@ -46,6 +48,8 @@ const DESCRIPCION = {
   valor_inventario: 'Valor total del inventario',
   conteo_total: 'Cantidad de productos',
   top_movidos: 'Productos mas movidos',
+  traslados_recientes: 'Traslados entre almacenes',
+  stock_por_almacen: 'Stock por almacen',
   traslados_recientes: 'Traslados entre almacenes',
   stock_por_almacen: 'Stock por almacen',
   traslados_recientes: 'Traslados entre almacenes',
@@ -106,6 +110,8 @@ function interpretar(texto) {
   if (R.valor.test(plano)) return { ...base, intencion: 'valor_inventario' };
   if (R.conteo.test(plano)) return { ...base, intencion: 'conteo_total' };
   if (R.top.test(plano)) return { ...base, intencion: 'top_movidos' };
+  if (R.traslados.test(plano)) return { ...base, intencion: 'traslados_recientes' };
+  if (R.stockAlmacen.test(plano)) return { ...base, intencion: 'stock_por_almacen' };
   if (R.traslados.test(plano)) return { ...base, intencion: 'traslados_recientes' };
   if (R.stockAlmacen.test(plano)) return { ...base, intencion: 'stock_por_almacen' };
   if (R.traslados.test(plano)) return { ...base, intencion: 'traslados_recientes' };
