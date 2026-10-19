@@ -2757,6 +2757,11 @@ function configurarEventosReportes() {
   if (b) b.addEventListener('click', cargarReporteVentas);
   const b2 = document.getElementById('btnCargarCajaReporte');
   if (b2) b2.addEventListener('click', cargarReporteCaja);
+
+  const be = document.getElementById('btnExportarReporteVentas');
+  if (be) be.addEventListener('click', exportarReporteVentas);
+  const be2 = document.getElementById('btnExportarTrasladosRep');
+  if (be2) be2.addEventListener('click', exportarReporteTraslados);
 }
 
 async function cargarReportes() {
@@ -3279,6 +3284,64 @@ async function cargarCanalesStatus() {
       'Email: ' + (emailOk ? 'Activo' : 'No configurado') + '</div>' +
     '<div style="padding:6px 10px;border-radius:6px;background:' + (waOk ? '#dcfce7' : '#fee2e2') + ';font-size:13px">' +
       'WhatsApp: ' + (waOk ? 'Activo' : 'No configurado') + '</div>';
+}
+
+async function exportarReporteVentas() {
+  const desde = document.getElementById('repDesde').value;
+  const hasta = document.getElementById('repHasta').value;
+  try {
+    const r = await window.api.reportes.ventas({ desde, hasta });
+    const filas = (r.filas || []).map((f) => ({
+      numero: f.numero,
+      fecha: formatoFecha(f.fecha),
+      cliente: f.cliente || '-',
+      total: f.total,
+      costo: f.costo,
+      margen: f.margen,
+      margen_pct: f.margen_pct,
+    }));
+    const columnas = [
+      { campo: 'numero', titulo: 'Numero', ancho: 14 },
+      { campo: 'fecha', titulo: 'Fecha', ancho: 18 },
+      { campo: 'cliente', titulo: 'Cliente', ancho: 24 },
+      { campo: 'total', titulo: 'Total', ancho: 14 },
+      { campo: 'costo', titulo: 'Costo', ancho: 14 },
+      { campo: 'margen', titulo: 'Margen', ancho: 14 },
+      { campo: 'margen_pct', titulo: '% Margen', ancho: 12 },
+    ];
+    const res = await window.api.export.excel({ filas, columnas, nombreArchivo: 'reporte_ventas.xlsx', hoja: 'Ventas' });
+    if (!res || !res.ok) notificar('No se pudo exportar', true);
+    else notificar('Reporte exportado');
+  } catch (err) { notificar('Error: ' + err.message, true); }
+}
+
+async function exportarReporteTraslados() {
+  const desde = document.getElementById('trRepDesde').value;
+  const hasta = document.getElementById('trRepHasta').value;
+  try {
+    let traslados = await window.api.traslados.listar();
+    if (desde) traslados = traslados.filter(t => String(t.fecha).slice(0,10) >= desde);
+    if (hasta) traslados = traslados.filter(t => String(t.fecha).slice(0,10) <= hasta);
+    const filas = (traslados || []).map((t) => ({
+      fecha: formatoFecha(t.fecha),
+      producto: t.producto_nombre || '-',
+      origen: t.almacen_origen_nombre || '-',
+      destino: t.almacen_destino_nombre || '-',
+      cantidad: t.cantidad,
+      observacion: t.observacion || '-',
+    }));
+    const columnas = [
+      { campo: 'fecha', titulo: 'Fecha', ancho: 18 },
+      { campo: 'producto', titulo: 'Producto', ancho: 24 },
+      { campo: 'origen', titulo: 'Origen', ancho: 18 },
+      { campo: 'destino', titulo: 'Destino', ancho: 18 },
+      { campo: 'cantidad', titulo: 'Cantidad', ancho: 12 },
+      { campo: 'observacion', titulo: 'Observacion', ancho: 24 },
+    ];
+    const res = await window.api.export.excel({ filas, columnas, nombreArchivo: 'reporte_traslados.xlsx', hoja: 'Traslados' });
+    if (!res || !res.ok) notificar('No se pudo exportar', true);
+    else notificar('Reporte exportado');
+  } catch (err) { notificar('Error: ' + err.message, true); }
 }
 
 /* ------------------ Utilidades ------------------ */
