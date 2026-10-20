@@ -34,7 +34,7 @@ export const aeat = {
     const iva = Math.round(subtotal * 0.21 * 100) / 100; // IVA Espana 21%
     const total = Math.round((subtotal + iva - (Number(venta.descuento) || 0) + (Number(venta.impuesto) || 0)) * 100) / 100;
 
-    const invoiceLines = (detalle || []).map((d, i) => {
+    const invoiceLines = (detalle || []).map((d) => {
       const prod = d.productos || {};
       const sub = Number(d.subtotal) || 0;
       const ivaLinea = round2(sub * 0.21);
