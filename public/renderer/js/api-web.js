@@ -306,6 +306,10 @@ window.api = {
     url: (ruta) => pedir('/api/archivos?url=' + encodeURIComponent(ruta)).then((r) => r.url),
     uso: () => pedir('/api/archivos').then((r) => r),
   },
+  featureFlags: {
+    listar: () => pedir('/api/feature-flags').then((r) => r.flags || {}),
+    variante: (nombre) => pedir('/api/feature-flags?nombre=' + encodeURIComponent(nombre)).then((r) => r.variante),
+  },
   monedas: {
     listar: () => pedir('/api/monedas'),
   },

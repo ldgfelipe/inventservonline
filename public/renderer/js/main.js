@@ -1,5 +1,14 @@
 /* Sistema de Inventarios - Logica de interfaz */
 
+// Manejador global de errores: evita que la app se congele silenciosamente.
+window.addEventListener('error', (e) => {
+  console.error('Error global:', e.message, e.filename, e.lineno);
+});
+window.addEventListener('unhandledrejection', (e) => {
+  console.error('Promise rechazada sin manejar:', e.reason);
+  e.preventDefault();
+});
+
 const ESTADO = {
   vista: 'dashboard',
   giro: null,
@@ -19,6 +28,7 @@ const ESTADO = {
   catalogoMonedas: null,
   suscripcion: null,
   planes: null,
+  featureFlags: {},
   notificaciones: [],
   clientes: [],
   ventas: [],
@@ -39,11 +49,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 function puedeUI(permiso) {
   if (!ESTADO.usuario) return false;
-  // Defensivo: si el usuario viene sin permisos (p.e. una version antigua
-  // de la API), negamos en vez de lanzar y dejar la app congelada.
   const permisos = ESTADO.usuario.permisos;
   if (!Array.isArray(permisos)) return false;
   return permisos.includes(permiso);
+}
+
+/* Verifica si un feature flag esta activo para esta empresa. */
+function flagActivo(clave) {
+  if (!ESTADO.featureFlags) return true; // por defecto activo si no hay flags
+  if (ESTADO.featureFlags[clave] === undefined) return true; // flag no definido = activo
+  return !!ESTADO.featureFlags[clave];
 }
 
 async function verificarSesion() {
@@ -175,7 +190,8 @@ async function iniciar() {
   // Cada carga de datos se protege por separado: si una falla (catalogo
   // incompleto, permiso ausente), el sistema igual queda navegable.
   await cargarSinRomper(cargarGiroActual, 'el giro actual');
-  await cargarSinRomper(cargarEmpresa, 'los datos de la empresa');
+  // Cargar feature flags
+  try { ESTADO.featureFlags = await window.api.featureFlags.listar(); } catch { ESTADO.featureFlags = {}; }
   await cargarSinRomper(cargarCategorias, 'las categorias');
   await cargarSinRomper(cargarProveedores, 'los proveedores');
   // Los eventos se registran una sola vez por sesion de pagina:
