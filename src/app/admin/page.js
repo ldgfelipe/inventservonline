@@ -18,6 +18,10 @@ export default function Admin() {
   const [solicitudesCargando, setSolicitudesCargando] = useState(false);
   const [marketing, setMarketing] = useState(null);
   const [marketingCargando, setMarketingCargando] = useState(false);
+  const [dashboard, setDashboard] = useState(null);
+  const [dashboardCargando, setDashboardCargando] = useState(false);
+  const [empresas, setEmpresas] = useState([]);
+  const [empresasCargando, setEmpresasCargando] = useState(false);
 
   useEffect(() => {
     fetch('/api/auth/sesion', { headers: auth() })
@@ -35,6 +39,8 @@ export default function Admin() {
     cargarPagos();
     cargarSolicitudes();
     cargarMarketing();
+    cargarDashboard();
+    cargarEmpresas();
   }, [usuario]);
 
   function auth() {
@@ -129,6 +135,41 @@ export default function Admin() {
       if (r.ok) setMarketing(j);
       else setError(j.error || 'No se pudieron cargar las metricas de marketing');
     } finally { setMarketingCargando(false); }
+  }
+
+  async function cargarDashboard() {
+    setDashboardCargando(true);
+    try {
+      const r = await fetch('/api/admin/dashboard', { headers: auth() });
+      const j = await r.json();
+      if (r.ok) setDashboard(j.metricas);
+      else setError(j.error || 'No se pudieron cargar las metricas');
+    } finally { setDashboardCargando(false); }
+  }
+
+  async function cargarEmpresas() {
+    setEmpresasCargando(true);
+    try {
+      const r = await fetch('/api/admin/empresas', { headers: auth() });
+      const j = await r.json();
+      if (r.ok) setEmpresas(j.empresas || []);
+      else setError(j.error || 'No se pudieron cargar las empresas');
+    } finally { setEmpresasCargando(false); }
+  }
+
+  async function gestionarEmpresa(id, accion, extra = {}) {
+    setError('');
+    setMensaje('');
+    const r = await fetch('/api/admin/empresas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...auth() },
+      body: JSON.stringify({ id, accion, ...extra }),
+    });
+    const j = await r.json();
+    if (!r.ok) return setError(j.error || 'No se pudo gestionar');
+    setMensaje(j.mensaje || 'Operacion exitosa');
+    cargarEmpresas();
+    cargarDashboard();
   }
 
   async function resolverSolicitud(id, estado, notas) {
@@ -246,6 +287,82 @@ export default function Admin() {
               </tr>
             ))}
             {claves.length === 0 && <tr><td colSpan={6} className="vacio">Sin claves creadas</td></tr>}
+          </tbody>
+        </table>
+      </section>
+
+      <section className="panel-admin">
+        <h2>Dashboard del SaaS</h2>
+        <p className="ayuda">Metricas generales de la plataforma.</p>
+        <button className="btn btn-secundario" onClick={cargarDashboard} style={{ marginBottom: 12 }}>
+          {dashboardCargando ? 'Cargando...' : 'Actualizar'}
+        </button>
+        {dashboard && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
+            <div className="adopcion-card"><h4>Total empresas</h4><div className="valor">{dashboard.total_empresas}</div></div>
+            <div className="adopcion-card"><h4>Plan Gratis</h4><div className="valor">{dashboard.por_plan.free}</div></div>
+            <div className="adopcion-card"><h4>Plan Basico</h4><div className="valor">{dashboard.por_plan.basic}</div></div>
+            <div className="adopcion-card"><h4>Plan Pro</h4><div className="valor">{dashboard.por_plan.pro}</div></div>
+            <div className="adopcion-card"><h4>Plan Empresa</h4><div className="valor">{dashboard.por_plan.empresa}</div></div>
+            <div className="adopcion-card"><h4>Activas</h4><div className="valor">{dashboard.por_estado.activo}</div></div>
+            <div className="adopcion-card"><h4>En trial</h4><div className="valor">{dashboard.por_estado.trial}</div></div>
+            <div className="adopcion-card"><h4>Vencidas</h4><div className="valor">{dashboard.por_estado.vencido}</div></div>
+            <div className="adopcion-card"><h4>MRR (USD)</h4><div className="valor">${dashboard.mrr}</div></div>
+            <div className="adopcion-card"><h4>ARR (USD)</h4><div className="valor">${dashboard.arr}</div></div>
+            <div className="adopcion-card"><h4>Usuarios totales</h4><div className="valor">{dashboard.total_usuarios}</div></div>
+            <div className="adopcion-card"><h4>Productos totales</h4><div className="valor">{dashboard.total_productos}</div></div>
+            <div className="adopcion-card"><h4>Ventas totales</h4><div className="valor">{dashboard.total_ventas}</div></div>
+            <div className="adopcion-card"><h4>Pagos pendientes</h4><div className="valor">{dashboard.pagos_pendientes}</div></div>
+            <div className="adopcion-card"><h4>Tasa conversion</h4><div className="valor">{dashboard.tasa_conversion}%</div></div>
+          </div>
+        )}
+      </section>
+
+      <section className="panel-admin">
+        <h2>Empresas registradas</h2>
+        <p className="ayuda">Lista de todas las empresas con su plan, estado y uso. Puedes cambiar planes, extender trials, suspender o reactivar.</p>
+        <button className="btn btn-secundario" onClick={cargarEmpresas} style={{ marginBottom: 12 }}>
+          {empresasCargando ? 'Cargando...' : 'Actualizar'}
+        </button>
+        <table className="tabla-admin">
+          <thead>
+            <tr><th>Empresa</th><th>Email</th><th>Giro</th><th>Plan</th><th>Estado</th><th>Productos</th><th>Usuarios</th><th>Ventas</th><th>Acciones</th></tr>
+          </thead>
+          <tbody>
+            {empresas.map((e) => (
+              <tr key={e.id}>
+                <td>{e.nombre}</td>
+                <td style={{ fontSize: 12 }}>{e.email}</td>
+                <td style={{ fontSize: 12 }}>{e.giro}</td>
+                <td>
+                  <select
+                    value={e.plan}
+                    onChange={(ev) => gestionarEmpresa(e.id, 'cambiar_plan', { plan: ev.target.value, dias: 30 })}
+                    className="input-select"
+                    style={{ fontSize: 12, padding: 2 }}
+                  >
+                    <option value="free">Gratis</option>
+                    <option value="basic">Basico</option>
+                    <option value="pro">Pro</option>
+                    <option value="empresa">Empresa</option>
+                  </select>
+                </td>
+                <td><span className={`estado ${e.estado === 'activo' ? 'verde' : e.estado === 'trial' ? 'amarillo' : 'rojo'}`}>{e.estado}</span></td>
+                <td>{e.productos}</td>
+                <td>{e.usuarios}</td>
+                <td>{e.ventas}</td>
+                <td>
+                  {e.estado !== 'activo' && (
+                    <button className="btn-mini" onClick={() => gestionarEmpresa(e.id, 'reactivar')}>Reactivar</button>
+                  )}
+                  {e.estado === 'activo' && (
+                    <button className="btn-mini" onClick={() => gestionarEmpresa(e.id, 'suspender')}>Suspender</button>
+                  )}
+                  <button className="btn-mini" onClick={() => gestionarEmpresa(e.id, 'extender_trial', { dias: 14 })}>+14d trial</button>
+                </td>
+              </tr>
+            ))}
+            {empresas.length === 0 && <tr><td colSpan={9} className="vacio">Sin empresas</td></tr>}
           </tbody>
         </table>
       </section>
