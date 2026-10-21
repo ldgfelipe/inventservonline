@@ -19,6 +19,8 @@ const PUBLICAS = [
   '/api/monedas',
   '/api/planes',
   '/api/webhooks',
+  '/api/trafico',
+  '/api/landing',
   '/precios',
 ];
 

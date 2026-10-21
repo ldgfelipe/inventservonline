@@ -16,6 +16,8 @@ export default function Admin() {
   const [pagosCargando, setPagosCargando] = useState(false);
   const [solicitudes, setSolicitudes] = useState([]);
   const [solicitudesCargando, setSolicitudesCargando] = useState(false);
+  const [marketing, setMarketing] = useState(null);
+  const [marketingCargando, setMarketingCargando] = useState(false);
 
   useEffect(() => {
     fetch('/api/auth/sesion', { headers: auth() })
@@ -32,6 +34,7 @@ export default function Admin() {
     fetch('/api/empresa', { headers: auth() }).then((r) => r.json()).then((j) => setEmpresa(j.empresa)).catch(() => {});
     cargarPagos();
     cargarSolicitudes();
+    cargarMarketing();
   }, [usuario]);
 
   function auth() {
@@ -116,6 +119,16 @@ export default function Admin() {
       if (r.ok) setSolicitudes(j.solicitudes || []);
       else setError(j.error || 'No se pudieron cargar las solicitudes');
     } finally { setSolicitudesCargando(false); }
+  }
+
+  async function cargarMarketing() {
+    setMarketingCargando(true);
+    try {
+      const r = await fetch('/api/admin/marketing', { headers: auth() });
+      const j = await r.json();
+      if (r.ok) setMarketing(j);
+      else setError(j.error || 'No se pudieron cargar las metricas de marketing');
+    } finally { setMarketingCargando(false); }
   }
 
   async function resolverSolicitud(id, estado, notas) {
@@ -271,6 +284,112 @@ export default function Admin() {
             {pagos.length === 0 && <tr><td colSpan={7} className="vacio">Sin pagos pendientes</td></tr>}
           </tbody>
         </table>
+      </section>
+
+      <section className="panel-admin">
+        <h2>Marketing y conversion</h2>
+        <p className="ayuda">
+          Analisis de usuarios freemium, probabilidad de conversion, trafico por fuente y campanas.
+        </p>
+        <button className="btn btn-secundario" onClick={cargarMarketing} style={{ marginBottom: 12 }}>
+          {marketingCargando ? 'Cargando...' : 'Actualizar'}
+        </button>
+
+        {marketing && (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 16 }}>
+              <div className="adopcion-card"><h4>Total empresas</h4><div className="valor">{marketing.resumen.total_empresas}</div></div>
+              <div className="adopcion-card"><h4>Freemium</h4><div className="valor">{marketing.resumen.freemium}</div></div>
+              <div className="adopcion-card"><h4>Pagadas</h4><div className="valor">{marketing.resumen.pagadas}</div></div>
+              <div className="adopcion-card"><h4>Score promedio</h4><div className="valor">{marketing.resumen.score_promedio}</div></div>
+              <div className="adopcion-card"><h4>Alta probabilidad</h4><div className="valor">{marketing.resumen.alta_probabilidad}</div></div>
+            </div>
+
+            <h3 style={{ fontSize: 14, marginTop: 12 }}>Usuarios freemium (por probabilidad de conversion)</h3>
+            <table className="tabla-admin">
+              <thead>
+                <tr><th>Empresa</th><th>Plan</th><th>Estado</th><th>Productos</th><th>Usuarios</th><th>Movs</th><th>Ventas</th><th>Dias</th><th>Score</th></tr>
+              </thead>
+              <tbody>
+                {(marketing.freemium_users || []).sort((a, b) => b.score - a.score).slice(0, 30).map((u) => (
+                  <tr key={u.id}>
+                    <td>{u.nombre}</td>
+                    <td>{u.plan}</td>
+                    <td>{u.suscripcion ? u.suscripcion.estado : '-'}</td>
+                    <td>{u.productos}</td>
+                    <td>{u.usuarios}</td>
+                    <td>{u.movimientos}</td>
+                    <td>{u.ventas}</td>
+                    <td>{u.dias_registro}</td>
+                    <td><strong style={{ color: u.score >= 60 ? '#16a34a' : u.score >= 30 ? '#d97706' : '#dc2626' }}>{u.score}</strong></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <h3 style={{ fontSize: 14, marginTop: 16 }}>Trafico por fuente</h3>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+              {Object.entries(marketing.traffic?.por_fuente || {}).map(([k, v]) => (
+                <div key={k} className="adopcion-card" style={{ minWidth: 100 }}>
+                  <h4>{k}</h4><div className="valor">{v}</div>
+                </div>
+              ))}
+            </div>
+
+            <h3 style={{ fontSize: 14, marginTop: 12 }}>Campanas</h3>
+            <table className="tabla-admin">
+              <thead><tr><th>Nombre</th><th>Tipo</th><th>Canal</th><th>Estado</th><th>Presupuesto</th><th>Inicio</th><th>Fin</th></tr></thead>
+              <tbody>
+                {(marketing.campanas || []).map((c) => (
+                  <tr key={c.id}>
+                    <td>{c.nombre}</td>
+                    <td>{c.tipo}</td>
+                    <td>{c.canal || '-'}</td>
+                    <td>{c.estado}</td>
+                    <td>{c.presupuesto} {c.moneda}</td>
+                    <td>{c.fecha_inicio || '-'}</td>
+                    <td>{c.fecha_fin || '-'}</td>
+                  </tr>
+                ))}
+                {(marketing.campanas || []).length === 0 && <tr><td colSpan={7} className="vacio">Sin campanas</td></tr>}
+              </tbody>
+            </table>
+
+            <h3 style={{ fontSize: 14, marginTop: 16 }}>Landing pages</h3>
+            <table className="tabla-admin">
+              <thead><tr><th>Nombre</th><th>Slug</th><th>Visitas</th><th>Conversiones</th><th>Publicada</th></tr></thead>
+              <tbody>
+                {(marketing.landings || []).map((l) => (
+                  <tr key={l.id}>
+                    <td>{l.nombre}</td>
+                    <td className="mono">{l.slug}</td>
+                    <td>{l.visitas}</td>
+                    <td>{l.conversiones}</td>
+                    <td>{l.publicada ? 'Si' : 'No'}</td>
+                  </tr>
+                ))}
+                {(marketing.landings || []).length === 0 && <tr><td colSpan={5} className="vacio">Sin landing pages</td></tr>}
+              </tbody>
+            </table>
+
+            <h3 style={{ fontSize: 14, marginTop: 16 }}>Pixeles de tracking</h3>
+            <table className="tabla-admin">
+              <thead><tr><th>Nombre</th><th>Plataforma</th><th>Pixel ID</th><th>Activo</th><th>Global</th></tr></thead>
+              <tbody>
+                {(marketing.pixeles || []).map((px) => (
+                  <tr key={px.id}>
+                    <td>{px.nombre}</td>
+                    <td>{px.plataforma}</td>
+                    <td className="mono">{px.pixel_id}</td>
+                    <td>{px.activo ? 'Si' : 'No'}</td>
+                    <td>{px.global ? 'Si' : 'No'}</td>
+                  </tr>
+                ))}
+                {(marketing.pixeles || []).length === 0 && <tr><td colSpan={5} className="vacio">Sin pixeles</td></tr>}
+              </tbody>
+            </table>
+          </>
+        )}
       </section>
 
       <section className="panel-admin">
