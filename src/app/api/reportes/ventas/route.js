@@ -1,4 +1,5 @@
 import { error, sesion, exigir, manejar } from '@/lib/auth';
+import { exigirModulo } from '@/lib/licenciamiento';
 
 export const runtime = 'nodejs';
 
@@ -6,6 +7,7 @@ export const runtime = 'nodejs';
 async function ventas(request) {
   const { perfil, sb } = await sesion(request);
   exigir(perfil, 'reportes.ver');
+  await exigirModulo(sb, perfil, 'reportes_basicos');
   const { searchParams } = new URL(request.url);
   const desde = searchParams.get('desde');
   const hasta = searchParams.get('hasta');

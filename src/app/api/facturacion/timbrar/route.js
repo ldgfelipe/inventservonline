@@ -1,4 +1,5 @@
 import { error, sesion, exigir, auditar, manejar } from '@/lib/auth';
+import { exigirModulo } from '@/lib/licenciamiento';
 
 export const runtime = 'nodejs';
 
@@ -6,6 +7,7 @@ export const runtime = 'nodejs';
 async function timbrar(request) {
   const { perfil, sb } = await sesion(request);
   exigir(perfil, 'ventas.ver');
+  await exigirModulo(sb, perfil, 'facturacion');
   let cuerpo; try { cuerpo = await request.json(); } catch { return error('Cuerpo JSON invalido'); }
   const ventaId = String(cuerpo.venta_id || '').trim();
   if (!ventaId) return error('Falta venta_id');

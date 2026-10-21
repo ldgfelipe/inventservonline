@@ -1,4 +1,5 @@
 import { error, sesion, exigir, auditar, manejar } from '@/lib/auth';
+import { exigirModulo } from '@/lib/licenciamiento';
 import { exigirVigencia, revisarLimite } from '@/lib/licenciamiento';
 
 export const runtime = 'nodejs';
@@ -30,6 +31,7 @@ async function listar(request) {
 async function crear(request) {
   const { perfil, sb } = await sesion(request);
   exigir(perfil, 'config.ver');
+  await exigirModulo(sb, perfil, 'multi_almacen');
 
   let cuerpo;
   try { cuerpo = await request.json(); } catch { return error('Cuerpo JSON invalido'); }

@@ -1,4 +1,5 @@
 import { error, sesion, exigir, manejar } from '@/lib/auth';
+import { exigirModulo } from '@/lib/licenciamiento';
 
 export const runtime = 'nodejs';
 
@@ -6,6 +7,7 @@ export const runtime = 'nodejs';
 async function listar(request) {
   const { perfil, sb } = await sesion(request);
   exigir(perfil, 'cxp.ver');
+  await exigirModulo(sb, perfil, 'cxp');
   const { searchParams } = new URL(request.url);
   const estado = searchParams.get('estado');
   let q = sb.from('cuentas_por_pagar')

@@ -59,7 +59,7 @@ async function pedir(ruta, opciones = {}) {
 
   if (!respuesta.ok) {
     const codigo = datos && datos.codigo;
-    if ((codigo === 'PlanLimitReached' || codigo === 'PlanVencido') && typeof window !== 'undefined') {
+    if ((codigo === 'PlanLimitReached' || codigo === 'PlanVencido' || codigo === 'ModuloNoDisponible') && typeof window !== 'undefined') {
       try { window.dispatchEvent(new CustomEvent('plan:limite', { detail: datos })); } catch { /* noop */ }
     }
     throw Object.assign(new Error((datos && datos.error) || ('Error ' + respuesta.status)), {

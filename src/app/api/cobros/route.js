@@ -1,4 +1,5 @@
 import { error, sesion, exigir, auditar, manejar } from '@/lib/auth';
+import { exigirModulo } from '@/lib/licenciamiento';
 
 export const runtime = 'nodejs';
 
@@ -30,6 +31,7 @@ async function listar(request) {
 async function crear(request) {
   const { perfil, sb, sbRpc } = await sesion(request);
   exigir(perfil, 'cobros.registrar');
+  await exigirModulo(sb, perfil, 'pos');
   let cuerpo; try { cuerpo = await request.json(); } catch { return error('Cuerpo JSON invalido'); }
   const monto = Number(cuerpo.monto);
   if (!monto || monto <= 0) return error('El monto debe ser mayor a cero');

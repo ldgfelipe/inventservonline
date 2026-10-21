@@ -1,4 +1,5 @@
 import { error, sesion, exigir, manejar } from '@/lib/auth';
+import { exigirModulo } from '@/lib/licenciamiento';
 
 export const runtime = 'nodejs';
 
@@ -6,6 +7,7 @@ export const runtime = 'nodejs';
 async function listar(request) {
   const { perfil, sb } = await sesion(request);
   exigir(perfil, 'productos.ver');
+  await exigirModulo(sb, perfil, 'reportes_basicos');
   const { data: almacenes } = await sb.from('almacenes').select('id, nombre, principal').eq('empresa_id', perfil.empresa_id).eq('activo', true);
   const { data: stock } = await sb.from('producto_almacen').select('producto_id, almacen_id, cantidad').eq('empresa_id', perfil.empresa_id);
   const { data: productos } = await sb.from('productos').select('id, codigo, nombre, stock_actual, stock_minimo').eq('empresa_id', perfil.empresa_id).eq('activo', true);

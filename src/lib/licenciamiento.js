@@ -20,6 +20,7 @@ import {
   PLAN_EN_PRUEBA,
   planDe,
   limiteDe,
+  tieneModulo,
   multiAlmacen,
   etiquetaRecurso,
   catalogoPlanes,
@@ -69,7 +70,28 @@ export class LimitePlanError extends Error {
   }
 }
 
-/* La suscripcion vencio (prueba terminada o impago). Status 402. */
+export class ModuloNoDisponible extends Error {
+  constructor({ modulo, plan, mensaje }) {
+    super(mensaje || `El modulo "${modulo}" no esta incluido en tu plan actual.`);
+    this.name = 'ModuloNoDisponible';
+    this.codigo = 'ModuloNoDisponible';
+    this.modulo = modulo;
+    this.plan = plan;
+  }
+  respuesta() {
+    return Response.json(
+      {
+        ok: false,
+        codigo: this.codigo,
+        error: this.message,
+        modulo: this.modulo,
+        plan: this.plan,
+      },
+      { status: 403 }
+    );
+  }
+}
+
 export class PlanVencidoError extends Error {
   constructor({ estado, plan, mensaje }) {
     super(mensaje || 'Tu plan no esta activo. Elige o renueva un plan para seguir creando registros.');
@@ -220,7 +242,22 @@ export async function revisarLimite(sb, perfil, recurso) {
   return { ok: true, suscripcion: sus, uso, limite };
 }
 
-/* Bloquea operaciones de escritura si la suscripcion vencio. */
+/* Verifica si el plan de la empresa incluye un modulo.
+   Lanza ModuloNoDisponible si no. Si la migracion no esta aplicada,
+   se permite (resiliencia). */
+export async function exigirModulo(sb, perfil, modulo) {
+  const sus = await leerSuscripcion(sb, perfil.empresa_id);
+  if (!sus.aplicada) return { ok: true, suscripcion: sus };
+  if (!tieneModulo(sus.plan, modulo)) {
+    throw new ModuloNoDisponible({ modulo, plan: sus.plan });
+  }
+  return { ok: true, suscripcion: sus };
+}
+
+export function moduloDisponible(suscripcion, modulo) {
+  if (!suscripcion || !suscripcion.aplicada) return true;
+  return tieneModulo(suscripcion.plan, modulo);
+}
 export async function exigirVigencia(sb, perfil) {
   const sus = await leerSuscripcion(sb, perfil.empresa_id);
   if (sus.aplicada && sus.vencida) {
@@ -245,6 +282,7 @@ export async function resumen(sb, perfil) {
       codigo: plan.codigo,
       nombre: plan.nombre,
       multi_almacen: plan.multi_almacen,
+      modulos: plan.modulos || [],
     },
     estado: sus.estado,
     vencida: sus.vencida,

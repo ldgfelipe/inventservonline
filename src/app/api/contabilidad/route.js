@@ -1,4 +1,5 @@
 import { error, sesion, exigir, manejar } from '@/lib/auth';
+import { exigirModulo } from '@/lib/licenciamiento';
 
 export const runtime = 'nodejs';
 
@@ -13,6 +14,7 @@ function primerDiaMes() {
 async function consultar(request) {
   const { perfil, sb, sbRpc } = await sesion(request);
   exigir(perfil, 'contabilidad.ver');
+  await exigirModulo(sb, perfil, 'contabilidad');
 
   const { searchParams } = new URL(request.url);
   const hoy = new Date().toISOString().slice(0, 10);

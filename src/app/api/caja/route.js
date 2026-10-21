@@ -1,4 +1,5 @@
 import { error, sesion, exigir, manejar } from '@/lib/auth';
+import { exigirModulo } from '@/lib/licenciamiento';
 
 export const runtime = 'nodejs';
 
@@ -6,6 +7,7 @@ export const runtime = 'nodejs';
 async function resumen(request) {
   const { perfil, sb } = await sesion(request);
   exigir(perfil, 'caja.ver');
+  await exigirModulo(sb, perfil, 'pos');
   const hoy = new Date().toISOString().slice(0, 10);
   const { data, error: err } = await sb.from('cobros')
     .select('monto, metodo, fecha').eq('empresa_id', perfil.empresa_id)

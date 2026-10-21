@@ -1,4 +1,5 @@
 import { error, sesion, exigir, auditar, manejar } from '@/lib/auth';
+import { exigirModulo } from '@/lib/licenciamiento';
 
 export const runtime = 'nodejs';
 
@@ -29,6 +30,7 @@ async function listar(request) {
 async function crear(request) {
   const { perfil, sb, sbRpc } = await sesion(request);
   exigir(perfil, 'ventas.crear');
+  await exigirModulo(sb, perfil, 'pos');
   let cuerpo; try { cuerpo = await request.json(); } catch { return error('Cuerpo JSON invalido'); }
   const items = Array.isArray(cuerpo.items) ? cuerpo.items : [];
   if (!items.length) return error('La venta debe tener al menos un producto');

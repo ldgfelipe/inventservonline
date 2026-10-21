@@ -1,4 +1,5 @@
 import { error, sesion, exigir, auditar, manejar } from '@/lib/auth';
+import { exigirModulo } from '@/lib/licenciamiento';
 
 export const runtime = 'nodejs';
 
@@ -6,6 +7,7 @@ export const runtime = 'nodejs';
 async function listar(request) {
   const { perfil, sb } = await sesion(request);
   exigir(perfil, 'productos.ver');
+  await exigirModulo(sb, perfil, 'multi_almacen');
   const { data, error: err } = await sb.from('traslados')
     .select('*, productos(nombre, codigo), ao:almacenes!traslados_almacen_origen_fkey(nombre), ad:almacenes!traslados_almacen_destino_fkey(nombre)')
     .eq('empresa_id', perfil.empresa_id)
@@ -29,6 +31,7 @@ async function listar(request) {
 async function crear(request) {
   const { perfil, sb, sbRpc } = await sesion(request);
   exigir(perfil, 'productos.editar');
+  await exigirModulo(sb, perfil, 'multi_almacen');
   let cuerpo; try { cuerpo = await request.json(); } catch { return error('Cuerpo JSON invalido'); }
   if (!cuerpo.producto_id) return error('Falta el producto');
   if (!cuerpo.almacen_origen) return error('Falta el almacen de origen');

@@ -1,4 +1,5 @@
 import { error, sesion, exigir, auditar, evento, manejar } from '@/lib/auth';
+import { exigirModulo } from '@/lib/licenciamiento';
 import { interpretar } from '@/services/nlu';
 import { clave, similitud } from '@/services/texto';
 import { puede } from '@/services/permisos';
@@ -98,7 +99,8 @@ function responder(p, texto, extra) {
 /* POST /api/asistente { texto } */
 async function consultar(request) {
   const { perfil, sb, sbRpc } = await sesion(request);
-  let cuerpo;
+  // Verificar modulo asistente
+  try { await exigirModulo(sb, perfil, 'asistente'); } catch (e) { return e.respuesta(); }
   try { cuerpo = await request.json(); } catch { cuerpo = {}; }
 
   // La moneda con la que se muestran los importes. Si la base aun no

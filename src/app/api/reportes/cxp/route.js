@@ -1,4 +1,5 @@
 import { error, sesion, exigir, manejar } from '@/lib/auth';
+import { exigirModulo } from '@/lib/licenciamiento';
 
 export const runtime = 'nodejs';
 
@@ -14,6 +15,7 @@ function diasDesde(fecha) {
 async function cxp(request) {
   const { perfil, sb } = await sesion(request);
   exigir(perfil, 'reportes.ver');
+  await exigirModulo(sb, perfil, 'reportes_basicos');
   const { data, error: err } = await sb.from('cuentas_por_pagar')
     .select('id, saldo, estado, created_at, fecha_vencimiento, proveedores(nombre)')
     .eq('empresa_id', perfil.empresa_id);
