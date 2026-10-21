@@ -441,6 +441,13 @@ function configurarNavegacion() {
   if (btnMenu) btnMenu.addEventListener('click', toggleMenuMovil);
   const backdrop = document.getElementById('sidebarBackdrop');
   if (backdrop) backdrop.addEventListener('click', cerrarMenuMovil);
+
+  // Cerrar modal al hacer clic en el fondo (backdrop)
+  document.addEventListener('click', (e) => {
+    if (e.target.classList && e.target.classList.contains('modal')) {
+      e.target.classList.remove('abierto');
+    }
+  });
 }
 
 function navegar(vista) {
@@ -3522,6 +3529,8 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+window.abrirModal = abrirModal;
+window.cerrarModal = cerrarModal;
 window.editarProducto = editarProducto;
 window.entradaRapida = entradaRapida;
 window.editarProveedor = editarProveedor;
