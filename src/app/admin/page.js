@@ -22,6 +22,8 @@ export default function Admin() {
   const [dashboardCargando, setDashboardCargando] = useState(false);
   const [empresas, setEmpresas] = useState([]);
   const [empresasCargando, setEmpresasCargando] = useState(false);
+  const [featureFlags, setFeatureFlags] = useState([]);
+  const [featureFlagsCargando, setFeatureFlagsCargando] = useState(false);
 
   useEffect(() => {
     fetch('/api/auth/sesion', { headers: auth() })
@@ -41,6 +43,7 @@ export default function Admin() {
     cargarMarketing();
     cargarDashboard();
     cargarEmpresas();
+    cargarFeatureFlags();
   }, [usuario]);
 
   function auth() {
@@ -155,6 +158,33 @@ export default function Admin() {
       if (r.ok) setEmpresas(j.empresas || []);
       else setError(j.error || 'No se pudieron cargar las empresas');
     } finally { setEmpresasCargando(false); }
+  }
+
+  async function cargarFeatureFlags() {
+    setFeatureFlagsCargando(true);
+    try {
+      const r = await fetch('/api/feature-flags', { headers: auth() });
+      const j = await r.json();
+      if (r.ok) {
+        // Convertir objeto a array para la tabla
+        const flags = j.flags || {};
+        setFeatureFlags(Object.entries(flags).map(([k, v]) => ({ clave: k, activo: v })));
+      }
+    } finally { setFeatureFlagsCargando(false); }
+  }
+
+  async function toggleFeatureFlag(clave, activo) {
+    setError('');
+    setMensaje('');
+    const r = await fetch('/api/feature-flags', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...auth() },
+      body: JSON.stringify({ clave, activo }),
+    });
+    const j = await r.json();
+    if (!r.ok) return setError(j.error || 'No se pudo actualizar');
+    setMensaje('Flag ' + clave + ' actualizado');
+    cargarFeatureFlags();
   }
 
   async function gestionarEmpresa(id, accion, extra = {}) {
@@ -287,6 +317,35 @@ export default function Admin() {
               </tr>
             ))}
             {claves.length === 0 && <tr><td colSpan={6} className="vacio">Sin claves creadas</td></tr>}
+          </tbody>
+        </table>
+      </section>
+
+      <section className="panel-admin">
+        <h2>Configuracion del sistema</h2>
+        <p className="ayuda">
+          Configuracion global de la plataforma. Solo visible para administradores generales.
+        </p>
+        <button className="btn btn-secundario" onClick={cargarFeatureFlags} style={{ marginBottom: 12 }}>
+          {featureFlagsCargando ? 'Cargando...' : 'Actualizar'}
+        </button>
+        <table className="tabla-admin">
+          <thead>
+            <tr><th>Flag</th><th>Estado</th><th>Accion</th></tr>
+          </thead>
+          <tbody>
+            {featureFlags.map((f) => (
+              <tr key={f.clave}>
+                <td className="mono">{f.clave}</td>
+                <td><span className={`estado ${f.activo ? 'verde' : 'rojo'}`}>{f.activo ? 'Activo' : 'Inactivo'}</span></td>
+                <td>
+                  <button className="btn-mini" onClick={() => toggleFeatureFlag(f.clave, !f.activo)}>
+                    {f.activo ? 'Desactivar' : 'Activar'}
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {featureFlags.length === 0 && <tr><td colSpan={3} className="vacio">Sin feature flags configurados</td></tr>}
           </tbody>
         </table>
       </section>
