@@ -24,6 +24,8 @@ export default function Admin() {
   const [empresasCargando, setEmpresasCargando] = useState(false);
   const [featureFlags, setFeatureFlags] = useState([]);
   const [featureFlagsCargando, setFeatureFlagsCargando] = useState(false);
+  const [tickets, setTickets] = useState([]);
+  const [ticketsCargando, setTicketsCargando] = useState(false);
 
   useEffect(() => {
     fetch('/api/auth/sesion', { headers: auth() })
@@ -44,6 +46,7 @@ export default function Admin() {
     cargarDashboard();
     cargarEmpresas();
     cargarFeatureFlags();
+    cargarTickets();
   }, [usuario]);
 
   function auth() {
@@ -187,6 +190,30 @@ export default function Admin() {
     cargarFeatureFlags();
   }
 
+  async function cargarTickets() {
+    setTicketsCargando(true);
+    try {
+      const r = await fetch('/api/soporte', { headers: auth() });
+      const j = await r.json();
+      if (r.ok) setTickets(j.tickets || []);
+      else setError(j.error || 'No se pudieron cargar los tickets');
+    } finally { setTicketsCargando(false); }
+  }
+
+  async function responderTicket(id, estado, respuesta) {
+    setError('');
+    setMensaje('');
+    const r = await fetch('/api/soporte', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...auth() },
+      body: JSON.stringify({ id, estado, respuesta }),
+    });
+    const j = await r.json();
+    if (!r.ok) return setError(j.error || 'No se pudo responder');
+    setMensaje('Ticket actualizado');
+    cargarTickets();
+  }
+
   async function gestionarEmpresa(id, accion, extra = {}) {
     setError('');
     setMensaje('');
@@ -317,6 +344,54 @@ export default function Admin() {
               </tr>
             ))}
             {claves.length === 0 && <tr><td colSpan={6} className="vacio">Sin claves creadas</td></tr>}
+          </tbody>
+        </table>
+      </section>
+
+      <section className="panel-admin">
+        <h2>Tickets de soporte</h2>
+        <p className="ayuda">Solicitudes de ayuda enviadas por los usuarios de las empresas.</p>
+        <button className="btn btn-secundario" onClick={cargarTickets} style={{ marginBottom: 12 }}>
+          {ticketsCargando ? 'Cargando...' : 'Actualizar'}
+        </button>
+        <table className="tabla-admin">
+          <thead>
+            <tr><th>Empresa</th><th>Usuario</th><th>Asunto</th><th>Categoria</th><th>Prioridad</th><th>Estado</th><th>Respuesta</th><th>Accion</th></tr>
+          </thead>
+          <tbody>
+            {tickets.map((t) => (
+              <tr key={t.id}>
+                <td style={{ fontSize: 12 }}>{t.empresa_id ? t.empresa_id.slice(0, 8) + '...' : '-'}</td>
+                <td style={{ fontSize: 12 }}>{t.usuario || '-'}</td>
+                <td>{t.asunto}</td>
+                <td style={{ fontSize: 12 }}>{t.categoria}</td>
+                <td><span className={`estado ${t.prioridad === 'urgente' || t.prioridad === 'alta' ? 'rojo' : 'verde'}`}>{t.prioridad}</span></td>
+                <td>{t.estado}</td>
+                <td>
+                  <input
+                    type="text"
+                    defaultValue={t.respuesta || ''}
+                    placeholder="Escribe respuesta..."
+                    onBlur={(e) => { if (e.target.value !== (t.respuesta || '')) responderTicket(t.id, t.estado, e.target.value); }}
+                    style={{ width: 160, fontSize: 12 }}
+                  />
+                </td>
+                <td>
+                  <select
+                    value={t.estado}
+                    onChange={(e) => responderTicket(t.id, e.target.value, t.respuesta || '')}
+                    className="input-select"
+                    style={{ fontSize: 12, padding: 2 }}
+                  >
+                    <option value="abierto">Abierto</option>
+                    <option value="en_proceso">En proceso</option>
+                    <option value="resuelto">Resuelto</option>
+                    <option value="cerrado">Cerrado</option>
+                  </select>
+                </td>
+              </tr>
+            ))}
+            {tickets.length === 0 && <tr><td colSpan={8} className="vacio">Sin tickets</td></tr>}
           </tbody>
         </table>
       </section>

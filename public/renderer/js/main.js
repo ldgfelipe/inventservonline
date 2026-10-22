@@ -1819,6 +1819,17 @@ function configurarEventosSesion() {
   document.getElementById('btnCambiarClave').addEventListener('click', () => abrirModalClave(false));
   document.getElementById('btnCancelClave').addEventListener('click', () => cerrarModal('modalClave'));
   document.getElementById('formClave').addEventListener('submit', guardarClavePropia);
+
+  const btnMiPerfil = document.getElementById('btnMiPerfil');
+  if (btnMiPerfil) btnMiPerfil.addEventListener('click', abrirMiPerfil);
+  const btnMiPlan = document.getElementById('btnMiPlan');
+  if (btnMiPlan) btnMiPlan.addEventListener('click', abrirMiPlan);
+  const btnSoporte = document.getElementById('btnSoporte');
+  if (btnSoporte) btnSoporte.addEventListener('click', abrirSoporte);
+  const formPerfil = document.getElementById('formMiPerfil');
+  if (formPerfil) formPerfil.addEventListener('submit', guardarMiPerfil);
+  const formSoporte = document.getElementById('formSoporte');
+  if (formSoporte) formSoporte.addEventListener('submit', enviarTicketSoporte);
 }
 
 function abrirModalClave(obligatorio) {
@@ -3503,6 +3514,114 @@ window.eliminarAdjunto = async function (productoId, adjuntoId) {
     await cargarAdjuntos(productoId);
   } catch (err) { notificar('Error: ' + err.message, true); }
 };
+
+/* ------------------ Perfil, plan y soporte ------------------ */
+
+async function abrirMiPerfil() {
+  try {
+    const p = await window.api.perfil.obtener();
+    document.getElementById('perfilNombre').value = p.nombre || '';
+    document.getElementById('perfilEmail').value = p.email || '';
+    document.getElementById('perfilPassword').value = '';
+    document.getElementById('perfilRol').value = p.rol || '';
+    document.getElementById('perfilArea').value = p.area || '';
+    abrirModal('modalMiPerfil');
+  } catch (err) { notificar('Error: ' + err.message, true); }
+}
+
+async function guardarMiPerfil(e) {
+  e.preventDefault();
+  const cambios = {
+    nombre: document.getElementById('perfilNombre').value.trim(),
+    email: document.getElementById('perfilEmail').value.trim(),
+  };
+  const pass = document.getElementById('perfilPassword').value;
+  if (pass) cambios.password = pass;
+  try {
+    await window.api.perfil.guardar(cambios);
+    cerrarModal('modalMiPerfil');
+    notificar('Perfil actualizado');
+    // Actualizar nombre en la UI
+    const u = await window.api.auth.sesion().catch(() => null);
+    if (u) {
+      ESTADO.usuario = u;
+      mostrarInfoUsuario(u);
+    }
+  } catch (err) { notificar('Error: ' + err.message, true); }
+}
+
+async function abrirMiPlan() {
+  const cont = document.getElementById('miPlanContenido');
+  if (cont) cont.innerHTML = '<p class="texto-ayuda">Cargando...</p>';
+  abrirModal('modalMiPlan');
+  try {
+    const s = await window.api.suscripcion.obtener();
+    const plan = s.plan || {};
+    const uso = s.uso || {};
+    const limites = s.limites || {};
+    const etiquetas = { productos: 'Productos', usuarios: 'Usuarios', proveedores: 'Proveedores', clientes: 'Clientes', almacenes: 'Almacenes' };
+    const filas = Object.keys(etiquetas).map((r) => {
+      const lim = limites[r];
+      const u = uso[r] || 0;
+      const pct = (lim == null || lim === 0) ? 0 : Math.min(100, Math.round((u / lim) * 100));
+      const color = pct >= 100 ? '#ef4444' : pct >= 80 ? '#f59e0b' : '#22c55e';
+      return '<div style="margin:8px 0">' +
+        '<div style="display:flex;justify-content:space-between;font-size:13px"><span>' + etiquetas[r] + '</span><span>' + u + ' / ' + (lim == null ? 'ilimitado' : lim) + '</span></div>' +
+        '<div style="background:#e5e7eb;border-radius:6px;height:8px;overflow:hidden"><div style="width:' + pct + '%;height:100%;background:' + color + '"></div></div>' +
+      '</div>';
+    }).join('');
+    const venc = s.fecha_vencimiento || s.trial_ends_at;
+    const vigencia = s.vencida ? 'Vencido' : (venc ? 'Vigente hasta ' + formatoFecha(venc).slice(0, 10) : 'Sin vencimiento');
+    const almacenamiento = (limites.almacenamiento_mb != null) ? (uso.almacenamiento_mb != null ? uso.almacenamiento_mb : '?') + ' / ' + limites.almacenamiento_mb + ' MB' : '';
+    cont.innerHTML =
+      '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px">' +
+        '<div><strong>Plan:</strong> ' + escaparHtml(plan.nombre || plan.codigo || '-') + '</div>' +
+        '<div><strong>Estado:</strong> ' + escaparHtml(s.estado || '-') + '</div>' +
+        '<div><strong>Vigencia:</strong> ' + escaparHtml(vigencia) + '</div>' +
+      '</div>' + filas +
+      (almacenamiento ? '<div style="font-size:13px;margin-top:8px"><strong>Almacenamiento:</strong> ' + almacenamiento + '</div>' : '') +
+      (s.aviso ? '<p class="texto-ayuda" style="color:#b45309">' + escaparHtml(s.aviso) + '</p>' : '');
+  } catch (err) {
+    if (cont) cont.innerHTML = '<p class="texto-ayuda">No se pudo cargar el plan: ' + escaparHtml(err.message) + '</p>';
+  }
+}
+
+async function abrirSoporte() {
+  abrirModal('modalSoporte');
+  await cargarTicketsSoporte();
+}
+
+async function cargarTicketsSoporte() {
+  const cont = document.getElementById('soporteLista');
+  if (!cont) return;
+  try {
+    const tickets = await window.api.soporte.listar();
+    cont.innerHTML = (tickets || []).length
+      ? tickets.map((t) => '<div style="padding:8px;border-bottom:1px solid #eee;font-size:13px">' +
+          '<div style="display:flex;justify-content:space-between"><strong>' + escaparHtml(t.asunto) + '</strong><span class="chip">' + escaparHtml(t.estado) + '</span></div>' +
+          '<div style="color:#666;font-size:12px">' + escaparHtml(t.categoria) + ' · ' + formatoFecha(t.created_at) + '</div>' +
+          (t.respuesta ? '<div style="margin-top:4px;background:#f1f5f9;padding:6px;border-radius:6px">Respuesta: ' + escaparHtml(t.respuesta) + '</div>' : '') +
+        '</div>').join('')
+      : '<p class="texto-ayuda">No tienes tickets abiertos.</p>';
+  } catch (err) {
+    cont.innerHTML = '<p class="texto-ayuda">No se pudieron cargar los tickets.</p>';
+  }
+}
+
+async function enviarTicketSoporte(e) {
+  e.preventDefault();
+  try {
+    await window.api.soporte.crear({
+      asunto: document.getElementById('soporteAsunto').value.trim(),
+      categoria: document.getElementById('soporteCategoria').value,
+      prioridad: document.getElementById('soportePrioridad').value,
+      descripcion: document.getElementById('soporteDescripcion').value.trim(),
+    });
+    document.getElementById('formSoporte').reset();
+    notificar('Ticket enviado. Te responderemos pronto.');
+    await cargarTicketsSoporte();
+  } catch (err) { notificar('Error: ' + err.message, true); }
+}
 
 /* ------------------ Utilidades ------------------ */
 

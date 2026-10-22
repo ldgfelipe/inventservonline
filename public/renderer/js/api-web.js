@@ -325,6 +325,15 @@ window.api = {
     registrarConversion: (payload) => pedir('/api/conversiones', { metodo: 'POST', json: payload }),
     registrarTrafico: (payload) => pedir('/api/trafico', { metodo: 'POST', json: payload }),
   },
+  perfil: {
+    obtener: () => pedir('/api/perfil').then((r) => r.perfil),
+    guardar: (payload) => pedir('/api/perfil', { metodo: 'PATCH', json: payload }),
+  },
+  soporte: {
+    listar: () => pedir('/api/soporte').then((r) => r.tickets || []),
+    crear: (payload) => pedir('/api/soporte', { metodo: 'POST', json: payload }),
+    responder: (payload) => pedir('/api/soporte', { metodo: 'PATCH', json: payload }),
+  },
   monedas: {
     listar: () => pedir('/api/monedas'),
   },

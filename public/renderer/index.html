@@ -100,6 +100,10 @@
           <span id="infoUsuarioArea" class="texto-area">-</span>
         </div>
         <div class="acciones-usuario">
+          <button id="btnMiPerfil" class="btn-link">Mi perfil</button>
+          <button id="btnMiPlan" class="btn-link">Mi plan y consumo</button>
+          <button id="btnSoporte" class="btn-link">Soporte</button>
+          <a href="/ayuda" target="_blank" class="btn-link">Ayuda</a>
           <button id="btnCambiarClave" class="btn-link">Cambiar contrasena</button>
           <button id="btnCerrarSesion" class="btn-link btn-link-peligro">Cerrar sesion</button>
         </div>
@@ -1114,6 +1118,69 @@
           <button type="submit" class="btn btn-primary">Registrar traslado</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <div id="modalMiPerfil" class="modal">
+    <div class="modal-content">
+      <h3>Mi perfil</h3>
+      <form id="formMiPerfil">
+        <div class="campo"><label>Nombre</label><input type="text" id="perfilNombre" required /></div>
+        <div class="campo"><label>Email</label><input type="email" id="perfilEmail" required /></div>
+        <div class="campo"><label>Nueva contrasena (opcional)</label><input type="password" id="perfilPassword" placeholder="Dejar vacio para no cambiar" /></div>
+        <div class="campo"><label>Rol</label><input type="text" id="perfilRol" disabled /></div>
+        <div class="campo"><label>Area</label><input type="text" id="perfilArea" disabled /></div>
+        <div class="acciones-formulario">
+          <button type="button" class="btn btn-ghost" onclick="cerrarModal('modalMiPerfil')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modalMiPlan" class="modal">
+    <div class="modal-content">
+      <h3>Mi plan y consumo</h3>
+      <div id="miPlanContenido"></div>
+      <div class="acciones-formulario" style="margin-top:12px">
+        <button type="button" class="btn btn-ghost" onclick="cerrarModal('modalMiPlan')">Cerrar</button>
+        <button type="button" class="btn btn-primary" onclick="irASuscripcion()">Ver planes y pagar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modalSoporte" class="modal">
+    <div class="modal-content modal-grande">
+      <h3>Soporte tecnico</h3>
+      <p class="texto-ayuda">Describe tu problema y te responderemos lo antes posible.</p>
+      <form id="formSoporte">
+        <div class="campo"><label>Asunto</label><input type="text" id="soporteAsunto" required placeholder="Resumen breve del problema" /></div>
+        <div class="campo"><label>Categoria</label>
+          <select id="soporteCategoria" class="input-select">
+            <option value="general">General</option>
+            <option value="error">Error del sistema</option>
+            <option value="facturacion">Facturacion</option>
+            <option value="pagos">Pagos / planes</option>
+            <option value="acceso">Acceso / contrasena</option>
+            <option value="sugerencia">Sugerencia</option>
+          </select>
+        </div>
+        <div class="campo"><label>Prioridad</label>
+          <select id="soportePrioridad" class="input-select">
+            <option value="baja">Baja</option>
+            <option value="media" selected>Media</option>
+            <option value="alta">Alta</option>
+            <option value="urgente">Urgente</option>
+          </select>
+        </div>
+        <div class="campo"><label>Descripcion</label><textarea id="soporteDescripcion" rows="5" required style="width:100%"></textarea></div>
+        <div class="acciones-formulario">
+          <button type="button" class="btn btn-ghost" onclick="cerrarModal('modalSoporte')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Enviar ticket</button>
+        </div>
+      </form>
+      <h4 style="font-size:13px;margin:16px 0 6px">Mis tickets</h4>
+      <div id="soporteLista"></div>
     </div>
   </div>
 
