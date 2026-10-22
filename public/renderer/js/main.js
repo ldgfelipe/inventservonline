@@ -138,6 +138,10 @@ function mostrarInfoUsuario(u) {
   if (menuNombre) menuNombre.textContent = u.nombre || u.usuario || 'Usuario';
   const menuRol = document.getElementById('perfilMenuRol');
   if (menuRol) menuRol.textContent = (u.rolNombre || u.rol || '') + (u.area ? ' · ' + u.area : '');
+
+  // Enlace al panel de administracion solo para super-admin
+  const adminLink = document.getElementById('perfilAdminLink');
+  if (adminLink) adminLink.classList.toggle('oculto', !u.super_admin);
 }
 
 /* Oculta secciones y botones segun los permisos del rol */

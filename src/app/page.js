@@ -36,7 +36,9 @@ export default function Landing() {
     <>
       <header className="landing-header">
         <span className="logo">Sistema de Inventarios</span>
-        <nav style={{ display: 'flex', gap: 14 }}>
+        <nav style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+          <Link href="/precios">Precios</Link>
+          <Link href="/ayuda">Ayuda</Link>
           <Link href="/entrar">Entrar</Link>
           <Link className="btn" href="/registro">Crear cuenta gratis</Link>
         </nav>
@@ -54,16 +56,24 @@ export default function Landing() {
               {cargando ? 'Entrando...' : 'Probar el sistema'}
             </button>
             <Link className="btn" href="/registro">Empieza gratis</Link>
-            <Link className="btn btn-secundario" href="/entrar">Ya tengo cuenta</Link>
+            <Link className="btn btn-secundario" href="/precios">Ver planes y precios</Link>
           </div>
           <p className="texto-demo">Cuenta demo: <code>demo@abarrotes.com</code> / <code>demo123456</code> · Tienda de abarrotes lista para probar</p>
         </section>
 
         <section className="beneficios">
           <div className="beneficio">
+            <div className="icono">&#128176;</div>
+            <h3>Planes desde $0</h3>
+            <p>Empieza gratis y sube a Basico, Profesional o Empresa cuando tu negocio lo necesite. Sin permanencia.</p>
+            <Link href="/precios" className="btn-enlace" style={{ marginTop: 10, display: 'inline-block' }}>
+              Comparar planes →
+            </Link>
+          </div>
+          <div className="beneficio">
             <div className="icono">&#9635;</div>
             <h3>Se adapta a tu giro</h3>
-            <p>Elige entre construccion o farmacia, o crea tus propios campos. El sistema se ajusta sin que toques codigo.</p>
+            <p>Construccion, farmacia, abarrotes o cualquier otro giro. Configura tus propios campos sin tocar codigo.</p>
           </div>
           <div className="beneficio">
             <div className="icono">&#8646;</div>
