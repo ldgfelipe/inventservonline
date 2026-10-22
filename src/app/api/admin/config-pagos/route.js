@@ -32,6 +32,7 @@ async function leer(request) {
     transferencia_titular: cfg.transferencia_titular || '',
     transferencia_rif: cfg.transferencia_rif || '',
     transferencia_instrucciones: cfg.transferencia_instrucciones || '',
+    transferencia_qr_url: cfg.transferencia_qr_url || '',
     // Indicadores de si ya hay credenciales guardadas (sin exponerlas)
     tiene_stripe: !!(cfg.stripe_secret_key),
     tiene_stripe_webhook: !!(cfg.stripe_webhook_secret),
@@ -57,7 +58,7 @@ async function guardar(request) {
   const noSecretos = [
     'paypal_mode',
     'transferencia_banco', 'transferencia_cuenta', 'transferencia_titular',
-    'transferencia_rif', 'transferencia_instrucciones',
+    'transferencia_rif', 'transferencia_instrucciones', 'transferencia_qr_url',
   ];
   for (const k of noSecretos) {
     if (cuerpo[k] !== undefined) cambios[k] = cuerpo[k] || (k === 'paypal_mode' ? 'sandbox' : '');

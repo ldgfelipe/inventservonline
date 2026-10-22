@@ -246,6 +246,20 @@ export default function Admin() {
     } finally { setConfigPagosCargando(false); }
   }
 
+  async function probarPasarela(pasarela) {
+    setError('');
+    setMensaje('');
+    setConfigPagosMensaje('');
+    const r = await fetch('/api/admin/config-pagos/probar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...auth() },
+      body: JSON.stringify({ pasarela }),
+    });
+    const j = await r.json();
+    if (!r.ok) return setError(j.error || `No se pudo probar ${pasarela}`);
+    setConfigPagosMensaje(j.mensaje || `${pasarela} OK`);
+  }
+
   async function guardarConfigPagos(e) {
     e.preventDefault();
     setError('');
@@ -254,7 +268,7 @@ export default function Admin() {
     const form = e.target;
     const payload = {};
     // Campos no secretos
-    ['paypal_mode', 'transferencia_banco', 'transferencia_cuenta', 'transferencia_titular', 'transferencia_rif', 'transferencia_instrucciones']
+    ['paypal_mode', 'transferencia_banco', 'transferencia_cuenta', 'transferencia_titular', 'transferencia_rif', 'transferencia_instrucciones', 'transferencia_qr_url']
       .forEach((k) => { payload[k] = form.elements[k].value; });
     // Secretos (solo si vienen con valor)
     ['stripe_secret_key', 'stripe_webhook_secret', 'mercadopago_access_token', 'mercadopago_webhook_secret', 'paypal_client_id', 'paypal_secret', 'paypal_webhook_id']
@@ -642,6 +656,9 @@ export default function Admin() {
               <input name="stripe_webhook_secret" type="password" placeholder={configPagos?.tiene_stripe_webhook ? '••••••••' : 'whsec_...'} />
             </div>
           </div>
+          <button type="button" className="btn btn-secundario" onClick={() => probarPasarela('stripe')} style={{ marginBottom: 8 }}>
+            Probar credenciales de Stripe
+          </button>
 
           <h3 style={{ fontSize: 14, marginTop: 8 }}>Mercado Pago</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 10 }}>
@@ -654,6 +671,9 @@ export default function Admin() {
               <input name="mercadopago_webhook_secret" type="password" placeholder={configPagos?.tiene_mercadopago_webhook ? '••••••••' : 'clave secreta'} />
             </div>
           </div>
+          <button type="button" className="btn btn-secundario" onClick={() => probarPasarela('mercadopago')} style={{ marginBottom: 8 }}>
+            Probar credenciales de Mercado Pago
+          </button>
 
           <h3 style={{ fontSize: 14, marginTop: 8 }}>PayPal</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
@@ -677,6 +697,9 @@ export default function Admin() {
               </select>
             </div>
           </div>
+          <button type="button" className="btn btn-secundario" onClick={() => probarPasarela('paypal')} style={{ marginBottom: 8 }}>
+            Probar credenciales de PayPal
+          </button>
 
           <h3 style={{ fontSize: 14, marginTop: 8 }}>Transferencia bancaria</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
@@ -696,6 +719,10 @@ export default function Admin() {
               <label>RIF / identificador</label>
               <input name="transferencia_rif" defaultValue={configPagos?.transferencia_rif || ''} placeholder="J-12345678-9" />
             </div>
+          </div>
+          <div className="campo">
+            <label>URL del QR / imagen (opcional)</label>
+            <input name="transferencia_qr_url" defaultValue={configPagos?.transferencia_qr_url || ''} placeholder="https://.../qr.png" />
           </div>
           <div className="campo">
             <label>Instrucciones</label>

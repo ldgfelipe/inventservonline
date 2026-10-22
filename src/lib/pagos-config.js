@@ -29,6 +29,7 @@ function filaVacia() {
     transferencia_titular: '',
     transferencia_rif: '',
     transferencia_instrucciones: '',
+    transferencia_qr_url: '',
   };
 }
 
@@ -76,5 +77,6 @@ export function datosTransferencia(config) {
     titular: config.transferencia_titular || '',
     rif: config.transferencia_rif || '',
     instrucciones: config.transferencia_instrucciones || '',
+    qr_url: config.transferencia_qr_url || '',
   };
 }

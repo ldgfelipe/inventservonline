@@ -231,3 +231,41 @@ export async function obtenerPagoMercadoPago(id, config) {
   if (!r.ok) throw new Error('No se pudo leer el pago en Mercado Pago');
   return r.json();
 }
+
+/* ------------------------------------------------------------
+   Prueba de credenciales (sin cobrar)
+   ------------------------------------------------------------ */
+export async function probarCredenciales(pasarela, config) {
+  if (pasarela === 'stripe') {
+    const key = config.stripe_secret_key;
+    if (!key) return { ok: false, error: 'Falta la secret key de Stripe' };
+    const r = await fetch('https://api.stripe.com/v1/balance', {
+      headers: { Authorization: `Bearer ${key}` },
+    });
+    const json = await r.json().catch(() => ({}));
+    if (!r.ok) return { ok: false, error: json?.error?.message || `HTTP ${r.status}` };
+    return { ok: true, mensaje: `Stripe OK. Moneda: ${(json.available && json.available[0] && json.available[0].currency) || 'n/d'}` };
+  }
+
+  if (pasarela === 'mercadopago') {
+    const token = config.mercadopago_access_token;
+    if (!token) return { ok: false, error: 'Falta el access token de Mercado Pago' };
+    const r = await fetch('https://api.mercadopago.com/users/me', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = await r.json().catch(() => ({}));
+    if (!r.ok) return { ok: false, error: json?.message || `HTTP ${r.status}` };
+    return { ok: true, mensaje: `Mercado Pago OK. Usuario: ${json.nickname || json.id || 'n/d'}` };
+  }
+
+  if (pasarela === 'paypal') {
+    try {
+      const token = await paypalToken(config);
+      return { ok: true, mensaje: `PayPal OK (${config.paypal_mode === 'live' ? 'live' : 'sandbox'}). Token obtenido.` };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  }
+
+  return { ok: false, error: 'Pasarela invalida' };
+}

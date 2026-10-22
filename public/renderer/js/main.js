@@ -1428,6 +1428,7 @@ async function abrirTransferencia() {
       (d.titular ? '<div>Titular: ' + escaparHtml(d.titular) + '</div>' : '') +
       (d.rif ? '<div>RIF: ' + escaparHtml(d.rif) + '</div>' : '') +
       (d.instrucciones ? '<div style="margin-top:6px">' + escaparHtml(d.instrucciones) + '</div>' : '') +
+      (d.qr_url ? '<div style="margin-top:8px"><img src="' + escaparHtml(d.qr_url) + '" alt="QR de pago" style="max-width:180px;border-radius:8px" /></div>' : '') +
       '</div>';
   } catch (err) {
     if (cont) cont.textContent = 'No se pudieron cargar los datos bancarios.';
