@@ -1,5 +1,6 @@
 import { admin } from '@/lib/supabase';
 import { verificarPayPal } from '@/lib/pasarelas';
+import { leerConfigPagos } from '@/lib/pagos-config';
 import { pagoPorId, confirmarPago } from '@/lib/pagos';
 
 export const runtime = 'nodejs';
@@ -14,7 +15,8 @@ export async function POST(request) {
 
   let valido = false;
   try {
-    valido = await verificarPayPal(evento, request.headers);
+    const config = await leerConfigPagos();
+    valido = await verificarPayPal(evento, request.headers, config);
   } catch (err) {
     console.error('Verificacion PayPal:', err.message);
     return new Response('No se pudo verificar la firma', { status: 400 });

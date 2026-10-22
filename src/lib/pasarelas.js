@@ -1,21 +1,8 @@
 /* ============================================================
-   Pasarelas de pago (servidor). Sin dependencias: se usa `fetch`
-   global y node:crypto para las firmas.
+   Pasarelas de pago (servidor). Sin dependencias: `fetch` + node:crypto.
 
-   Si una pasarela no esta configurada (faltan variables de entorno)
-   `configurada()` devuelve false y `crearCheckout` lanza
-   PasarelaNoConfigurada, que la API traduce a 503.
-
-   Variables de entorno:
-     APP_URL                       URL publica de la app (para retornos)
-     STRIPE_SECRET_KEY             sk_...
-     STRIPE_WEBHOOK_SECRET         whsec_...
-     MERCADOPAGO_ACCESS_TOKEN      APP_USR-...
-     MERCADOPAGO_WEBHOOK_SECRET    clave secreta del webhook
-     PAYPAL_CLIENT_ID              ...
-     PAYPAL_SECRET                 ...
-     PAYPAL_WEBHOOK_ID             id del webhook en PayPal
-     PAYPAL_MODE                   'sandbox' (por defecto) | 'live'
+   Las credenciales se leen de la base (tabla configuracion_pagos) y,
+   si faltan, de las variables de entorno. Ver src/lib/pagos-config.js.
    ============================================================ */
 
 import crypto from 'node:crypto';
@@ -37,12 +24,8 @@ export class PasarelaNoConfigurada extends Error {
   }
 }
 
-function cfg(nombre) {
-  return (process.env[nombre] || '').trim();
-}
-
 function appUrl() {
-  return (cfg('APP_URL') || cfg('NEXT_PUBLIC_APP_URL') || 'https://inventservonline.vercel.app')
+  return (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://inventservonline.vercel.app')
     .replace(/\/+$/, '');
 }
 
@@ -50,27 +33,28 @@ function urlRetorno(estado) {
   return `${appUrl()}/renderer?pago=${estado}`;
 }
 
-export function configurada(pasarela) {
-  if (pasarela === 'stripe') return !!(cfg('STRIPE_SECRET_KEY') && cfg('STRIPE_WEBHOOK_SECRET'));
-  if (pasarela === 'mercadopago') return !!(cfg('MERCADOPAGO_ACCESS_TOKEN') && cfg('MERCADOPAGO_WEBHOOK_SECRET'));
-  if (pasarela === 'paypal') return !!(cfg('PAYPAL_CLIENT_ID') && cfg('PAYPAL_SECRET'));
+/* Indica si la pasarela tiene credenciales completas. */
+export function configurada(pasarela, config = {}) {
+  if (pasarela === 'stripe') return !!(config.stripe_secret_key && config.stripe_webhook_secret);
+  if (pasarela === 'mercadopago') return !!(config.mercadopago_access_token && config.mercadopago_webhook_secret);
+  if (pasarela === 'paypal') return !!(config.paypal_client_id && config.paypal_secret);
   return false;
 }
 
 /* Crea una sesion/preferencia/orden y devuelve la URL de pago. */
-export async function crearCheckout(pasarela, datos) {
-  if (pasarela === 'stripe') return checkoutStripe(datos);
-  if (pasarela === 'mercadopago') return checkoutMercadoPago(datos);
-  if (pasarela === 'paypal') return checkoutPayPal(datos);
+export async function crearCheckout(pasarela, datos, config = {}) {
+  if (pasarela === 'stripe') return checkoutStripe(datos, config);
+  if (pasarela === 'mercadopago') return checkoutMercadoPago(datos, config);
+  if (pasarela === 'paypal') return checkoutPayPal(datos, config);
   throw new PasarelaNoConfigurada(pasarela);
 }
 
 /* ------------------------------------------------------------
-   Stripe (Checkout Sessions, API REST)
+   Stripe (Checkout Sessions)
    ------------------------------------------------------------ */
-async function checkoutStripe({ pagoId, empresaId, plan, planNombre, monto, moneda, meses }) {
-  const key = cfg('STRIPE_SECRET_KEY');
-  if (!key || !cfg('STRIPE_WEBHOOK_SECRET')) throw new PasarelaNoConfigurada('stripe');
+async function checkoutStripe({ pagoId, empresaId, plan, planNombre, monto, moneda, meses }, config) {
+  const key = config.stripe_secret_key;
+  if (!key || !config.stripe_webhook_secret) throw new PasarelaNoConfigurada('stripe');
 
   const body = new URLSearchParams();
   body.set('mode', 'payment');
@@ -100,22 +84,17 @@ async function checkoutStripe({ pagoId, empresaId, plan, planNombre, monto, mone
 }
 
 /* ------------------------------------------------------------
-   Mercado Pago (Preferences, API REST)
+   Mercado Pago (Preferences)
    ------------------------------------------------------------ */
-async function checkoutMercadoPago({ pagoId, empresaId, planNombre, monto, moneda }) {
-  const token = cfg('MERCADOPAGO_ACCESS_TOKEN');
-  if (!token || !cfg('MERCADOPAGO_WEBHOOK_SECRET')) throw new PasarelaNoConfigurada('mercadopago');
+async function checkoutMercadoPago({ pagoId, empresaId, planNombre, monto, moneda }, config) {
+  const token = config.mercadopago_access_token;
+  if (!token || !config.mercadopago_webhook_secret) throw new PasarelaNoConfigurada('mercadopago');
 
   const r = await fetch('https://api.mercadopago.com/checkout/preferences', {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      items: [{
-        title: `Plan ${planNombre}`,
-        quantity: 1,
-        unit_price: Number(monto),
-        currency_id: moneda,
-      }],
+      items: [{ title: `Plan ${planNombre}`, quantity: 1, unit_price: Number(monto), currency_id: moneda }],
       external_reference: pagoId,
       metadata: { empresa_id: empresaId, pago_id: pagoId },
       notification_url: `${appUrl()}/api/webhooks/mercadopago`,
@@ -133,20 +112,20 @@ async function checkoutMercadoPago({ pagoId, empresaId, planNombre, monto, moned
 }
 
 /* ------------------------------------------------------------
-   PayPal (Orders v2, API REST)
+   PayPal (Orders v2)
    ------------------------------------------------------------ */
-function paypalBase() {
-  return cfg('PAYPAL_MODE') === 'live'
+function paypalBase(config) {
+  return (config.paypal_mode === 'live')
     ? 'https://api-m.paypal.com'
     : 'https://api-m.sandbox.paypal.com';
 }
 
-async function paypalToken() {
-  const id = cfg('PAYPAL_CLIENT_ID');
-  const secret = cfg('PAYPAL_SECRET');
+async function paypalToken(config) {
+  const id = config.paypal_client_id;
+  const secret = config.paypal_secret;
   if (!id || !secret) throw new PasarelaNoConfigurada('paypal');
   const auth = Buffer.from(`${id}:${secret}`).toString('base64');
-  const r = await fetch(`${paypalBase()}/v1/oauth2/token`, {
+  const r = await fetch(`${paypalBase(config)}/v1/oauth2/token`, {
     method: 'POST',
     headers: {
       Authorization: `Basic ${auth}`,
@@ -159,11 +138,11 @@ async function paypalToken() {
   return json.access_token;
 }
 
-async function checkoutPayPal({ pagoId, planNombre, monto, moneda }) {
-  if (!configurada('paypal')) throw new PasarelaNoConfigurada('paypal');
-  const token = await paypalToken();
+async function checkoutPayPal({ pagoId, planNombre, monto, moneda }, config) {
+  if (!configurada('paypal', config)) throw new PasarelaNoConfigurada('paypal');
+  const token = await paypalToken(config);
 
-  const r = await fetch(`${paypalBase()}/v2/checkout/orders`, {
+  const r = await fetch(`${paypalBase(config)}/v2/checkout/orders`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -192,8 +171,7 @@ async function checkoutPayPal({ pagoId, planNombre, monto, moneda }) {
    Verificacion de firmas (webhooks)
    ------------------------------------------------------------ */
 
-/* Stripe: header "t=...,v1=...", firma = HMAC_SHA256(secret, `${t}.${raw}`). */
-export function verificarStripe(raw, header, secret = cfg('STRIPE_WEBHOOK_SECRET')) {
+export function verificarStripe(raw, header, secret) {
   if (!secret || !header) return null;
   const partes = {};
   for (const trozo of header.split(',')) {
@@ -208,9 +186,7 @@ export function verificarStripe(raw, header, secret = cfg('STRIPE_WEBHOOK_SECRET
   try { return JSON.parse(raw); } catch { return null; }
 }
 
-/* Mercado Pago: header "x-signature: ts=...,v1=...",
-   manifest = `id:${dataId};request-id:${requestId};ts:${ts};`. */
-export function verificarMercadoPago(headers, dataId, secret = cfg('MERCADOPAGO_WEBHOOK_SECRET')) {
+export function verificarMercadoPago(headers, dataId, secret) {
   const firma = headers.get('x-signature');
   const requestId = headers.get('x-request-id') || '';
   if (!secret || !firma || !dataId) return false;
@@ -225,12 +201,11 @@ export function verificarMercadoPago(headers, dataId, secret = cfg('MERCADOPAGO_
   return esperado === partes.v1;
 }
 
-/* PayPal: se verifica contra su API (requiere PAYPAL_WEBHOOK_ID). */
-export async function verificarPayPal(evento, headers) {
-  const webhookId = cfg('PAYPAL_WEBHOOK_ID');
+export async function verificarPayPal(evento, headers, config) {
+  const webhookId = config.paypal_webhook_id;
   if (!webhookId) return false;
-  const token = await paypalToken();
-  const r = await fetch(`${paypalBase()}/v1/notifications/verify-webhook-signature`, {
+  const token = await paypalToken(config);
+  const r = await fetch(`${paypalBase(config)}/v1/notifications/verify-webhook-signature`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -239,17 +214,16 @@ export async function verificarPayPal(evento, headers) {
       cert_url: headers.get('paypal-cert-url'),
       auth_algo: headers.get('paypal-auth-algo'),
       transmission_sig: headers.get('paypal-transmission-sig'),
-      webhook_id: cfg('PAYPAL_WEBHOOK_ID'),
-      webhook_event: event,
+      webhook_id: webhookId,
+      webhook_event: evento,
     }),
   });
   const json = await r.json().catch(() => ({}));
   return r.ok && json.verification_status === 'SUCCESS';
 }
 
-/* Lee un pago de Mercado Pago para conocer su estado real. */
-export async function obtenerPagoMercadoPago(id) {
-  const token = cfg('MERCADOPAGO_ACCESS_TOKEN');
+export async function obtenerPagoMercadoPago(id, config) {
+  const token = config.mercadopago_access_token;
   if (!token) throw new PasarelaNoConfigurada('mercadopago');
   const r = await fetch(`https://api.mercadopago.com/v1/payments/${id}`, {
     headers: { Authorization: `Bearer ${token}` },

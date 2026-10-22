@@ -1409,6 +1409,31 @@ async function iniciarPago(pasarela) {
   } catch (err) { notificar('Error: ' + err.message, true); }
 }
 
+async function abrirTransferencia() {
+  const cont = document.getElementById('trDatosBanco');
+  if (cont) cont.textContent = 'Cargando datos bancarios...';
+  abrirModal('modalTransferencia');
+  try {
+    const r = await window.api.pagos.transferenciaDatos();
+    const d = (r && r.datos) || {};
+    if (!cont) return;
+    if (!d.banco && !d.cuenta) {
+      cont.textContent = 'El administrador aun no ha configurado los datos bancarios.';
+      return;
+    }
+    cont.innerHTML = '<div class="traza-bloque" style="padding:8px;background:#f8fafc;border-radius:8px">' +
+      '<strong>Datos para la transferencia</strong>' +
+      (d.banco ? '<div>Banco: ' + escaparHtml(d.banco) + '</div>' : '') +
+      (d.cuenta ? '<div>Cuenta: ' + escaparHtml(d.cuenta) + '</div>' : '') +
+      (d.titular ? '<div>Titular: ' + escaparHtml(d.titular) + '</div>' : '') +
+      (d.rif ? '<div>RIF: ' + escaparHtml(d.rif) + '</div>' : '') +
+      (d.instrucciones ? '<div style="margin-top:6px">' + escaparHtml(d.instrucciones) + '</div>' : '') +
+      '</div>';
+  } catch (err) {
+    if (cont) cont.textContent = 'No se pudieron cargar los datos bancarios.';
+  }
+}
+
 async function registrarTransferencia() {
   const plan = document.getElementById('trPlan').value;
   const ciclo = document.getElementById('trCiclo').value;
@@ -3722,6 +3747,7 @@ window.imprimirComprobanteMovimiento = imprimirComprobanteMovimiento;
 window.imprimirFichaProveedor = imprimirFichaProveedor;
 window.iniciarPago = iniciarPago;
 window.registrarTransferencia = registrarTransferencia;
+window.abrirTransferencia = abrirTransferencia;
 window.irASuscripcion = irASuscripcion;
 
 // Modal de upgrade disparado por los codigos PlanLimitReached / PlanVencido

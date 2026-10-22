@@ -553,7 +553,7 @@
               <button class="btn btn-primary" onclick="iniciarPago('stripe')">Pagar con Stripe</button>
               <button class="btn btn-primary" onclick="iniciarPago('mercadopago')">Pagar con Mercado Pago</button>
               <button class="btn btn-primary" onclick="iniciarPago('paypal')">Pagar con PayPal</button>
-              <button class="btn btn-secondary" onclick="abrirModal('modalTransferencia')">Transferencia bancaria</button>
+              <button class="btn btn-secondary" onclick="abrirTransferencia()">Transferencia bancaria</button>
             </div>
             <div id="pagoResultado" class="consola" style="margin-top:8px;display:none"></div>
           </div>
@@ -905,6 +905,7 @@
   <div id="modalTransferencia" class="modal">
     <div class="modal-content">
       <h3>Transferencia bancaria</h3>
+      <div id="trDatosBanco" class="texto-ayuda" style="margin-bottom:12px"></div>
       <form id="formTransferencia">
         <div class="campo">
           <label>Plan</label>

@@ -26,6 +26,10 @@ export default function Admin() {
   const [featureFlagsCargando, setFeatureFlagsCargando] = useState(false);
   const [tickets, setTickets] = useState([]);
   const [ticketsCargando, setTicketsCargando] = useState(false);
+  const [tab, setTab] = useState('general');
+  const [configPagos, setConfigPagos] = useState(null);
+  const [configPagosCargando, setConfigPagosCargando] = useState(false);
+  const [configPagosMensaje, setConfigPagosMensaje] = useState('');
 
   useEffect(() => {
     fetch('/api/auth/sesion', { headers: auth() })
@@ -47,6 +51,7 @@ export default function Admin() {
     cargarEmpresas();
     cargarFeatureFlags();
     cargarTickets();
+    cargarConfigPagos();
   }, [usuario]);
 
   function auth() {
@@ -231,6 +236,42 @@ export default function Admin() {
     cargarTickets();
   }
 
+  async function cargarConfigPagos() {
+    setConfigPagosCargando(true);
+    try {
+      const r = await fetch('/api/admin/config-pagos', { headers: auth() });
+      const j = await r.json();
+      if (r.ok) setConfigPagos(j.config || {});
+      else setError(j.error || 'No se pudo cargar la configuracion de pagos');
+    } finally { setConfigPagosCargando(false); }
+  }
+
+  async function guardarConfigPagos(e) {
+    e.preventDefault();
+    setError('');
+    setMensaje('');
+    setConfigPagosMensaje('');
+    const form = e.target;
+    const payload = {};
+    // Campos no secretos
+    ['paypal_mode', 'transferencia_banco', 'transferencia_cuenta', 'transferencia_titular', 'transferencia_rif', 'transferencia_instrucciones']
+      .forEach((k) => { payload[k] = form.elements[k].value; });
+    // Secretos (solo si vienen con valor)
+    ['stripe_secret_key', 'stripe_webhook_secret', 'mercadopago_access_token', 'mercadopago_webhook_secret', 'paypal_client_id', 'paypal_secret', 'paypal_webhook_id']
+      .forEach((k) => { if (form.elements[k] && form.elements[k].value.trim()) payload[k] = form.elements[k].value.trim(); });
+
+    const r = await fetch('/api/admin/config-pagos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...auth() },
+      body: JSON.stringify(payload),
+    });
+    const j = await r.json();
+    if (!r.ok) return setError(j.error || 'No se pudo guardar');
+    setConfigPagosMensaje('Configuracion de pagos guardada correctamente');
+    form.reset();
+    cargarConfigPagos();
+  }
+
   async function gestionarEmpresa(id, accion, extra = {}) {
     setError('');
     setMensaje('');
@@ -287,19 +328,38 @@ export default function Admin() {
   }
 
   return (
-    <main className="admin admin-ancho">
+    <main className="admin admin-ancho" data-tab={tab}>
       <header className="admin-header">
         <div>
           <h1>Administracion</h1>
-          <p className="sub">Hola {usuario.nombre}. Gestiona claves, pagos y solicitudes de facturacion.</p>
+          <p className="sub">Hola {usuario.nombre}. Panel general de la plataforma.</p>
         </div>
         <Link className="btn btn-secundario" href="/panel">Ir al sistema</Link>
       </header>
 
       {mensaje && <div className="mensaje ok">{mensaje}</div>}
       {error && <div className="mensaje error">{error}</div>}
+      {configPagosMensaje && <div className="mensaje ok">{configPagosMensaje}</div>}
 
-      <section className="panel-admin">
+      <nav className="admin-tabs">
+        {[
+          ['general', 'General'],
+          ['pagos', 'Pagos'],
+          ['marketing', 'Marketing'],
+          ['soporte', 'Soporte'],
+          ['sistema', 'Sistema'],
+        ].map(([id, nombre]) => (
+          <button
+            key={id}
+            className={`admin-tab ${tab === id ? 'activo' : ''}`}
+            onClick={() => setTab(id)}
+          >
+            {nombre}
+          </button>
+        ))}
+      </nav>
+
+      <section className="panel-admin sec-sistema">
         <h2>Giro de la empresa ({empresa ? empresa.nombre : '...'})</h2>
         <p className="ayuda">Selecciona el tipo de empresa. Define los campos que pediran los productos.</p>
         <div className="rejilla-giros">
@@ -315,7 +375,7 @@ export default function Admin() {
         </div>
       </section>
 
-      <section className="panel-admin">
+      <section className="panel-admin sec-sistema">
         <h2>Claves de administrador</h2>
         <p className="ayuda">
           Cada clave da acceso de administrador de la plataforma a quien se registre con ella.
@@ -365,7 +425,7 @@ export default function Admin() {
         </table>
       </section>
 
-      <section className="panel-admin">
+      <section className="panel-admin sec-soporte">
         <h2>Tickets de soporte</h2>
         <p className="ayuda">Solicitudes de ayuda enviadas por los usuarios de las empresas.</p>
         <button className="btn btn-secundario" onClick={cargarTickets} style={{ marginBottom: 12 }}>
@@ -413,7 +473,7 @@ export default function Admin() {
         </table>
       </section>
 
-      <section className="panel-admin">
+      <section className="panel-admin sec-sistema">
         <h2>Configuracion del sistema</h2>
         <p className="ayuda">
           Configuracion global de la plataforma. Solo visible para administradores generales.
@@ -451,7 +511,7 @@ export default function Admin() {
         </div>
       </section>
 
-      <section className="panel-admin">
+      <section className="panel-admin sec-general">
         <h2>Dashboard del SaaS</h2>
         <p className="ayuda">Metricas generales de la plataforma.</p>
         <button className="btn btn-secundario" onClick={cargarDashboard} style={{ marginBottom: 12 }}>
@@ -478,7 +538,7 @@ export default function Admin() {
         )}
       </section>
 
-      <section className="panel-admin">
+      <section className="panel-admin sec-general">
         <h2>Empresas registradas</h2>
         <p className="ayuda">Lista de todas las empresas con su plan, estado y uso. Puedes cambiar planes, extender trials, suspender o reactivar.</p>
         <button className="btn btn-secundario" onClick={cargarEmpresas} style={{ marginBottom: 12 }}>
@@ -527,7 +587,7 @@ export default function Admin() {
         </table>
       </section>
 
-      <section className="panel-admin">
+      <section className="panel-admin sec-pagos">
         <h2>Pagos pendientes de revision</h2>
         <p className="ayuda">
           Transferencias bancarias y pagos manuales que esperan aprobacion.
@@ -563,7 +623,90 @@ export default function Admin() {
         </table>
       </section>
 
-      <section className="panel-admin">
+      <section className="panel-admin sec-pagos">
+        <h2>Configuracion de pagos</h2>
+        <p className="ayuda">
+          Claves de las pasarelas y datos de transferencia bancaria. Los campos secretos
+          solo se actualizan si escribes un valor nuevo. Deja vacio para conservar el actual.
+        </p>
+        {configPagosCargando && <p className="ayuda">Cargando...</p>}
+        <form onSubmit={guardarConfigPagos}>
+          <h3 style={{ fontSize: 14, marginTop: 8 }}>Stripe</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 10 }}>
+            <div className="campo">
+              <label>Secret key {configPagos?.tiene_stripe ? '(configurada)' : ''}</label>
+              <input name="stripe_secret_key" type="password" placeholder={configPagos?.tiene_stripe ? '••••••••' : 'sk_...'} />
+            </div>
+            <div className="campo">
+              <label>Webhook secret {configPagos?.tiene_stripe_webhook ? '(configurado)' : ''}</label>
+              <input name="stripe_webhook_secret" type="password" placeholder={configPagos?.tiene_stripe_webhook ? '••••••••' : 'whsec_...'} />
+            </div>
+          </div>
+
+          <h3 style={{ fontSize: 14, marginTop: 8 }}>Mercado Pago</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 10 }}>
+            <div className="campo">
+              <label>Access token {configPagos?.tiene_mercadopago ? '(configurado)' : ''}</label>
+              <input name="mercadopago_access_token" type="password" placeholder={configPagos?.tiene_mercadopago ? '••••••••' : 'APP_USR-...'} />
+            </div>
+            <div className="campo">
+              <label>Webhook secret {configPagos?.tiene_mercadopago_webhook ? '(configurado)' : ''}</label>
+              <input name="mercadopago_webhook_secret" type="password" placeholder={configPagos?.tiene_mercadopago_webhook ? '••••••••' : 'clave secreta'} />
+            </div>
+          </div>
+
+          <h3 style={{ fontSize: 14, marginTop: 8 }}>PayPal</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
+            <div className="campo">
+              <label>Client ID {configPagos?.tiene_paypal ? '(configurado)' : ''}</label>
+              <input name="paypal_client_id" type="password" placeholder={configPagos?.tiene_paypal ? '••••••••' : 'client id'} />
+            </div>
+            <div className="campo">
+              <label>Secret {configPagos?.tiene_paypal ? '(configurado)' : ''}</label>
+              <input name="paypal_secret" type="password" placeholder={configPagos?.tiene_paypal ? '••••••••' : 'secret'} />
+            </div>
+            <div className="campo">
+              <label>Webhook ID {configPagos?.tiene_paypal_webhook ? '(configurado)' : ''}</label>
+              <input name="paypal_webhook_id" type="password" placeholder={configPagos?.tiene_paypal_webhook ? '••••••••' : 'webhook id'} />
+            </div>
+            <div className="campo">
+              <label>Modo</label>
+              <select name="paypal_mode" defaultValue={configPagos?.paypal_mode || 'sandbox'}>
+                <option value="sandbox">Sandbox (pruebas)</option>
+                <option value="live">Live (produccion)</option>
+              </select>
+            </div>
+          </div>
+
+          <h3 style={{ fontSize: 14, marginTop: 8 }}>Transferencia bancaria</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
+            <div className="campo">
+              <label>Banco</label>
+              <input name="transferencia_banco" defaultValue={configPagos?.transferencia_banco || ''} placeholder="Banco" />
+            </div>
+            <div className="campo">
+              <label>Cuenta</label>
+              <input name="transferencia_cuenta" defaultValue={configPagos?.transferencia_cuenta || ''} placeholder="0000-0000-00-0000000000" />
+            </div>
+            <div className="campo">
+              <label>Titular</label>
+              <input name="transferencia_titular" defaultValue={configPagos?.transferencia_titular || ''} placeholder="Nombre del titular" />
+            </div>
+            <div className="campo">
+              <label>RIF / identificador</label>
+              <input name="transferencia_rif" defaultValue={configPagos?.transferencia_rif || ''} placeholder="J-12345678-9" />
+            </div>
+          </div>
+          <div className="campo">
+            <label>Instrucciones</label>
+            <textarea name="transferencia_instrucciones" rows="3" defaultValue={configPagos?.transferencia_instrucciones || ''} placeholder="Instrucciones para el usuario al transferir..." />
+          </div>
+
+          <button type="submit" className="btn">Guardar configuracion de pagos</button>
+        </form>
+      </section>
+
+      <section className="panel-admin sec-marketing">
         <h2>Marketing y conversion</h2>
         <p className="ayuda">
           Analisis de usuarios freemium, probabilidad de conversion, trafico por fuente y campanas.
@@ -669,7 +812,7 @@ export default function Admin() {
         )}
       </section>
 
-      <section className="panel-admin">
+      <section className="panel-admin sec-soporte">
         <h2>Solicitudes de facturacion electronica</h2>
         <p className="ayuda">
           Solicitudes de usuarios para integrar proveedores o paises no soportados.

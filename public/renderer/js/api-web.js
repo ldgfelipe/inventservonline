@@ -204,6 +204,7 @@ window.api = {
   pagos: {
     checkout: (pasarela, payload) => pedir('/api/pagos/checkout', { metodo: 'POST', json: { ...payload, pasarela } }),
     transferencia: (payload) => pedir('/api/pagos/transferencia', { metodo: 'POST', json: payload }),
+    transferenciaDatos: () => pedir('/api/pagos/transferencia-datos'),
     historial: () => pedir('/api/pagos/historial').then((r) => r.pagos || []),
   },
   adminPagos: {

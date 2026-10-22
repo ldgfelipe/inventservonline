@@ -491,3 +491,33 @@ a { color: var(--primario); text-decoration: none; }
   .ayuda-hero h1 { font-size: 26px; }
   .ayuda-buscador { flex-direction: column; }
 }
+
+/* Tabs del panel de administracion */
+.admin-tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--borde);
+}
+.admin-tab {
+  padding: 10px 18px;
+  border: none;
+  background: transparent;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--suave);
+  font-family: inherit;
+}
+.admin-tab:hover { color: var(--texto); }
+.admin-tab.activo { color: var(--primario); border-bottom-color: var(--primario); }
+
+.admin[data-tab="general"] .panel-admin:not(.sec-general),
+.admin[data-tab="pagos"] .panel-admin:not(.sec-pagos),
+.admin[data-tab="marketing"] .panel-admin:not(.sec-marketing),
+.admin[data-tab="soporte"] .panel-admin:not(.sec-soporte),
+.admin[data-tab="sistema"] .panel-admin:not(.sec-sistema) {
+  display: none;
+}

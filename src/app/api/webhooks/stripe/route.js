@@ -1,5 +1,6 @@
 import { admin } from '@/lib/supabase';
 import { verificarStripe } from '@/lib/pasarelas';
+import { leerConfigPagos } from '@/lib/pagos-config';
 import { pagoPorId, confirmarPago, activarSuscripcion } from '@/lib/pagos';
 
 export const runtime = 'nodejs';
@@ -11,7 +12,8 @@ export const runtime = 'nodejs';
    (aunque el evento no nos interese) para evitar reintentos en bucle. */
 export async function POST(request) {
   const raw = await request.text();
-  const evento = verificarStripe(raw, request.headers.get('stripe-signature'));
+  const config = await leerConfigPagos();
+  const evento = verificarStripe(raw, request.headers.get('stripe-signature'), config.stripe_webhook_secret);
   if (!evento) return new Response('Firma invalida', { status: 400 });
 
   try {

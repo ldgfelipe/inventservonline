@@ -4,6 +4,7 @@ import {
   PASARELAS_PAGO, cicloValido, precioDe, registrarPago, asignarReferencia, esquemaFaltante,
 } from '@/lib/pagos';
 import { crearCheckout, configurada } from '@/lib/pasarelas';
+import { leerConfigPagos } from '@/lib/pagos-config';
 
 export const runtime = 'nodejs';
 
@@ -26,7 +27,8 @@ async function crear(request) {
   if (!PASARELAS_PAGO.includes(pasarela) || pasarela === 'transferencia') {
     return error('Pasarela invalida para pago en linea');
   }
-  if (!configurada(pasarela)) {
+  const config = await leerConfigPagos();
+  if (!configurada(pasarela, config)) {
     return error(`La pasarela ${pasarela} no esta configurada todavia`, 503);
   }
 
@@ -46,7 +48,7 @@ async function crear(request) {
   try {
     salida = await crearCheckout(pasarela, {
       pagoId, empresaId: perfil.empresa_id, plan, planNombre, monto, moneda, meses,
-    });
+    }, config);
   } catch (err) {
     if (err && typeof err.respuesta === 'function') throw err; // PasarelaNoConfigurada
     return error('La pasarela no respondio: ' + err.message, 502);

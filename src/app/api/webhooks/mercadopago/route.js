@@ -1,5 +1,6 @@
 import { admin } from '@/lib/supabase';
 import { verificarMercadoPago, obtenerPagoMercadoPago } from '@/lib/pasarelas';
+import { leerConfigPagos } from '@/lib/pagos-config';
 import { pagoPorId, confirmarPago } from '@/lib/pagos';
 
 export const runtime = 'nodejs';
@@ -18,12 +19,13 @@ export async function POST(request) {
   // Sin id de recurso no hay nada que procesar (p. ej. ping de verificacion).
   if (!dataId) return Response.json({ received: true });
 
-  if (!verificarMercadoPago(request.headers, dataId)) {
+  const config = await leerConfigPagos();
+  if (!verificarMercadoPago(request.headers, dataId, config.mercadopago_webhook_secret)) {
     return new Response('Firma invalida', { status: 400 });
   }
 
   try {
-    const pagoMp = await obtenerPagoMercadoPago(dataId);
+    const pagoMp = await obtenerPagoMercadoPago(dataId, config);
     if (pagoMp?.status === 'approved') {
       const pagoId = pagoMp.external_reference || cuerpo?.data?.id;
       const sb = admin();
