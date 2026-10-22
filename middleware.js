@@ -22,6 +22,7 @@ const PUBLICAS = [
   '/api/trafico',
   '/api/landing',
   '/precios',
+  '/ayuda',
 ];
 
 function esPublica(ruta) {
