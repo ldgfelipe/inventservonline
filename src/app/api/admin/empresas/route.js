@@ -3,26 +3,43 @@ import { admin } from '@/lib/supabase';
 
 export const runtime = 'nodejs';
 
+/* Cuenta filas por empresa en bloque (evita N+1). */
+async function contarPorEmpresa(sb, tabla, extra = {}) {
+  let q = sb.from(tabla).select('empresa_id');
+  for (const [k, v] of Object.entries(extra)) q = q.eq(k, v);
+  const { data } = await q;
+  const mapa = {};
+  for (const r of data || []) {
+    if (!r.empresa_id) continue;
+    mapa[r.empresa_id] = (mapa[r.empresa_id] || 0) + 1;
+  }
+  return mapa;
+}
+
 /* GET /api/admin/empresas -> lista de todas las empresas con plan, estado y uso */
 async function listar(request) {
   const { perfil, sb } = await sesion(request);
   if (!perfil.super_admin) return error('Solo administradores de la plataforma', 403);
 
   const sbAdmin = admin();
-  const { data: empresas, error: err } = await sbAdmin.from('empresas').select('id, nombre, email, giro_actual, plan, pais, moneda, created_at').order('created_at', { ascending: false });
+  const [{ data: empresas, error: err }, { data: suscripciones }] = await Promise.all([
+    sbAdmin.from('empresas').select('id, nombre, email, giro_actual, plan, pais, moneda, created_at').order('created_at', { ascending: false }),
+    sbAdmin.from('suscripciones_empresas').select('*'),
+  ]);
   if (err) return error(err.message, 500);
 
-  const { data: suscripciones } = await sbAdmin.from('suscripciones_empresas').select('*');
   const susMap = {};
   for (const s of suscripciones || []) susMap[s.empresa_id] = s;
 
-  const result = [];
-  for (const e of empresas || []) {
+  const [productos, usuarios, ventas] = await Promise.all([
+    contarPorEmpresa(sbAdmin, 'productos', { activo: true }),
+    contarPorEmpresa(sbAdmin, 'perfiles'),
+    contarPorEmpresa(sbAdmin, 'ventas'),
+  ]);
+
+  const result = (empresas || []).map((e) => {
     const sus = susMap[e.id];
-    const { count: productos } = await sbAdmin.from('productos').select('id', { count: 'exact', head: true }).eq('empresa_id', e.id).eq('activo', true);
-    const { count: usuarios } = await sbAdmin.from('perfiles').select('id', { count: 'exact', head: true }).eq('empresa_id', e.id);
-    const { count: ventas } = await sbAdmin.from('ventas').select('id', { count: 'exact', head: true }).eq('empresa_id', e.id);
-    result.push({
+    return {
       id: e.id,
       nombre: e.nombre,
       email: e.email,
@@ -34,16 +51,16 @@ async function listar(request) {
       estado: sus ? sus.estado : 'trial',
       trial_ends_at: sus ? sus.trial_ends_at : null,
       fecha_vencimiento: sus ? sus.fecha_vencimiento : null,
-      productos: productos || 0,
-      usuarios: usuarios || 0,
-      ventas: ventas || 0,
+      productos: productos[e.id] || 0,
+      usuarios: usuarios[e.id] || 0,
+      ventas: ventas[e.id] || 0,
       created_at: e.created_at,
-    });
-  }
+    };
+  });
   return Response.json({ ok: true, empresas: result });
 }
 
-/* POST /api/admin/empresas { id, accion, plan?, dias? } -> cambiar plan o extender trial */
+/* POST /api/admin/empresas { id, accion, plan?, dias? } */
 async function gestionar(request) {
   const { perfil, sb } = await sesion(request);
   if (!perfil.super_admin) return error('Solo administradores de la plataforma', 403);
@@ -70,25 +87,33 @@ async function gestionar(request) {
   if (accion === 'extender_trial') {
     const dias = Number(cuerpo.dias) || 14;
     const vencimiento = new Date(Date.now() + dias * 86400000).toISOString();
-    const { error: err } = await sbAdmin.from('suscripciones_empresas').update({
-      estado: 'trial', trial_ends_at: vencimiento, updated_at: new Date().toISOString(),
-    }).eq('empresa_id', id);
-    if (err) return error('No se pudo extender: ' + err.message, 500);
+    const { data: sus } = await sbAdmin.from('suscripciones_empresas').select('id').eq('empresa_id', id).maybeSingle();
+    if (sus) {
+      const { error: err } = await sbAdmin.from('suscripciones_empresas').update({
+        estado: 'trial', trial_ends_at: vencimiento, updated_at: new Date().toISOString(),
+      }).eq('empresa_id', id);
+      if (err) return error('No se pudo extender: ' + err.message, 500);
+    } else {
+      const { error: err } = await sbAdmin.from('suscripciones_empresas').insert({
+        empresa_id: id, plan: 'pro', estado: 'trial', trial_ends_at: vencimiento,
+      });
+      if (err) return error('No se pudo crear la suscripcion: ' + err.message, 500);
+    }
     return Response.json({ ok: true, mensaje: `Trial extendido ${dias} dias` });
   }
 
   if (accion === 'suspender') {
-    const { error: err } = await sbAdmin.from('suscripciones_empresas').update({
-      estado: 'vencido', updated_at: new Date().toISOString(),
-    }).eq('empresa_id', id);
+    const { error: err } = await sbAdmin.from('suscripciones_empresas').upsert({
+      empresa_id: id, estado: 'vencido', updated_at: new Date().toISOString(),
+    }, { onConflict: 'empresa_id' });
     if (err) return error('No se pudo suspender: ' + err.message, 500);
     return Response.json({ ok: true, mensaje: 'Empresa suspendida' });
   }
 
   if (accion === 'reactivar') {
-    const { error: err } = await sbAdmin.from('suscripciones_empresas').update({
-      estado: 'activo', updated_at: new Date().toISOString(),
-    }).eq('empresa_id', id);
+    const { error: err } = await sbAdmin.from('suscripciones_empresas').upsert({
+      empresa_id: id, estado: 'activo', updated_at: new Date().toISOString(),
+    }, { onConflict: 'empresa_id' });
     if (err) return error('No se pudo reactivar: ' + err.message, 500);
     return Response.json({ ok: true, mensaje: 'Empresa reactivada' });
   }

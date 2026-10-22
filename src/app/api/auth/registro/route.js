@@ -114,6 +114,31 @@ export async function POST(request) {
         empresa_id: emp.id, nombre: 'Principal', principal: true, activo: true,
       });
     } catch { /* migracion 013 pendiente */ }
+
+    // Tracking de marketing: registrar el registro como trafico y conversion.
+    // Best-effort: si las tablas no existen, no afecta el registro.
+    try {
+      await sb.from('trafico').insert({
+        empresa_id: emp.id,
+        fuente: cuerpo.utm_source || cuerpo.fuente || 'directo',
+        medio: cuerpo.utm_medium || null,
+        utm_source: cuerpo.utm_source || null,
+        utm_medium: cuerpo.utm_medium || null,
+        utm_campaign: cuerpo.utm_campaign || null,
+        utm_content: cuerpo.utm_content || null,
+        utm_term: cuerpo.utm_term || null,
+        evento: 'registro',
+      });
+    } catch { /* migracion 030 pendiente */ }
+
+    try {
+      await sb.from('conversiones').insert({
+        empresa_id: emp.id,
+        tipo: 'registro',
+        plan: PLAN_EN_PRUEBA,
+        notas: 'Registro de nueva empresa',
+      });
+    } catch { /* migracion 030 pendiente */ }
   } catch (err) {
     // Si algo falla, limpiamos el usuario para no dejar cuentas huerfanas
     await sb.auth.admin.deleteUser(creado.user.id).catch(() => {});

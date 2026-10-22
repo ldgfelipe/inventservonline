@@ -166,13 +166,10 @@ export default function Admin() {
   async function cargarFeatureFlags() {
     setFeatureFlagsCargando(true);
     try {
-      const r = await fetch('/api/feature-flags', { headers: auth() });
+      const r = await fetch('/api/feature-flags?admin=1', { headers: auth() });
       const j = await r.json();
-      if (r.ok) {
-        // Convertir objeto a array para la tabla
-        const flags = j.flags || {};
-        setFeatureFlags(Object.entries(flags).map(([k, v]) => ({ clave: k, activo: v })));
-      }
+      if (r.ok) setFeatureFlags(j.flags || []);
+      else setError(j.error || 'No se pudieron cargar los feature flags');
     } finally { setFeatureFlagsCargando(false); }
   }
 
@@ -187,6 +184,26 @@ export default function Admin() {
     const j = await r.json();
     if (!r.ok) return setError(j.error || 'No se pudo actualizar');
     setMensaje('Flag ' + clave + ' actualizado');
+    cargarFeatureFlags();
+  }
+
+  async function crearFeatureFlag() {
+    setError('');
+    setMensaje('');
+    const clave = document.getElementById('nuevoFlagClave').value.trim();
+    const descripcion = document.getElementById('nuevoFlagDesc').value.trim();
+    const porcentaje = Number(document.getElementById('nuevoFlagPct').value) || 100;
+    if (!clave) return setError('Escribe la clave del flag');
+    const r = await fetch('/api/feature-flags', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...auth() },
+      body: JSON.stringify({ clave, descripcion, porcentaje, activo: true }),
+    });
+    const j = await r.json();
+    if (!r.ok) return setError(j.error || 'No se pudo crear');
+    setMensaje('Flag ' + clave + ' creado');
+    document.getElementById('nuevoFlagClave').value = '';
+    document.getElementById('nuevoFlagDesc').value = '';
     cargarFeatureFlags();
   }
 
@@ -406,12 +423,15 @@ export default function Admin() {
         </button>
         <table className="tabla-admin">
           <thead>
-            <tr><th>Flag</th><th>Estado</th><th>Accion</th></tr>
+            <tr><th>Flag</th><th>Descripcion</th><th>Rollout</th><th>Empresas beta</th><th>Estado</th><th>Accion</th></tr>
           </thead>
           <tbody>
             {featureFlags.map((f) => (
               <tr key={f.clave}>
                 <td className="mono">{f.clave}</td>
+                <td style={{ fontSize: 12 }}>{f.descripcion || '-'}</td>
+                <td>{f.porcentaje != null ? f.porcentaje + '%' : '-'}</td>
+                <td style={{ fontSize: 12 }}>{f.empresas && f.empresas.length ? f.empresas.length + ' empresa(s)' : 'Todas'}</td>
                 <td><span className={`estado ${f.activo ? 'verde' : 'rojo'}`}>{f.activo ? 'Activo' : 'Inactivo'}</span></td>
                 <td>
                   <button className="btn-mini" onClick={() => toggleFeatureFlag(f.clave, !f.activo)}>
@@ -420,9 +440,15 @@ export default function Admin() {
                 </td>
               </tr>
             ))}
-            {featureFlags.length === 0 && <tr><td colSpan={3} className="vacio">Sin feature flags configurados</td></tr>}
+            {featureFlags.length === 0 && <tr><td colSpan={6} className="vacio">Sin feature flags configurados</td></tr>}
           </tbody>
         </table>
+        <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <input id="nuevoFlagClave" placeholder="clave_del_flag" className="input-select" style={{ fontSize: 12 }} />
+          <input id="nuevoFlagDesc" placeholder="Descripcion" className="input-select" style={{ fontSize: 12 }} />
+          <input id="nuevoFlagPct" type="number" min="0" max="100" defaultValue="100" className="input-select" style={{ fontSize: 12, width: 90 }} />
+          <button className="btn btn-secundario" onClick={crearFeatureFlag}>Crear flag</button>
+        </div>
       </section>
 
       <section className="panel-admin">

@@ -3,6 +3,20 @@ import { admin } from '@/lib/supabase';
 
 export const runtime = 'nodejs';
 
+/* GET /api/feature-flags?admin=1 -> config cruda de todos los flags (super-admin) */
+async function listarAdmin(request) {
+  const { perfil, sb } = await sesion(request);
+  if (!perfil.super_admin) return error('Solo administradores de la plataforma', 403);
+  const { data, error: err } = await sb.from('feature_flags')
+    .select('clave, descripcion, activo, porcentaje, empresas, updated_at')
+    .order('clave');
+  if (err) {
+    if (/feature_flags|does not exist|schema cache/i.test(err.message)) return Response.json({ ok: true, flags: [] });
+    return error(err.message, 500);
+  }
+  return Response.json({ ok: true, flags: data || [] });
+}
+
 /* GET /api/feature-flags -> flags activos para mi empresa */
 async function listar(request) {
   const { perfil, sb } = await sesion(request);
@@ -14,39 +28,48 @@ async function listar(request) {
   const flags = {};
   for (const f of data || []) {
     if (!f.activo) { flags[f.clave] = false; continue; }
-    // Si hay lista de empresas, solo esas la tienen
     if (f.empresas && f.empresas.length > 0) {
       flags[f.clave] = f.empresas.includes(perfil.empresa_id);
       continue;
     }
-    // Rollout porcentual determinista por empresa
     const hash = hashEmpresa(perfil.empresa_id, f.clave);
     flags[f.clave] = hash < f.porcentaje;
   }
   return Response.json({ ok: true, flags });
 }
 
-/* POST /api/feature-flags { clave, activo?, porcentaje?, empresas?, descripcion? } (super-admin) */
+/* POST /api/feature-flags { clave, activo?, porcentaje?, empresas?, descripcion? } (super-admin)
+   Solo actualiza los campos enviados; conserva el resto. */
 async function guardar(request) {
   const { perfil, sb } = await sesion(request);
   if (!perfil.super_admin) return error('Solo administradores de la plataforma', 403);
   let cuerpo; try { cuerpo = await request.json(); } catch { return error('Cuerpo JSON invalido'); }
   const clave = String(cuerpo.clave || '').trim();
   if (!clave) return error('Falta la clave');
-  const fila = {
-    clave,
-    descripcion: cuerpo.descripcion || null,
-    activo: cuerpo.activo !== false,
-    porcentaje: Math.max(0, Math.min(100, Number(cuerpo.porcentaje) || 100)),
-    empresas: Array.isArray(cuerpo.empresas) ? cuerpo.empresas : null,
-    updated_at: new Date().toISOString(),
-  };
-  const { data: existe } = await sb.from('feature_flags').select('id').eq('clave', clave).maybeSingle();
+
+  const { data: existe } = await sb.from('feature_flags').select('*').eq('clave', clave).maybeSingle();
+
+  const cambios = { updated_at: new Date().toISOString() };
+  if (cuerpo.descripcion !== undefined) cambios.descripcion = cuerpo.descripcion || null;
+  if (cuerpo.activo !== undefined) cambios.activo = cuerpo.activo !== false;
+  if (cuerpo.porcentaje !== undefined) {
+    cambios.porcentaje = Math.max(0, Math.min(100, Number(cuerpo.porcentaje) || 0));
+  }
+  if (cuerpo.empresas !== undefined) {
+    cambios.empresas = Array.isArray(cuerpo.empresas) && cuerpo.empresas.length ? cuerpo.empresas : null;
+  }
+
   if (existe) {
-    const { error: err } = await sb.from('feature_flags').update(fila).eq('clave', clave);
+    const { error: err } = await sb.from('feature_flags').update(cambios).eq('clave', clave);
     if (err) return error('No se pudo guardar: ' + err.message, 500);
   } else {
-    const { error: err } = await sb.from('feature_flags').insert(fila);
+    const { error: err } = await sb.from('feature_flags').insert({
+      clave,
+      descripcion: cambios.descripcion || null,
+      activo: cambios.activo !== undefined ? cambios.activo : true,
+      porcentaje: cambios.porcentaje !== undefined ? cambios.porcentaje : 100,
+      empresas: cambios.empresas || null,
+    });
     if (err) return error('No se pudo guardar: ' + err.message, 500);
   }
   return Response.json({ ok: true });
@@ -78,6 +101,7 @@ function hashEmpresa(empresaId, clave) {
 export const GET = manejar(async (req) => {
   const url = new URL(req.url);
   if (url.searchParams.has('nombre')) return variante(req);
+  if (url.searchParams.get('admin') === '1') return listarAdmin(req);
   return listar(req);
 });
 export const POST = manejar(guardar);
