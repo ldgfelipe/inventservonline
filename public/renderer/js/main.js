@@ -116,12 +116,28 @@ async function cerrarSesion() {
 
 function mostrarInfoUsuario(u) {
   if (!u) return;
-  document.getElementById('infoUsuario').classList.remove('oculto');
-  document.getElementById('infoUsuarioNombre').textContent = u.nombre || '-';
+  const info = document.getElementById('infoUsuario');
+  if (info) info.classList.remove('oculto');
+  const nombreEl = document.getElementById('infoUsuarioNombre');
+  if (nombreEl) nombreEl.textContent = u.nombre || '-';
   const rol = document.getElementById('infoUsuarioRol');
-  rol.textContent = u.rolNombre || u.rol || '-';
-  rol.className = 'badge-rol nivel-' + (u.nivel || 0);
-  document.getElementById('infoUsuarioArea').textContent = u.area || '-';
+  if (rol) {
+    rol.textContent = u.rolNombre || u.rol || '-';
+    rol.className = 'badge-rol nivel-' + (u.nivel || 0);
+  }
+  const areaEl = document.getElementById('infoUsuarioArea');
+  if (areaEl) areaEl.textContent = u.area || '-';
+
+  // Menu de perfil (topbar)
+  const avatar = document.getElementById('perfilAvatar');
+  if (avatar) {
+    const inicial = String(u.nombre || u.usuario || 'U').trim().charAt(0).toUpperCase() || 'U';
+    avatar.textContent = inicial;
+  }
+  const menuNombre = document.getElementById('perfilMenuNombre');
+  if (menuNombre) menuNombre.textContent = u.nombre || u.usuario || 'Usuario';
+  const menuRol = document.getElementById('perfilMenuRol');
+  if (menuRol) menuRol.textContent = (u.rolNombre || u.rol || '') + (u.area ? ' · ' + u.area : '');
 }
 
 /* Oculta secciones y botones segun los permisos del rol */
@@ -1815,17 +1831,39 @@ async function aplicarImportacion() {
 
 /* ------------------ Sesion: eventos ------------------ */
 function configurarEventosSesion() {
-  document.getElementById('btnCerrarSesion').addEventListener('click', cerrarSesion);
-  document.getElementById('btnCambiarClave').addEventListener('click', () => abrirModalClave(false));
-  document.getElementById('btnCancelClave').addEventListener('click', () => cerrarModal('modalClave'));
-  document.getElementById('formClave').addEventListener('submit', guardarClavePropia);
+  const btnCerrar = document.getElementById('btnCerrarSesion');
+  if (btnCerrar) btnCerrar.addEventListener('click', cerrarSesion);
+  const btnCancelClave = document.getElementById('btnCancelClave');
+  if (btnCancelClave) btnCancelClave.addEventListener('click', () => cerrarModal('modalClave'));
+  const formClave = document.getElementById('formClave');
+  if (formClave) formClave.addEventListener('submit', guardarClavePropia);
 
-  const btnMiPerfil = document.getElementById('btnMiPerfil');
-  if (btnMiPerfil) btnMiPerfil.addEventListener('click', abrirMiPerfil);
-  const btnMiPlan = document.getElementById('btnMiPlan');
-  if (btnMiPlan) btnMiPlan.addEventListener('click', abrirMiPlan);
-  const btnSoporte = document.getElementById('btnSoporte');
-  if (btnSoporte) btnSoporte.addEventListener('click', abrirSoporte);
+  // Menu de perfil en el topbar
+  const btnPerfil = document.getElementById('btnPerfilMenu');
+  const dropdown = document.getElementById('perfilDropdown');
+  if (btnPerfil && dropdown) {
+    btnPerfil.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dropdown.classList.toggle('abierto');
+    });
+    dropdown.addEventListener('click', (e) => {
+      const accion = e.target.dataset && e.target.dataset.accion;
+      if (!accion) return;
+      dropdown.classList.remove('abierto');
+      if (accion === 'perfil') abrirMiPerfil();
+      else if (accion === 'plan') abrirMiPlan();
+      else if (accion === 'soporte') abrirSoporte();
+      else if (accion === 'clave') abrirModalClave(false);
+      else if (accion === 'salir') cerrarSesion();
+    });
+    // Cerrar al hacer clic fuera
+    document.addEventListener('click', (e) => {
+      if (!dropdown.contains(e.target) && !btnPerfil.contains(e.target)) {
+        dropdown.classList.remove('abierto');
+      }
+    });
+  }
+
   const formPerfil = document.getElementById('formMiPerfil');
   if (formPerfil) formPerfil.addEventListener('submit', guardarMiPerfil);
   const formSoporte = document.getElementById('formSoporte');

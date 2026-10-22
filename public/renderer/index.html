@@ -100,11 +100,6 @@
           <span id="infoUsuarioArea" class="texto-area">-</span>
         </div>
         <div class="acciones-usuario">
-          <button id="btnMiPerfil" class="btn-link">Mi perfil</button>
-          <button id="btnMiPlan" class="btn-link">Mi plan y consumo</button>
-          <button id="btnSoporte" class="btn-link">Soporte</button>
-          <a href="/ayuda" target="_blank" class="btn-link">Ayuda</a>
-          <button id="btnCambiarClave" class="btn-link">Cambiar contrasena</button>
           <button id="btnCerrarSesion" class="btn-link btn-link-peligro">Cerrar sesion</button>
         </div>
         <span id="versionApp" class="version">v1.0.0</span>
@@ -120,6 +115,24 @@
           <button id="btnNotificaciones" class="btn btn-ghost" title="Notificaciones" style="position:relative">
             &#128276; <span id="notifBadge" style="position:absolute;top:-6px;right:-6px;background:#ef4444;color:#fff;border-radius:50%;padding:1px 5px;font-size:10px;display:none">0</span>
           </button>
+          <div class="perfil-menu" id="perfilMenu">
+            <button id="btnPerfilMenu" class="btn btn-ghost btn-perfil" title="Mi cuenta">
+              <span class="perfil-avatar" id="perfilAvatar">U</span>
+            </button>
+            <div class="perfil-dropdown" id="perfilDropdown">
+              <div class="perfil-dropdown-head">
+                <strong id="perfilMenuNombre">Usuario</strong>
+                <span id="perfilMenuRol" class="texto-ayuda">-</span>
+              </div>
+              <button class="perfil-opcion" data-accion="perfil">Mi perfil</button>
+              <button class="perfil-opcion" data-accion="plan">Mi plan y consumo</button>
+              <button class="perfil-opcion" data-accion="soporte">Soporte</button>
+              <a class="perfil-opcion" href="/ayuda" target="_blank" rel="noopener">Ayuda</a>
+              <div class="perfil-separador"></div>
+              <button class="perfil-opcion" data-accion="clave">Cambiar contrasena</button>
+              <button class="perfil-opcion peligro" data-accion="salir">Cerrar sesion</button>
+            </div>
+          </div>
           <div class="topbar-actions" id="accionesVista"></div>
         </div>
       </header>

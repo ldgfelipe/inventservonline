@@ -9,8 +9,10 @@ export const runtime = 'nodejs';
 const COLS = 'nombre, rif, giro_actual, plan, pais, moneda, tasa_iva, logo_path';
 const COLS_SIN_TASA = 'nombre, rif, giro_actual, plan, pais, moneda, logo_path';
 const COLS_SIN_LOGO = 'nombre, rif, giro_actual, plan, pais, moneda, tasa_iva';
+const COLS_SIN_EXTRA = 'nombre, rif, giro_actual, plan, pais, moneda';
 const COLS_SIN_PAIS = 'nombre, rif, giro_actual, plan, tasa_iva, logo_path';
 const COLS_BASE = 'nombre, rif, giro_actual, plan';
+const INTENTOS_COLS = [COLS, COLS_SIN_TASA, COLS_SIN_LOGO, COLS_SIN_EXTRA, COLS_SIN_PAIS, COLS_BASE];
 
 function conMoneda(empresa) {
   if (!empresa) return empresa;
@@ -21,7 +23,7 @@ function conMoneda(empresa) {
 async function leer(request) {
   const { perfil, sb } = await sesion(request);
 
-  const intentos = [COLS, COLS_SIN_TASA, COLS_SIN_LOGO, COLS_SIN_PAIS, COLS_BASE];
+  const intentos = INTENTOS_COLS;
   let data = null;
   let err = null;
   for (const cols of intentos) {
@@ -76,15 +78,16 @@ async function actualizar(request) {
 
   if (!Object.keys(cambios).length) return error('No hay cambios que guardar');
 
-  // Intentar guardar con todas las columnas; si falla por una columna
-  // inexistente, reintentar sin ella.
-  const intentosCols = [COLS, COLS_SIN_TASA, COLS_SIN_LOGO, COLS_SIN_PAIS, COLS_BASE];
-  let data = null;
+  // 1) Guardar por intentos, filtrando SOLO los cambios a columnas que
+  //    existan. No se usa .select() aqui para que la relectura no haga
+  //    fallar el guardado (era el bug que descartaba pais/moneda cuando
+  //    faltaba otra columna como tasa_iva o logo_path).
+  const intentosCols = INTENTOS_COLS;
+  let guardado = false;
   let err = null;
   let aviso = null;
 
   for (const cols of intentosCols) {
-    // Filtrar cambios a solo las columnas disponibles en este intento
     const colsDisponibles = cols.split(',').map((c) => c.trim());
     const cambiosFiltrados = {};
     for (const [k, v] of Object.entries(cambios)) {
@@ -92,11 +95,11 @@ async function actualizar(request) {
     }
     if (!Object.keys(cambiosFiltrados).length) continue;
 
-    ({ data, error: err } = await sb.from('empresas')
-      .update(cambiosFiltrados).eq('id', perfil.empresa_id).select(cols).maybeSingle());
+    ({ error: err } = await sb.from('empresas')
+      .update(cambiosFiltrados).eq('id', perfil.empresa_id));
 
     if (!err) {
-      // Avisar si se omitieron columnas
+      guardado = true;
       const omitidas = Object.keys(cambios).filter((k) => !colsDisponibles.includes(k));
       if (omitidas.length) {
         aviso = 'Falta aplicar migraciones en la base de datos (' + omitidas.join(', ') + ').';
@@ -105,8 +108,16 @@ async function actualizar(request) {
     }
   }
 
-  if (err) return error('No se pudo guardar: ' + err.message, 500);
-  if (!data) return error('No se pudo guardar', 500);
+  if (!guardado) return error('No se pudo guardar: ' + (err ? err.message : 'error desconocido'), 500);
+
+  // 2) Releer la empresa con la relectura resiliente (independiente del guardado).
+  let data = null;
+  let errLectura = null;
+  for (const cols of intentosCols) {
+    ({ data, error: errLectura } = await sb.from('empresas').select(cols).eq('id', perfil.empresa_id).maybeSingle());
+    if (!errLectura) break;
+  }
+  if (errLectura) return error('Se guardo, pero no se pudo releer la empresa: ' + errLectura.message, 500);
 
   // Defaults
   if (data.pais === undefined) data.pais = 'VE';
