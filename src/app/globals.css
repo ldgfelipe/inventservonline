@@ -75,6 +75,7 @@ a { color: var(--primario); text-decoration: none; }
   padding-left: 12px;
   line-height: 1.25;
 }
+.landing-header nav .btn { color: #fff; }
 @media (max-width: 640px) {
   .landing-marca { gap: 8px; }
   .landing-logo { height: 40px; }
@@ -111,10 +112,91 @@ a { color: var(--primario); text-decoration: none; }
 
 .landing-footer {
   border-top: 1px solid var(--borde);
-  padding: 26px;
+  padding: 48px 32px 20px;
+  background: #fff;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 32px 40px;
+  max-width: 1180px;
+  margin: 0 auto;
+  width: 100%;
+}
+.landing-footer .footer-marca {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+.landing-footer .footer-logo { height: 46px; width: auto; display: block; }
+.landing-footer .footer-nombre { font-size: 17px; font-weight: 700; letter-spacing: -0.3px; }
+.landing-footer .footer-tagline { font-size: 12.5px; color: var(--suave); line-height: 1.4; margin-top: 2px; }
+.landing-footer h4 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--suave); margin: 0 0 10px; }
+.landing-footer .footer-contacto,
+.landing-footer .footer-mensaje { display: flex; flex-direction: column; gap: 6px; }
+.landing-footer .footer-enlace {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--texto);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+.landing-footer .footer-enlace:hover { color: var(--primario); }
+.landing-footer .footer-icono { font-size: 16px; }
+.landing-footer .footer-mensaje p { margin: 0; font-size: 13.5px; color: var(--suave); line-height: 1.55; }
+.landing-footer .footer-base {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--borde);
+  padding-top: 16px;
   text-align: center;
+  font-size: 12px;
   color: var(--suave);
+}
+
+/* Hero mejorado */
+.hero-badge {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--primario);
   font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+.hero {
+  max-width: 940px;
+  margin: 0 auto;
+  padding: 72px 24px 56px;
+  text-align: center;
+  background: radial-gradient(ellipse at top, rgba(37, 99, 235, 0.06), transparent 60%);
+}
+
+/* Seccion de sistemas personalizados */
+.personalizado {
+  max-width: 940px;
+  margin: 0 auto 72px;
+  padding: 0 24px;
+}
+.personalizado-contenido {
+  background: linear-gradient(135deg, #1e293b, #334155);
+  color: #fff;
+  border-radius: 16px;
+  padding: 40px 36px;
+  text-align: center;
+}
+.personalizado-contenido h2 { margin: 0 0 10px; font-size: 24px; }
+.personalizado-contenido p { margin: 0 0 20px; opacity: 0.85; max-width: 560px; margin-left: auto; margin-right: auto; line-height: 1.6; }
+.personalizado-acciones { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.personalizado-acciones .btn { background: #fff; color: #1e293b; }
+.personalizado-acciones .btn:hover { background: #f1f5f9; }
+.personalizado-acciones .btn-secundario { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.35); }
+.personalizado-acciones .btn-secundario:hover { background: rgba(255,255,255,0.1); }
+
+@media (max-width: 640px) {
+  .personalizado-contenido { padding: 28px 22px; }
+  .personalizado-contenido h2 { font-size: 20px; }
+  .landing-footer { padding: 32px 20px 16px; }
 }
 
 /* Formularios (registro / entrar) */

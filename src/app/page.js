@@ -49,9 +49,10 @@ export default function Landing() {
 
       <main>
         <section className="hero">
+          <div className="hero-badge">14 dias de prueba gratis · Sin tarjeta</div>
           <h1>Inventario que se adapta a tu negocio</h1>
           <p className="lead">
-            Construccion, farmacia o cualquier otro giro. Configura tus propios campos,
+            Construccion, farmacia, abarrotes o cualquier otro giro. Configura tus propios campos,
             controla entradas y salidas, y consulta todo desde cualquier equipo.
           </p>
           <div className="hero-acciones">
@@ -61,7 +62,9 @@ export default function Landing() {
             <Link className="btn" href="/registro">Empieza gratis</Link>
             <Link className="btn btn-secundario" href="/precios">Ver planes y precios</Link>
           </div>
-          <p className="texto-demo">Cuenta demo: <code>demo@abarrotes.com</code> / <code>demo123456</code> · Tienda de abarrotes lista para probar</p>
+          <p className="texto-demo">
+            Cuenta demo: <code>demo@abarrotes.com</code> / <code>demo123456</code> · Tienda de abarrotes lista para probar
+          </p>
         </section>
 
         <section className="beneficios">
@@ -104,10 +107,56 @@ export default function Landing() {
             <p>Importa tu catalogo desde CSV o Excel. Detecta duplicados y te muestra una vista previa antes de aplicar.</p>
           </div>
         </section>
+
+        <section className="personalizado">
+          <div className="personalizado-contenido">
+            <h2>¿Necesitas un sistema a medida?</h2>
+            <p>
+              Si tu negocio requiere modulos especiales, integraciones con otros sistemas
+              o una solucion personalizada, podemos desarrollarla para ti.
+            </p>
+            <div className="personalizado-acciones">
+              <a className="btn" href="https://wa.me/522227328662" target="_blank" rel="noopener">
+                Contactar por WhatsApp
+              </a>
+              <a className="btn btn-secundario" href="mailto:ldgframe@gmail.com">
+                Escribir por correo
+              </a>
+            </div>
+          </div>
+        </section>
       </main>
 
       <footer className="landing-footer">
-        Sistema de Inventarios Online · Funciona en la nube, sin instalar nada
+        <div className="footer-marca">
+          <img src="/logo.png" alt="inventserOnline" className="footer-logo" />
+          <div>
+            <div className="footer-nombre">inventserOnline</div>
+            <div className="footer-tagline">Sistema de Inventarios Online · Funciona en la nube, sin instalar nada</div>
+          </div>
+        </div>
+
+        <div className="footer-contacto">
+          <h4>Contacto</h4>
+          <a href="https://wa.me/522227328662" target="_blank" rel="noopener" className="footer-enlace">
+            <span className="footer-icono">&#128241;</span> WhatsApp: 2227328662
+          </a>
+          <a href="mailto:ldgframe@gmail.com" className="footer-enlace">
+            <span className="footer-icono">&#9993;</span> ldgframe@gmail.com
+          </a>
+        </div>
+
+        <div className="footer-mensaje">
+          <h4>Sistemas personalizados</h4>
+          <p>
+            Si requieres un sistema personalizado, puedes contactarnos para mayor informacion.
+            Desarrollamos soluciones a medida para tu negocio.
+          </p>
+        </div>
+
+        <div className="footer-base">
+          © {new Date().getFullYear()} inventserOnline. Todos los derechos reservados.
+        </div>
       </footer>
     </>
   );
