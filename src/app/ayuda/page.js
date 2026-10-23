@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ARTICULOS, CATEGORIAS, buscarArticulos } from '@/lib/baseConocimiento';
+import Footer from '@/components/Footer';
 
 export default function Ayuda() {
   const [texto, setTexto] = useState('');
@@ -21,6 +22,7 @@ export default function Ayuda() {
   };
 
   return (
+    <>
     <main className="ayuda">
       <header className="ayuda-header">
         <Link href="/" className="ayuda-logo" aria-label="inventserOnline - inicio">
@@ -113,5 +115,7 @@ export default function Ayuda() {
         <p className="muted">inventserOnline · Sistema de inventarios en la nube</p>
       </footer>
     </main>
+    <Footer />
+    </>
   );
 }

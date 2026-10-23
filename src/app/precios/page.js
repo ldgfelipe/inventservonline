@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import Footer from '@/components/Footer';
 
 export default function Precios() {
   const [planes, setPlanes] = useState([]);
@@ -16,6 +17,7 @@ export default function Precios() {
   }, []);
 
   return (
+    <>
     <main className="precios">
       <header className="precios-header">
         <h1>Planes y precios</h1>
@@ -78,5 +80,7 @@ export default function Precios() {
         </div>
       </section>
     </main>
+    <Footer />
+    </>
   );
 }
