@@ -30,6 +30,10 @@ export default function Admin() {
   const [configPagos, setConfigPagos] = useState(null);
   const [configPagosCargando, setConfigPagosCargando] = useState(false);
   const [configPagosMensaje, setConfigPagosMensaje] = useState('');
+  const [usuarios, setUsuarios] = useState([]);
+  const [usuariosCargando, setUsuariosCargando] = useState(false);
+  const [usuarioDetalle, setUsuarioDetalle] = useState(null);
+  const [nuevoUsuario, setNuevoUsuario] = useState({ nombre: '', email: '', password: '', rol: 'admin', area: 'Administracion', super_admin: false });
 
   useEffect(() => {
     fetch('/api/auth/sesion', { headers: auth() })
@@ -52,6 +56,7 @@ export default function Admin() {
     cargarFeatureFlags();
     cargarTickets();
     cargarConfigPagos();
+    cargarUsuariosAdmin();
   }, [usuario]);
 
   function auth() {
@@ -260,6 +265,62 @@ export default function Admin() {
     setConfigPagosMensaje(j.mensaje || `${pasarela} OK`);
   }
 
+  async function cargarUsuariosAdmin() {
+    setUsuariosCargando(true);
+    try {
+      const r = await fetch('/api/admin/usuarios', { headers: auth() });
+      const j = await r.json();
+      if (r.ok) setUsuarios(j.usuarios || []);
+      else setError(j.error || 'No se pudieron cargar los usuarios');
+    } finally { setUsuariosCargando(false); }
+  }
+
+  async function crearUsuarioAdmin(e) {
+    e.preventDefault();
+    setError('');
+    setMensaje('');
+    const r = await fetch('/api/admin/usuarios', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...auth() },
+      body: JSON.stringify(nuevoUsuario),
+    });
+    const j = await r.json();
+    if (!r.ok) return setError(j.error || 'No se pudo crear el usuario');
+    setMensaje('Usuario creado correctamente');
+    setNuevoUsuario({ nombre: '', email: '', password: '', rol: 'admin', area: 'Administracion', super_admin: false });
+    cargarUsuariosAdmin();
+  }
+
+  async function actualizarUsuarioAdmin(id, cambios) {
+    setError('');
+    setMensaje('');
+    const r = await fetch('/api/admin/usuarios', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...auth() },
+      body: JSON.stringify({ id, ...cambios }),
+    });
+    const j = await r.json();
+    if (!r.ok) return setError(j.error || 'No se pudo actualizar el usuario');
+    setMensaje('Usuario actualizado');
+    cargarUsuariosAdmin();
+  }
+
+  async function verUsuario(id) {
+    setUsuarioDetalle(null);
+    try {
+      const r = await fetch('/api/admin/usuarios/' + id, { headers: auth() });
+      const j = await r.json();
+      if (r.ok) setUsuarioDetalle(j);
+      else setError(j.error || 'No se pudo cargar el detalle');
+    } catch (err) { setError(err.message); }
+  }
+
+  async function resetPasswordUsuario(id) {
+    const pass = prompt('Nueva contrasena para el usuario (minimo 6 caracteres):');
+    if (!pass) return;
+    await actualizarUsuarioAdmin(id, { password: pass });
+  }
+
   async function guardarConfigPagos(e) {
     e.preventDefault();
     setError('');
@@ -358,6 +419,7 @@ export default function Admin() {
       <nav className="admin-tabs">
         {[
           ['general', 'General'],
+          ['usuarios', 'Usuarios'],
           ['pagos', 'Pagos'],
           ['marketing', 'Marketing'],
           ['soporte', 'Soporte'],
@@ -599,6 +661,134 @@ export default function Admin() {
             {empresas.length === 0 && <tr><td colSpan={9} className="vacio">Sin empresas</td></tr>}
           </tbody>
         </table>
+      </section>
+
+      <section className="panel-admin sec-usuarios">
+        <h2>Usuarios de la plataforma</h2>
+        <p className="ayuda">
+          Administra a todos los usuarios registrados: crea administradores, bloquea/desbloquea,
+          cambia roles y consulta su desempeno y espacio usado.
+        </p>
+        <button className="btn btn-secundario" onClick={cargarUsuariosAdmin} style={{ marginBottom: 12 }}>
+          {usuariosCargando ? 'Cargando...' : 'Actualizar'}
+        </button>
+
+        <form onSubmit={crearUsuarioAdmin} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8, marginBottom: 16, alignItems: 'end' }}>
+          <div className="campo" style={{ marginBottom: 0 }}>
+            <label>Nombre</label>
+            <input value={nuevoUsuario.nombre} onChange={(e) => setNuevoUsuario((u) => ({ ...u, nombre: e.target.value }))} required />
+          </div>
+          <div className="campo" style={{ marginBottom: 0 }}>
+            <label>Email</label>
+            <input type="email" value={nuevoUsuario.email} onChange={(e) => setNuevoUsuario((u) => ({ ...u, email: e.target.value }))} required />
+          </div>
+          <div className="campo" style={{ marginBottom: 0 }}>
+            <label>Contrasena</label>
+            <input type="password" value={nuevoUsuario.password} onChange={(e) => setNuevoUsuario((u) => ({ ...u, password: e.target.value }))} required />
+          </div>
+          <div className="campo" style={{ marginBottom: 0 }}>
+            <label>Rol</label>
+            <select value={nuevoUsuario.rol} onChange={(e) => setNuevoUsuario((u) => ({ ...u, rol: e.target.value }))}>
+              <option value="admin">Administrador</option>
+              <option value="supervisor">Supervisor</option>
+              <option value="almacenista">Almacenista</option>
+              <option value="consultor">Consultor</option>
+            </select>
+          </div>
+          <div className="campo" style={{ marginBottom: 0 }}>
+            <label>Area</label>
+            <select value={nuevoUsuario.area} onChange={(e) => setNuevoUsuario((u) => ({ ...u, area: e.target.value }))}>
+              <option value="Administracion">Administracion</option>
+              <option value="Almacen">Almacen</option>
+              <option value="Compras">Compras</option>
+              <option value="Ventas">Ventas</option>
+              <option value="Contabilidad">Contabilidad</option>
+            </select>
+          </div>
+          <label className="check-label" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <input type="checkbox" checked={nuevoUsuario.super_admin} onChange={(e) => setNuevoUsuario((u) => ({ ...u, super_admin: e.target.checked }))} />
+            Super-admin
+          </label>
+          <button type="submit" className="btn">Crear usuario</button>
+        </form>
+
+        <table className="tabla-admin">
+          <thead>
+            <tr>
+              <th>Nombre</th><th>Email</th><th>Empresa</th><th>Plan</th><th>Rol</th><th>Super</th>
+              <th>Prods</th><th>Movs</th><th>Ventas</th><th>Archivos</th><th>Estado</th><th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {usuarios.map((u) => (
+              <tr key={u.id}>
+                <td>{u.nombre}</td>
+                <td style={{ fontSize: 12 }}>{u.email || '-'}</td>
+                <td style={{ fontSize: 12 }}>{u.empresa || '-'}</td>
+                <td style={{ fontSize: 12 }}>{u.plan || '-'}</td>
+                <td style={{ fontSize: 12 }}>{u.rol}</td>
+                <td>{u.super_admin ? 'Si' : 'No'}</td>
+                <td>{u.productos}</td>
+                <td>{u.movimientos}</td>
+                <td>{u.ventas}</td>
+                <td>{u.archivos}</td>
+                <td><span className={`estado ${u.activo ? 'verde' : 'rojo'}`}>{u.activo ? 'Activo' : 'Bloqueado'}</span></td>
+                <td>
+                  <button className="btn-mini" onClick={() => verUsuario(u.id)}>Detalle</button>
+                  <button className="btn-mini" onClick={() => actualizarUsuarioAdmin(u.id, { activo: !u.activo })}>
+                    {u.activo ? 'Bloquear' : 'Desbloquear'}
+                  </button>
+                  <button className="btn-mini" onClick={() => resetPasswordUsuario(u.id)}>Clave</button>
+                  <button className="btn-mini" onClick={() => actualizarUsuarioAdmin(u.id, { super_admin: !u.super_admin })}>
+                    {u.super_admin ? 'Quitar super' : 'Hacer super'}
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {usuarios.length === 0 && <tr><td colSpan={12} className="vacio">Sin usuarios</td></tr>}
+          </tbody>
+        </table>
+
+        {usuarioDetalle && (
+          <div style={{ marginTop: 16, background: '#f8fafc', border: '1px solid var(--borde)', borderRadius: 10, padding: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ fontSize: 15, margin: 0 }}>Detalle: {usuarioDetalle.usuario.nombre}</h3>
+              <button className="btn-mini" onClick={() => setUsuarioDetalle(null)}>Cerrar</button>
+            </div>
+            <p style={{ fontSize: 13, marginTop: 6 }}>
+              Email: {usuarioDetalle.usuario.email || '-'} · Rol: {usuarioDetalle.usuario.rol} · Area: {usuarioDetalle.usuario.area} ·{' '}
+              {usuarioDetalle.usuario.super_admin ? 'Super-admin' : 'Usuario de empresa'} ·{' '}
+              {usuarioDetalle.usuario.activo ? 'Activo' : 'Bloqueado'}
+            </p>
+            <p style={{ fontSize: 13 }}>
+              Empresa: {usuarioDetalle.empresa ? usuarioDetalle.empresa.nombre : '-'} · Plan: {usuarioDetalle.empresa ? usuarioDetalle.empresa.plan : '-'} ·{' '}
+              Pais: {usuarioDetalle.empresa ? usuarioDetalle.empresa.pais : '-'} · Moneda: {usuarioDetalle.empresa ? usuarioDetalle.empresa.moneda : '-'}
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8, margin: '10px 0' }}>
+              <div className="adopcion-card"><h4>Productos</h4><div className="valor">{usuarioDetalle.uso.productos}</div></div>
+              <div className="adopcion-card"><h4>Movimientos</h4><div className="valor">{usuarioDetalle.uso.movimientos}</div></div>
+              <div className="adopcion-card"><h4>Ventas</h4><div className="valor">{usuarioDetalle.uso.ventas}</div></div>
+              <div className="adopcion-card"><h4>Usuarios empresa</h4><div className="valor">{usuarioDetalle.uso.usuarios}</div></div>
+              <div className="adopcion-card"><h4>Archivos</h4><div className="valor">{usuarioDetalle.uso.adjuntos}</div></div>
+              <div className="adopcion-card"><h4>Storage</h4><div className="valor">{usuarioDetalle.uso.storage_mb} MB</div></div>
+            </div>
+            <h4 style={{ fontSize: 13, margin: '10px 0 4px' }}>Ultima actividad</h4>
+            <table className="tabla-admin">
+              <thead><tr><th>Fecha</th><th>Accion</th><th>Entidad</th><th>Detalle</th></tr></thead>
+              <tbody>
+                {(usuarioDetalle.actividad || []).map((a, i) => (
+                  <tr key={i}>
+                    <td style={{ fontSize: 12 }}>{a.fecha ? new Date(a.fecha).toLocaleString('es-VE') : '-'}</td>
+                    <td style={{ fontSize: 12 }}>{a.accion}</td>
+                    <td style={{ fontSize: 12 }}>{a.entidad || '-'}</td>
+                    <td style={{ fontSize: 12 }}>{a.detalle || '-'}</td>
+                  </tr>
+                ))}
+                {(usuarioDetalle.actividad || []).length === 0 && <tr><td colSpan={4} className="vacio">Sin actividad registrada</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       <section className="panel-admin sec-pagos">

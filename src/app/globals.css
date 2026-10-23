@@ -521,3 +521,5 @@ a { color: var(--primario); text-decoration: none; }
 .admin[data-tab="sistema"] .panel-admin:not(.sec-sistema) {
   display: none;
 }
+
+.admin[data-tab="usuarios"] .panel-admin:not(.sec-usuarios) { display: none; }
