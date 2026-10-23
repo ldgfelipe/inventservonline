@@ -56,4 +56,23 @@ export async function usoStorage(empresaId) {
   return total;
 }
 
+/* Calcula el uso TOTAL de storage de toda la plataforma (en bytes). */
+export async function usoStorageTotal() {
+  const sb = admin();
+  let total = 0;
+  async function recorrer(pref) {
+    const { data, error } = await sb.storage.from(BUCKET).list(pref, { limit: 1000 });
+    if (error || !data) return;
+    for (const item of data) {
+      if (item.id) {
+        total += item.metadata ? (item.metadata.size || 0) : 0;
+      } else {
+        await recorrer(`${pref}/${item.name}`);
+      }
+    }
+  }
+  await recorrer('empresas');
+  return total;
+}
+
 export { BUCKET };

@@ -331,6 +331,54 @@ export default function Admin() {
     }
   }
 
+  async function exportarUsuarios(lista) {
+    setError('');
+    setMensaje('');
+    const filas = lista.map((u) => ({
+      nombre: u.nombre,
+      email: u.email || '',
+      empresa: u.empresa || '',
+      plan: u.plan || '',
+      rol: u.rol,
+      super_admin: u.super_admin ? 'Si' : 'No',
+      productos: u.productos,
+      movimientos: u.movimientos,
+      ventas: u.ventas,
+      archivos: u.archivos,
+      estado: u.activo ? 'Activo' : 'Bloqueado',
+    }));
+    const columnas = [
+      { campo: 'nombre', titulo: 'Nombre', ancho: 24 },
+      { campo: 'email', titulo: 'Email', ancho: 28 },
+      { campo: 'empresa', titulo: 'Empresa', ancho: 24 },
+      { campo: 'plan', titulo: 'Plan', ancho: 10 },
+      { campo: 'rol', titulo: 'Rol', ancho: 12 },
+      { campo: 'super_admin', titulo: 'Super-admin', ancho: 12 },
+      { campo: 'productos', titulo: 'Productos', ancho: 10 },
+      { campo: 'movimientos', titulo: 'Movimientos', ancho: 12 },
+      { campo: 'ventas', titulo: 'Ventas', ancho: 10 },
+      { campo: 'archivos', titulo: 'Archivos', ancho: 10 },
+      { campo: 'estado', titulo: 'Estado', ancho: 12 },
+    ];
+    const r = await fetch('/api/export', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...auth() },
+      body: JSON.stringify({ filas, columnas, nombreArchivo: 'usuarios_plataforma.xlsx', hoja: 'Usuarios' }),
+    });
+    const j = await r.json();
+    if (!r.ok || !j.ok) return setError(j.error || 'No se pudo exportar');
+    const binario = atob(j.contenido);
+    const bytes = new Uint8Array(binario.length);
+    for (let i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i);
+    const url = URL.createObjectURL(new Blob([bytes], { type: j.tipo }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = j.archivo || 'usuarios_plataforma.xlsx';
+    a.click();
+    URL.revokeObjectURL(url);
+    setMensaje('Exportacion generada');
+  }
+
   async function guardarConfigPagos(e) {
     e.preventDefault();
     setError('');
@@ -633,6 +681,7 @@ export default function Admin() {
             <div className="adopcion-card"><h4>Ventas totales</h4><div className="valor">{dashboard.total_ventas}</div></div>
             <div className="adopcion-card"><h4>Pagos pendientes</h4><div className="valor">{dashboard.pagos_pendientes}</div></div>
             <div className="adopcion-card"><h4>Tasa conversion</h4><div className="valor">{dashboard.tasa_conversion}%</div></div>
+            <div className="adopcion-card"><h4>Storage total</h4><div className="valor">{dashboard.storage_total_mb} MB</div></div>
           </div>
         )}
       </section>
@@ -694,6 +743,9 @@ export default function Admin() {
         </p>
         <button className="btn btn-secundario" onClick={cargarUsuariosAdmin} style={{ marginBottom: 12 }}>
           {usuariosCargando ? 'Cargando...' : 'Actualizar'}
+        </button>
+        <button className="btn btn-secundario" onClick={() => exportarUsuarios(usuariosFiltrados)} style={{ marginBottom: 12, marginLeft: 8 }}>
+          Exportar Excel
         </button>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8, marginBottom: 12 }}>

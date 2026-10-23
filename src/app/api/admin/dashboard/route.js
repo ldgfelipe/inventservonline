@@ -1,5 +1,6 @@
 import { error, sesion, manejar } from '@/lib/auth';
 import { admin } from '@/lib/supabase';
+import { usoStorageTotal } from '@/lib/storage';
 
 export const runtime = 'nodejs';
 
@@ -74,6 +75,10 @@ async function metricas(request) {
   const pagadasCount = porPlan.basic + porPlan.pro + porPlan.empresa;
   const tasaConversion = freemiumCount > 0 ? Math.round((pagadasCount / (freemiumCount + pagadasCount)) * 100) : 0;
 
+  // Uso total de storage de la plataforma (best-effort)
+  let storageTotalBytes = 0;
+  try { storageTotalBytes = await usoStorageTotal(); } catch { storageTotalBytes = 0; }
+
   return Response.json({
     ok: true,
     metricas: {
@@ -91,6 +96,8 @@ async function metricas(request) {
       trafico: { visitas: totalVisitas || 0, registros: totalRegistros || 0 },
       empresas_por_mes: empresasPorMes,
       tasa_conversion: tasaConversion,
+      storage_total_bytes: storageTotalBytes,
+      storage_total_mb: Math.round((storageTotalBytes / 1024 / 1024) * 100) / 100,
     },
   });
 }
