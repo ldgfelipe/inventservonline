@@ -37,11 +37,25 @@ async function pedir(ruta, opciones = {}) {
   if (opciones.json !== undefined) cabeceras['Content-Type'] = 'application/json';
   if (t) cabeceras.Authorization = 'Bearer ' + t;
 
-  const respuesta = await fetch(ruta, {
-    method: opciones.metodo || 'GET',
-    headers: cabeceras,
-    body: opciones.json !== undefined ? JSON.stringify(opciones.json) : opciones.cuerpo,
-  });
+  // Corta peticiones que se queden colgadas (p. ej. una pasarela lenta).
+  const ctrl = new AbortController();
+  const temporizador = setTimeout(() => ctrl.abort(), 25000);
+  let respuesta;
+  try {
+    respuesta = await fetch(ruta, {
+      method: opciones.metodo || 'GET',
+      headers: cabeceras,
+      body: opciones.json !== undefined ? JSON.stringify(opciones.json) : opciones.cuerpo,
+      signal: ctrl.signal,
+    });
+  } catch (err) {
+    if (err && err.name === 'AbortError') {
+      throw new Error('El servidor tardo demasiado en responder. Intenta de nuevo.');
+    }
+    throw err;
+  } finally {
+    clearTimeout(temporizador);
+  }
 
   if (respuesta.status === 401) {
     borrarSesion();
@@ -203,6 +217,8 @@ window.api = {
   },
   pagos: {
     checkout: (pasarela, payload) => pedir('/api/pagos/checkout', { metodo: 'POST', json: { ...payload, pasarela } }),
+    confirmar: (session_id) => pedir('/api/pagos/confirmar', { metodo: 'POST', json: { session_id } }),
+    metodos: () => pedir('/api/pagos/metodos').then((r) => r.metodos || {}),
     transferencia: (payload) => pedir('/api/pagos/transferencia', { metodo: 'POST', json: payload }),
     transferenciaDatos: () => pedir('/api/pagos/transferencia-datos'),
     historial: () => pedir('/api/pagos/historial').then((r) => r.pagos || []),

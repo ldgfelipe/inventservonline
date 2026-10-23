@@ -1,6 +1,7 @@
 import { error, sesion, exigir, auditar, manejar } from '@/lib/auth';
 import { precioDe, registrarPago, cicloValido, esquemaFaltante } from '@/lib/pagos';
 import { planValido } from '@/lib/planes';
+import { leerConfigPagos } from '@/lib/pagos-config';
 
 export const runtime = 'nodejs';
 
@@ -20,15 +21,17 @@ async function crear(request) {
 
   if (!cicloValido(ciclo)) return error('Ciclo invalido');
   if (!planValido(plan) || plan === 'free') {
-    return error('Elige un plan de pago valido (Basico o Pro)');
+    return error('Elige un plan de pago valido (Basico, Profesional o Empresa)');
   }
   if (!comprobanteUrl || !/^https?:\/\//i.test(comprobanteUrl)) {
     return error('Adjunta la URL del comprobante (debe empezar por http)');
   }
 
-  const { planValido } = await import('@/lib/planes');
-  if (!planValido(plan)) return error('Plan invalido');
-  if (plan === 'free') return error('El plan Gratis no requiere pago');
+  // El super-admin puede deshabilitar la transferencia bancaria.
+  const config = await leerConfigPagos();
+  if (config.transferencia_activa === false) {
+    return error('La transferencia bancaria no esta habilitada', 403);
+  }
 
   const { monto, moneda } = precioDe(plan, ciclo);
 

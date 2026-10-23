@@ -423,6 +423,9 @@ export default function Admin() {
     // Secretos (solo si vienen con valor)
     ['stripe_secret_key', 'stripe_webhook_secret', 'mercadopago_access_token', 'mercadopago_webhook_secret', 'paypal_client_id', 'paypal_secret', 'paypal_webhook_id']
       .forEach((k) => { if (form.elements[k] && form.elements[k].value.trim()) payload[k] = form.elements[k].value.trim(); });
+    // Interruptores de medios de pago
+    ['stripe_activo', 'mercadopago_activo', 'paypal_activo', 'transferencia_activa']
+      .forEach((k) => { if (form.elements[k]) payload[k] = form.elements[k].checked; });
 
     const r = await fetch('/api/admin/config-pagos', {
       method: 'POST',
@@ -431,7 +434,7 @@ export default function Admin() {
     });
     const j = await r.json();
     if (!r.ok) return setError(j.error || 'No se pudo guardar');
-    setConfigPagosMensaje('Configuracion de pagos guardada correctamente');
+    setConfigPagosMensaje(j.aviso || 'Configuracion de pagos guardada correctamente');
     form.reset();
     cargarConfigPagos();
   }
@@ -1040,10 +1043,23 @@ export default function Admin() {
         <p className="ayuda">
           Claves de las pasarelas y datos de transferencia bancaria. Los campos secretos
           solo se actualizan si escribes un valor nuevo. Deja vacio para conservar el actual.
+          Desactiva un medio para ocultarlo a los usuarios y bloquear pagos nuevos por esa via.
         </p>
         {configPagosCargando && <p className="ayuda">Cargando...</p>}
-        <form onSubmit={guardarConfigPagos}>
+        <form
+          key={`pagos-${configPagos?.stripe_activo}-${configPagos?.mercadopago_activo}-${configPagos?.paypal_activo}-${configPagos?.transferencia_activa}`}
+          onSubmit={guardarConfigPagos}
+        >
           <h3 style={{ fontSize: 14, marginTop: 8 }}>Stripe</h3>
+          <label className="check-label" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <input type="checkbox" name="stripe_activo" defaultChecked={configPagos?.stripe_activo !== false} />
+            Habilitar Stripe como medio de pago
+          </label>
+          {configPagos?.stripe_activo !== false && !configPagos?.tiene_stripe && (
+            <p className="ayuda" style={{ color: '#b45309', marginBottom: 8 }}>
+              Habilitado, pero sin Secret key: no se mostrara a los usuarios hasta guardarla.
+            </p>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 10 }}>
             <div className="campo">
               <label>Secret key {configPagos?.tiene_stripe ? '(configurada)' : ''}</label>
@@ -1059,6 +1075,15 @@ export default function Admin() {
           </button>
 
           <h3 style={{ fontSize: 14, marginTop: 8 }}>Mercado Pago</h3>
+          <label className="check-label" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <input type="checkbox" name="mercadopago_activo" defaultChecked={configPagos?.mercadopago_activo !== false} />
+            Habilitar Mercado Pago como medio de pago
+          </label>
+          {configPagos?.mercadopago_activo !== false && !configPagos?.tiene_mercadopago && (
+            <p className="ayuda" style={{ color: '#b45309', marginBottom: 8 }}>
+              Habilitado, pero sin Access token: no se mostrara a los usuarios hasta guardarlo.
+            </p>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 10 }}>
             <div className="campo">
               <label>Access token {configPagos?.tiene_mercadopago ? '(configurado)' : ''}</label>
@@ -1074,6 +1099,15 @@ export default function Admin() {
           </button>
 
           <h3 style={{ fontSize: 14, marginTop: 8 }}>PayPal</h3>
+          <label className="check-label" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <input type="checkbox" name="paypal_activo" defaultChecked={configPagos?.paypal_activo !== false} />
+            Habilitar PayPal como medio de pago
+          </label>
+          {configPagos?.paypal_activo !== false && !configPagos?.tiene_paypal && (
+            <p className="ayuda" style={{ color: '#b45309', marginBottom: 8 }}>
+              Habilitado, pero sin Client ID/Secret: no se mostrara a los usuarios hasta guardarlos.
+            </p>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
             <div className="campo">
               <label>Client ID {configPagos?.tiene_paypal ? '(configurado)' : ''}</label>
@@ -1100,6 +1134,15 @@ export default function Admin() {
           </button>
 
           <h3 style={{ fontSize: 14, marginTop: 8 }}>Transferencia bancaria</h3>
+          <label className="check-label" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <input type="checkbox" name="transferencia_activa" defaultChecked={configPagos?.transferencia_activa !== false} />
+            Habilitar transferencia bancaria como medio de pago
+          </label>
+          {configPagos?.transferencia_activa !== false && !configPagos?.transferencia_banco && !configPagos?.transferencia_cuenta && (
+            <p className="ayuda" style={{ color: '#b45309', marginBottom: 8 }}>
+              Habilitada, pero sin banco/cuenta: no se mostrara a los usuarios hasta completar los datos.
+            </p>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
             <div className="campo">
               <label>Banco</label>

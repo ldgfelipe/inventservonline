@@ -26,6 +26,10 @@ async function leer(request) {
 
   const cfg = data || {};
   const salida = {
+    stripe_activo: cfg.stripe_activo !== false,
+    mercadopago_activo: cfg.mercadopago_activo !== false,
+    paypal_activo: cfg.paypal_activo !== false,
+    transferencia_activa: cfg.transferencia_activa !== false,
     paypal_mode: cfg.paypal_mode || 'sandbox',
     transferencia_banco: cfg.transferencia_banco || '',
     transferencia_cuenta: cfg.transferencia_cuenta || '',
@@ -63,6 +67,10 @@ async function guardar(request) {
   for (const k of noSecretos) {
     if (cuerpo[k] !== undefined) cambios[k] = cuerpo[k] || (k === 'paypal_mode' ? 'sandbox' : '');
   }
+  // Interruptores de metodos de pago (booleanos)
+  for (const k of ['stripe_activo', 'mercadopago_activo', 'paypal_activo', 'transferencia_activa']) {
+    if (cuerpo[k] !== undefined) cambios[k] = cuerpo[k] === true || cuerpo[k] === 'true';
+  }
   if (cambios.paypal_mode && !['sandbox', 'live'].includes(cambios.paypal_mode)) {
     return error('paypal_mode debe ser sandbox o live');
   }
@@ -76,17 +84,32 @@ async function guardar(request) {
     }
   }
 
+  const BOOLEANOS_METODOS = ['stripe_activo', 'mercadopago_activo', 'paypal_activo', 'transferencia_activa'];
+
   const { data: existe } = await sb.from('configuracion_pagos').select('id').eq('id', 1).maybeSingle();
-  if (existe) {
-    const { error: err } = await sb.from('configuracion_pagos').update(cambios).eq('id', 1);
-    if (err) return error('No se pudo guardar: ' + err.message, 500);
-  } else {
-    const { error: err } = await sb.from('configuracion_pagos').insert({ id: 1, ...cambios });
-    if (err) return error('No se pudo guardar: ' + err.message, 500);
+
+  async function escribir(fila) {
+    if (existe) return sb.from('configuracion_pagos').update(fila).eq('id', 1);
+    return sb.from('configuracion_pagos').insert({ id: 1, ...fila });
   }
 
+  let aviso = null;
+  let { error: err } = await escribir(cambios);
+
+  // Si falta la migracion 035, reintenta guardando todo lo demas.
+  if (err && /stripe_activo|mercadopago_activo|paypal_activo|transferencia_activa|schema cache/i.test(err.message)) {
+    const sinBooleanos = { ...cambios };
+    for (const k of BOOLEANOS_METODOS) delete sinBooleanos[k];
+    if (Object.keys(sinBooleanos).length > 1) {
+      ({ error: err } = await escribir(sinBooleanos));
+      if (!err) aviso = 'Se guardo lo demas. Falta aplicar la migracion 035 para los interruptores de medios de pago.';
+    }
+  }
+
+  if (err) return error('No se pudo guardar: ' + err.message, 500);
+
   invalidarCacheConfigPagos();
-  return Response.json({ ok: true });
+  return Response.json({ ok: true, aviso });
 }
 
 export const GET = manejar(leer);

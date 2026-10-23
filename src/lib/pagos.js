@@ -154,10 +154,30 @@ function mesesDePago(pago) {
 }
 
 /* Confirma un pago (aprobado) y activa/extiende la suscripcion.
-   Se usa desde los webhooks y desde la aprobacion manual del super-admin. */
+   Se usa desde los webhooks, desde la vuelta de Stripe y desde la
+   aprobacion manual del super-admin.
+   Es idempotente: si el pago ya estaba aprobado, no vuelve a extender
+   la suscripcion (evita doble activacion webhook + retorno). */
 export async function confirmarPago(sb, { pago, aprobadoPor = null, referencia = null, meses = null }) {
   if (!pago) return null;
-  await marcarPago(sb, pago.id, { estado: 'aprobado', aprobadoPor, referencia });
+
+  const cambios = { estado: 'aprobado' };
+  if (aprobadoPor) {
+    cambios.aprobado_por = aprobadoPor;
+    cambios.aprobado_at = new Date().toISOString();
+  }
+  if (referencia) cambios.referencia_externa = referencia;
+
+  // Solo actualiza si aun no estaba aprobado. Si no devuelve filas,
+  // otro proceso (webhook o retorno) ya lo confirmo.
+  const { data: filas, error } = await sb.from('pagos_saas_historial')
+    .update(cambios)
+    .eq('id', pago.id)
+    .neq('estado', 'aprobado')
+    .select('id');
+  if (error) throw new Error(error.message);
+  if (!filas || filas.length === 0) return null;
+
   return activarSuscripcion(sb, {
     empresaId: pago.empresa_id,
     plan: pago.plan,

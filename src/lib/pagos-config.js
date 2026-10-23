@@ -16,6 +16,10 @@ function env(nombre) {
 
 function filaVacia() {
   return {
+    stripe_activo: true,
+    mercadopago_activo: true,
+    paypal_activo: true,
+    transferencia_activa: true,
     stripe_secret_key: '',
     stripe_webhook_secret: '',
     mercadopago_access_token: '',
@@ -80,3 +84,51 @@ export function datosTransferencia(config) {
     qr_url: config.transferencia_qr_url || '',
   };
 }
+
+/* ------------------------------------------------------------
+   Metodos de pago: habilitado por el admin + configurado
+   ------------------------------------------------------------ */
+
+export const METODOS_PAGO = ['stripe', 'mercadopago', 'paypal', 'transferencia'];
+
+/* El metodo tiene credenciales/datos suficientes para cobrar. */
+export function metodoConfigurado(metodo, config = {}) {
+  if (metodo === 'stripe') return !!config.stripe_secret_key;
+  if (metodo === 'mercadopago') return !!config.mercadopago_access_token;
+  if (metodo === 'paypal') return !!(config.paypal_client_id && config.paypal_secret);
+  if (metodo === 'transferencia') return !!(config.transferencia_banco || config.transferencia_cuenta);
+  return false;
+}
+
+/* El admin lo activo y ademas hay datos para cobrar. */
+export function metodoHabilitado(metodo, config = {}) {
+  const activo = {
+    stripe: config.stripe_activo !== false,
+    mercadopago: config.mercadopago_activo !== false,
+    paypal: config.paypal_activo !== false,
+    transferencia: config.transferencia_activa !== false,
+  }[metodo];
+  if (!activo) return false;
+  return metodoConfigurado(metodo, config);
+}
+
+/* Estado de todos los metodos para mostrarlo en el panel del cliente
+   o en el panel de administracion. */
+export function metodosDisponibles(config = {}) {
+  const salida = {};
+  for (const m of METODOS_PAGO) {
+    const activo = {
+      stripe: config.stripe_activo !== false,
+      mercadopago: config.mercadopago_activo !== false,
+      paypal: config.paypal_activo !== false,
+      transferencia: config.transferencia_activa !== false,
+    }[m];
+    salida[m] = {
+      activo,
+      configurado: metodoConfigurado(m, config),
+      disponible: activo && metodoConfigurado(m, config),
+    };
+  }
+  return salida;
+}
+

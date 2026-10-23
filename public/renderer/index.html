@@ -568,12 +568,13 @@
                 <option value="anual">Anual</option>
               </select>
             </div>
-            <div class="campo-en-linea" style="margin-top:8px;flex-wrap:wrap">
-              <button class="btn btn-primary" onclick="iniciarPago('stripe')">Pagar con Stripe</button>
-              <button class="btn btn-primary" onclick="iniciarPago('mercadopago')">Pagar con Mercado Pago</button>
-              <button class="btn btn-primary" onclick="iniciarPago('paypal')">Pagar con PayPal</button>
-              <button class="btn btn-secondary" onclick="abrirTransferencia()">Transferencia bancaria</button>
+            <div class="campo-en-linea" style="margin-top:8px;flex-wrap:wrap" id="pagoBotones">
+              <button id="btnPagoStripe" class="btn btn-primary" onclick="iniciarPago('stripe', this)">Pagar con Stripe</button>
+              <button id="btnPagoMercadopago" class="btn btn-primary" onclick="iniciarPago('mercadopago', this)">Pagar con Mercado Pago</button>
+              <button id="btnPagoPaypal" class="btn btn-primary" onclick="iniciarPago('paypal', this)">Pagar con PayPal</button>
+              <button id="btnPagoTransferencia" class="btn btn-secondary" onclick="abrirTransferencia(this)">Transferencia bancaria</button>
             </div>
+            <p id="metodosPagoAviso" class="texto-ayuda" style="margin-top:6px"></p>
             <div id="pagoResultado" class="consola" style="margin-top:8px;display:none"></div>
           </div>
           </div><!-- /config plan -->

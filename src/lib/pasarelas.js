@@ -29,14 +29,33 @@ function appUrl() {
     .replace(/\/+$/, '');
 }
 
-function urlRetorno(estado) {
-  return `${appUrl()}/renderer?pago=${estado}`;
+function urlRetorno(estado, extra = '') {
+  return `${appUrl()}/panel?pago=${estado}${extra}`;
 }
 
-/* Indica si la pasarela tiene credenciales completas. */
+/* Fetch con timeout: evita que un boton de pago se quede "cargando"
+   para siempre si la pasarela no responde. */
+const TIMEOUT_MS = 8000;
+async function fetchConTimeout(url, opciones = {}, ms = TIMEOUT_MS) {
+  const ctrl = new AbortController();
+  const temporizador = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, { ...opciones, signal: ctrl.signal });
+  } catch (err) {
+    if (err && err.name === 'AbortError') {
+      throw new Error('La pasarela no respondio a tiempo. Intenta de nuevo.');
+    }
+    throw err;
+  } finally {
+    clearTimeout(temporizador);
+  }
+}
+
+/* Indica si la pasarela tiene credenciales para INICIAR un cobro.
+   El webhook secret es aparte: solo se usa para confirmar el pago. */
 export function configurada(pasarela, config = {}) {
-  if (pasarela === 'stripe') return !!(config.stripe_secret_key && config.stripe_webhook_secret);
-  if (pasarela === 'mercadopago') return !!(config.mercadopago_access_token && config.mercadopago_webhook_secret);
+  if (pasarela === 'stripe') return !!config.stripe_secret_key;
+  if (pasarela === 'mercadopago') return !!config.mercadopago_access_token;
   if (pasarela === 'paypal') return !!(config.paypal_client_id && config.paypal_secret);
   return false;
 }
@@ -54,11 +73,13 @@ export async function crearCheckout(pasarela, datos, config = {}) {
    ------------------------------------------------------------ */
 async function checkoutStripe({ pagoId, empresaId, plan, planNombre, monto, moneda, meses }, config) {
   const key = config.stripe_secret_key;
-  if (!key || !config.stripe_webhook_secret) throw new PasarelaNoConfigurada('stripe');
+  if (!key) throw new PasarelaNoConfigurada('stripe');
 
   const body = new URLSearchParams();
   body.set('mode', 'payment');
-  body.set('success_url', urlRetorno('ok'));
+  // Stripe reemplaza {CHECKOUT_SESSION_ID} al volver. Asi el panel puede
+  // confirmar el pago aunque el webhook tarde o no este configurado.
+  body.set('success_url', urlRetorno('ok', '&session_id={CHECKOUT_SESSION_ID}'));
   body.set('cancel_url', urlRetorno('cancelada'));
   body.set('client_reference_id', pagoId);
   body.set('metadata[pago_id]', pagoId);
@@ -70,7 +91,7 @@ async function checkoutStripe({ pagoId, empresaId, plan, planNombre, monto, mone
   body.set('line_items[0][price_data][unit_amount]', String(Math.round(monto * 100)));
   body.set('line_items[0][price_data][product_data][name]', `Plan ${planNombre}`);
 
-  const r = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+  const r = await fetchConTimeout('https://api.stripe.com/v1/checkout/sessions', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${key}`,
@@ -79,7 +100,12 @@ async function checkoutStripe({ pagoId, empresaId, plan, planNombre, monto, mone
     body,
   });
   const json = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(json?.error?.message || 'Stripe rechazo la sesion de pago');
+  if (!r.ok) {
+    const msg = json?.error?.message || 'Stripe rechazo la sesion de pago';
+    const tipo = json?.error?.type ? ` (${json.error.type})` : '';
+    throw new Error(msg + tipo);
+  }
+  if (!json.url) throw new Error('Stripe no devolvio la URL de Checkout');
   return { url: json.url, referencia: json.id };
 }
 
@@ -88,9 +114,9 @@ async function checkoutStripe({ pagoId, empresaId, plan, planNombre, monto, mone
    ------------------------------------------------------------ */
 async function checkoutMercadoPago({ pagoId, empresaId, planNombre, monto, moneda }, config) {
   const token = config.mercadopago_access_token;
-  if (!token || !config.mercadopago_webhook_secret) throw new PasarelaNoConfigurada('mercadopago');
+  if (!token) throw new PasarelaNoConfigurada('mercadopago');
 
-  const r = await fetch('https://api.mercadopago.com/checkout/preferences', {
+  const r = await fetchConTimeout('https://api.mercadopago.com/checkout/preferences', {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -125,7 +151,7 @@ async function paypalToken(config) {
   const secret = config.paypal_secret;
   if (!id || !secret) throw new PasarelaNoConfigurada('paypal');
   const auth = Buffer.from(`${id}:${secret}`).toString('base64');
-  const r = await fetch(`${paypalBase(config)}/v1/oauth2/token`, {
+  const r = await fetchConTimeout(`${paypalBase(config)}/v1/oauth2/token`, {
     method: 'POST',
     headers: {
       Authorization: `Basic ${auth}`,
@@ -142,7 +168,7 @@ async function checkoutPayPal({ pagoId, planNombre, monto, moneda }, config) {
   if (!configurada('paypal', config)) throw new PasarelaNoConfigurada('paypal');
   const token = await paypalToken(config);
 
-  const r = await fetch(`${paypalBase(config)}/v2/checkout/orders`, {
+  const r = await fetchConTimeout(`${paypalBase(config)}/v2/checkout/orders`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -165,6 +191,21 @@ async function checkoutPayPal({ pagoId, planNombre, monto, moneda }, config) {
   if (!r.ok) throw new Error(json?.message || 'PayPal rechazo la orden');
   const link = (json.links || []).find((l) => l.rel === 'approve' || l.rel === 'payer-action');
   return { url: link?.href, referencia: json.id };
+}
+
+/* ------------------------------------------------------------
+   Consulta de una sesion de Stripe (para confirmar al volver)
+   ------------------------------------------------------------ */
+export async function obtenerSesionStripe(sessionId, config) {
+  const key = config.stripe_secret_key;
+  if (!key) throw new PasarelaNoConfigurada('stripe');
+  const r = await fetchConTimeout(
+    `https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(sessionId)}`,
+    { headers: { Authorization: `Bearer ${key}` } }
+  );
+  const json = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(json?.error?.message || 'No se pudo leer la sesion de Stripe');
+  return json;
 }
 
 /* ------------------------------------------------------------
@@ -205,7 +246,7 @@ export async function verificarPayPal(evento, headers, config) {
   const webhookId = config.paypal_webhook_id;
   if (!webhookId) return false;
   const token = await paypalToken(config);
-  const r = await fetch(`${paypalBase(config)}/v1/notifications/verify-webhook-signature`, {
+  const r = await fetchConTimeout(`${paypalBase(config)}/v1/notifications/verify-webhook-signature`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -225,7 +266,7 @@ export async function verificarPayPal(evento, headers, config) {
 export async function obtenerPagoMercadoPago(id, config) {
   const token = config.mercadopago_access_token;
   if (!token) throw new PasarelaNoConfigurada('mercadopago');
-  const r = await fetch(`https://api.mercadopago.com/v1/payments/${id}`, {
+  const r = await fetchConTimeout(`https://api.mercadopago.com/v1/payments/${id}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!r.ok) throw new Error('No se pudo leer el pago en Mercado Pago');
@@ -239,7 +280,7 @@ export async function probarCredenciales(pasarela, config) {
   if (pasarela === 'stripe') {
     const key = config.stripe_secret_key;
     if (!key) return { ok: false, error: 'Falta la secret key de Stripe' };
-    const r = await fetch('https://api.stripe.com/v1/balance', {
+    const r = await fetchConTimeout('https://api.stripe.com/v1/balance', {
       headers: { Authorization: `Bearer ${key}` },
     });
     const json = await r.json().catch(() => ({}));
@@ -250,7 +291,7 @@ export async function probarCredenciales(pasarela, config) {
   if (pasarela === 'mercadopago') {
     const token = config.mercadopago_access_token;
     if (!token) return { ok: false, error: 'Falta el access token de Mercado Pago' };
-    const r = await fetch('https://api.mercadopago.com/users/me', {
+    const r = await fetchConTimeout('https://api.mercadopago.com/users/me', {
       headers: { Authorization: `Bearer ${token}` },
     });
     const json = await r.json().catch(() => ({}));

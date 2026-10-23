@@ -4,7 +4,7 @@ import {
   PASARELAS_PAGO, cicloValido, precioDe, registrarPago, asignarReferencia, esquemaFaltante,
 } from '@/lib/pagos';
 import { crearCheckout, configurada } from '@/lib/pasarelas';
-import { leerConfigPagos } from '@/lib/pagos-config';
+import { leerConfigPagos, metodoHabilitado } from '@/lib/pagos-config';
 
 export const runtime = 'nodejs';
 
@@ -28,6 +28,11 @@ async function crear(request) {
     return error('Pasarela invalida para pago en linea');
   }
   const config = await leerConfigPagos();
+  // El super-admin puede deshabilitar medios de pago. Se valida en el
+  // servidor, no solo en la interfaz.
+  if (!metodoHabilitado(pasarela, config)) {
+    return error(`El medio de pago ${pasarela} no esta habilitado`, 403);
+  }
   if (!configurada(pasarela, config)) {
     return error(`La pasarela ${pasarela} no esta configurada todavia`, 503);
   }
@@ -51,6 +56,7 @@ async function crear(request) {
     }, config);
   } catch (err) {
     if (err && typeof err.respuesta === 'function') throw err; // PasarelaNoConfigurada
+    console.error('Checkout ' + pasarela + ':', err);
     return error('La pasarela no respondio: ' + err.message, 502);
   }
 

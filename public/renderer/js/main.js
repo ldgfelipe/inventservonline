@@ -214,6 +214,9 @@ async function iniciar() {
   // Configuracion: si no, los selects de pais/moneda arrancan vacios y el
   // guardado se aborta por "nombre de la empresa vacio".
   await cargarSinRomper(cargarEmpresa, 'los datos de la empresa');
+  // Si venimos de una pasarela (?pago=ok/cancelada/pendiente), avisar y
+  // confirmar el pago de Stripe contra su API.
+  await procesarRetornoPago();
   // Cargar feature flags
   try { ESTADO.featureFlags = await window.api.featureFlags.listar(); } catch { ESTADO.featureFlags = {}; }
   await cargarSinRomper(cargarCategorias, 'las categorias');
@@ -1248,6 +1251,7 @@ async function configurarEventosConfig() {
 async function cargarOpcionesConfig() {
   await renderEmpresaMoneda();
   cargarPlanesPago();
+  cargarMetodosPago();
   const giros = await window.api.giros.listar();
   document.getElementById('selectGiro').innerHTML = giros.map(g => `<option value="${g.nombre}">${g.nombre}</option>`).join('');
   document.getElementById('selectGiro').value = ESTADO.giro || giros[0]?.nombre;
@@ -1477,17 +1481,82 @@ async function cargarPlanesPago() {
   }
 }
 
-async function iniciarPago(pasarela) {
+/* Muestra u oculta los botones de pago segun lo que habilito el admin. */
+async function cargarMetodosPago() {
+  const botones = {
+    stripe: document.getElementById('btnPagoStripe'),
+    mercadopago: document.getElementById('btnPagoMercadopago'),
+    paypal: document.getElementById('btnPagoPaypal'),
+    transferencia: document.getElementById('btnPagoTransferencia'),
+  };
+  const aviso = document.getElementById('metodosPagoAviso');
+
+  let metodos = null;
+  try { metodos = await window.api.pagos.metodos(); } catch { metodos = null; }
+
+  let visibles = 0;
+  for (const [clave, btn] of Object.entries(botones)) {
+    if (!btn) continue;
+    // Si la consulta falla, se dejan visibles para no bloquear al usuario.
+    const mostrar = metodos && metodos[clave] ? !!metodos[clave].disponible : true;
+    btn.style.display = mostrar ? '' : 'none';
+    btn.disabled = !mostrar;
+    if (mostrar) visibles++;
+  }
+  if (aviso) {
+    aviso.textContent = visibles === 0
+      ? 'No hay medios de pago habilitados en este momento. Contacta al administrador.'
+      : '';
+  }
+  return metodos;
+}
+
+function mostrarResultadoPago(mensaje, esError = false) {
+  const el = document.getElementById('pagoResultado');
+  if (!el) return;
+  el.style.display = 'block';
+  el.textContent = mensaje;
+  el.style.color = esError ? 'var(--color-error)' : 'var(--color-texto-suave)';
+}
+
+/* El panel vive dentro de un iframe (/panel -> /renderer). Stripe y las
+   demas pasarelas NO se dejan incrustar: si se navega el iframe, la
+   pasarela queda en blanco/cargando. Hay que navegar la ventana superior. */
+function redirigirPago(url) {
+  if (window.top && window.top !== window.self) {
+    try {
+      window.top.location.href = url;
+      return;
+    } catch { /* top de otro origen: se intenta una pestana nueva */ }
+    try {
+      const ventana = window.open(url, '_blank');
+      if (ventana) return;
+    } catch { /* popup bloqueado */ }
+  }
+  window.location.href = url;
+}
+
+async function iniciarPago(pasarela, btn) {
   await cargarPlanesPago();
   const planSel = document.getElementById('pagoPlan');
   const cicloSel = document.getElementById('pagoCiclo');
   const plan = (planSel && planSel.value) || 'basic';
   const ciclo = (cicloSel && cicloSel.value) || 'mensual';
+  const textoOriginal = btn ? btn.textContent : '';
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Conectando...'; }
+  mostrarResultadoPago('Conectando con la pasarela de pago...');
+
   try {
     const r = await window.api.pagos.checkout(pasarela, { plan, ciclo });
-    if (r && r.url) { window.location.href = r.url; }
-    else notificar('No se obtuvo la URL de pago', true);
-  } catch (err) { notificar('Error: ' + err.message, true); }
+    if (!r || !r.url) throw new Error('La pasarela no devolvio una URL de pago');
+    mostrarResultadoPago('Redirigiendo a la pasarela...');
+    redirigirPago(r.url);
+  } catch (err) {
+    mostrarResultadoPago('No se pudo iniciar el pago: ' + err.message, true);
+    notificar('Pago no iniciado: ' + err.message, true);
+    if (btn) { btn.disabled = false; btn.textContent = textoOriginal; }
+  }
 }
 
 async function abrirTransferencia() {
@@ -1499,6 +1568,10 @@ async function abrirTransferencia() {
     const r = await window.api.pagos.transferenciaDatos();
     const d = (r && r.datos) || {};
     if (!cont) return;
+    if (r && r.habilitada === false) {
+      cont.textContent = 'La transferencia bancaria no esta habilitada por el administrador.';
+      return;
+    }
     if (!d.banco && !d.cuenta) {
       cont.textContent = 'El administrador aun no ha configurado los datos bancarios.';
       return;
@@ -1514,6 +1587,39 @@ async function abrirTransferencia() {
       '</div>';
   } catch (err) {
     if (cont) cont.textContent = 'No se pudieron cargar los datos bancarios.';
+  }
+}
+
+/* Al volver de la pasarela: /panel?pago=ok|cancelada|pendiente */
+async function procesarRetornoPago() {
+  const params = new URLSearchParams(window.location.search);
+  const estado = params.get('pago');
+  if (!estado) return;
+
+  // Quitar el parametro para que al recargar no se repita el aviso.
+  try {
+    window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+  } catch { /* opcional */ }
+
+  if (estado === 'ok') {
+    const sessionId = params.get('session_id');
+    let confirmado = false;
+    if (sessionId) {
+      try {
+        const r = await window.api.pagos.confirmar(sessionId);
+        confirmado = !!(r && r.pagado);
+      } catch (err) {
+        console.warn('No se pudo confirmar el pago en Stripe:', err.message);
+      }
+    }
+    notificar(confirmado
+      ? 'Pago confirmado. Tu plan ya esta activo.'
+      : 'Pago recibido. Tu plan se activara al confirmarse.');
+    try { ESTADO.empresa = await window.api.empresa.obtener(); } catch { /* opcional */ }
+  } else if (estado === 'cancelada') {
+    notificar('Pago cancelado', true);
+  } else if (estado === 'pendiente') {
+    notificar('Pago pendiente de confirmacion');
   }
 }
 
