@@ -222,6 +222,7 @@ async function iniciar() {
   // si no, al cerrar y abrir sesion se duplicarian los listeners.
   if (!ESTADO.eventosListos) {
     configurarNavegacion();
+    configurarConfigTabs();
     configurarEventosProductos();
     configurarEventosMovimientos();
     configurarEventosProveedores();
@@ -474,6 +475,27 @@ function renderProveedores() {
 }
 
 /* ------------------ Navegacion ------------------ */
+
+/* Pestanas de la vista Configuracion */
+function configurarConfigTabs() {
+  const tabs = document.getElementById('configTabs');
+  if (!tabs || tabs.dataset.listening) return;
+  tabs.dataset.listening = '1';
+  tabs.addEventListener('click', (e) => {
+    const btn = e.target.closest('.config-tab');
+    if (!btn) return;
+    activarConfigTab(btn.dataset.config);
+  });
+}
+
+function activarConfigTab(cual) {
+  document.querySelectorAll('#configTabs .config-tab').forEach((t) => {
+    t.classList.toggle('activo', t.dataset.config === cual);
+  });
+  document.querySelectorAll('#vista-config .config-seccion').forEach((s) => {
+    s.classList.toggle('activa', s.dataset.configTab === cual);
+  });
+}
 
 function configurarNavegacion() {
   document.querySelectorAll('.nav-item').forEach(btn => {

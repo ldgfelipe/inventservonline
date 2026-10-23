@@ -460,6 +460,16 @@
 
         <!-- Vista: Configuracion -->
         <section id="vista-config" class="vista">
+          <div class="config-tabs" id="configTabs">
+            <button type="button" class="config-tab activo" data-config="general">General</button>
+            <button type="button" class="config-tab" data-config="catalogo">Catalogo</button>
+            <button type="button" class="config-tab" data-config="plan">Plan y pagos</button>
+            <button type="button" class="config-tab" data-config="notificaciones">Notificaciones</button>
+            <button type="button" class="config-tab" data-config="facturacion">Facturacion</button>
+            <button type="button" class="config-tab" data-config="sistema">Sistema</button>
+          </div>
+
+          <div class="config-seccion activa" data-config-tab="general">
           <div class="panel">
             <h3>Empresa, pais y moneda</h3>
             <p class="texto-ayuda">El pais y la moneda definen como se muestran los montos en todo el sistema (dashboard, contabilidad, comprobantes e informes). No convierten los valores ya guardados.</p>
@@ -489,6 +499,9 @@
             <button id="btnGuardarGiro" class="btn btn-primary">Guardar</button>
           </div>
         </div>
+        </div><!-- /config general -->
+
+        <div class="config-seccion" data-config-tab="catalogo">
         <div class="panel">
           <h3>Campos personalizados del giro</h3>
           <p class="texto-ayuda">Define los campos que se pediran al crear productos. El sistema se adapta automaticamente.</p>
@@ -518,6 +531,9 @@
             </div>
             <ul id="listaCategorias" class="lista-chips"></ul>
           </div>
+          </div><!-- /config catalogo -->
+
+          <div class="config-seccion" data-config-tab="sistema">
           <div class="panel">
             <h3>Salida de datos (Webhook)</h3>
             <p class="texto-ayuda">Envia los datos a un endpoint externo en formato JSON.</p>
@@ -534,6 +550,9 @@
             </div>
             <pre id="estadoActualizacion" class="consola"></pre>
           </div>
+          </div><!-- /config sistema -->
+
+          <div class="config-seccion" data-config-tab="plan">
           <div class="panel">
             <h3>Suscripcion y plan</h3>
             <p class="texto-ayuda">Tu plan actual, su vigencia y el consumo frente a los limites.</p>
@@ -557,6 +576,9 @@
             </div>
             <div id="pagoResultado" class="consola" style="margin-top:8px;display:none"></div>
           </div>
+          </div><!-- /config plan -->
+
+          <div class="config-seccion" data-config-tab="notificaciones">
           <div class="panel">
             <h3>Canales de notificacion</h3>
             <p class="texto-ayuda">Configura los canales por los que recibiras las alertas del sistema. Las alertas se generan automaticamente (stock bajo, CxC vencida, etc.) y se envian por los canales activos.</p>
@@ -607,6 +629,9 @@
               <button id="btnProbarWa" class="btn btn-secondary">Enviar prueba</button>
             </div>
           </div>
+          </div><!-- /config notificaciones -->
+
+          <div class="config-seccion" data-config-tab="facturacion">
           <div class="panel">
             <h3>Facturacion electronica</h3>
             <p class="texto-ayuda">Configura el timbrado electronico segun tu pais. Si tu proveedor no esta soportado, solicita la integracion.</p>
@@ -653,6 +678,9 @@
             <div id="factStatus" class="texto-ayuda" style="margin-top:8px"></div>
             <div id="factSolicitudes" style="margin-top:8px"></div>
           </div>
+          </div><!-- /config facturacion -->
+
+          <div class="config-seccion" data-config-tab="notificaciones">
           <div class="panel">
             <h3>Configuracion de alertas</h3>
             <p class="texto-ayuda">Elige que alertas se generan y sus umbrales.</p>
@@ -674,11 +702,15 @@
               <button id="btnGuardarAlertas" class="btn btn-primary">Guardar alertas</button>
             </div>
           </div>
+          </div><!-- /config notificaciones (alertas) -->
+
+          <div class="config-seccion" data-config-tab="sistema">
           <div class="panel">
             <h3>Uso y adopcion</h3>
             <p class="texto-ayuda">Permite medir si el sistema se usa de verdad y detectar abandono.</p>
             <div id="adopcionContenido"></div>
           </div>
+          </div><!-- /config sistema -->
         </section>
 
         <!-- Vista: Usuarios -->
