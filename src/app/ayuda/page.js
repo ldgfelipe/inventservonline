@@ -23,7 +23,9 @@ export default function Ayuda() {
   return (
     <main className="ayuda">
       <header className="ayuda-header">
-        <Link href="/" className="ayuda-logo">inventserOnline</Link>
+        <Link href="/" className="ayuda-logo" aria-label="inventserOnline - inicio">
+          <img src="/logo.png" alt="inventserOnline" className="ayuda-logo-img" />
+        </Link>
         <nav className="ayuda-nav">
           <Link href="/precios">Precios</Link>
           <Link href="/entrar">Iniciar sesion</Link>

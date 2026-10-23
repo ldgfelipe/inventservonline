@@ -84,6 +84,9 @@ export default function Registro() {
   return (
     <main className="pagina-form">
       <div className="tarjeta tarjeta-ancha">
+        <Link href="/" className="auth-logo" aria-label="inventserOnline - inicio">
+          <img src="/logo.png" alt="inventserOnline" className="auth-logo-img" />
+        </Link>
         <h1>Crea tu cuenta</h1>
         <p className="sub">
           Elige a que se dedica tu negocio y el sistema se adapta. Sin instalar nada.

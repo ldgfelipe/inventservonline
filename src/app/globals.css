@@ -137,6 +137,18 @@ a { color: var(--primario); text-decoration: none; }
 .tarjeta h1 { font-size: 24px; margin: 0 0 6px; }
 .tarjeta .sub { color: var(--suave); font-size: 14px; margin: 0 0 24px; }
 
+/* Logo en entrar / registro */
+.auth-logo {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+  text-decoration: none;
+}
+.auth-logo-img { height: 64px; width: auto; display: block; }
+@media (max-width: 640px) {
+  .auth-logo-img { height: 52px; }
+}
+
 .campo { margin-bottom: 16px; }
 .campo label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
 .campo input, .campo select {
@@ -406,6 +418,10 @@ a { color: var(--primario); text-decoration: none; }
   margin-bottom: 32px;
 }
 .ayuda-logo { font-size: 19px; font-weight: 700; color: var(--texto); letter-spacing: -0.3px; }
+.ayuda-logo-img { height: 44px; width: auto; display: block; }
+@media (max-width: 640px) {
+  .ayuda-logo-img { height: 38px; }
+}
 .ayuda-nav { display: flex; align-items: center; gap: 18px; font-size: 14px; }
 .ayuda-nav .btn { padding: 8px 16px; font-size: 14px; }
 

@@ -57,6 +57,9 @@ function FormularioEntrar() {
 
   return (
     <div className="tarjeta">
+      <Link href="/" className="auth-logo" aria-label="inventserOnline - inicio">
+        <img src="/logo.png" alt="inventserOnline" className="auth-logo-img" />
+      </Link>
       <h1>Entrar</h1>
       <p className="sub">Accede a tu inventario desde cualquier equipo.</p>
 
@@ -122,7 +125,14 @@ function FormularioEntrar() {
 export default function Entrar() {
   return (
     <main className="pagina-form">
-      <Suspense fallback={<div className="tarjeta"><h1>Entrar</h1></div>}>
+      <Suspense fallback={
+        <div className="tarjeta">
+          <Link href="/" className="auth-logo" aria-label="inventserOnline - inicio">
+            <img src="/logo.png" alt="inventserOnline" className="auth-logo-img" />
+          </Link>
+          <h1>Entrar</h1>
+        </div>
+      }>
         <FormularioEntrar />
       </Suspense>
     </main>
