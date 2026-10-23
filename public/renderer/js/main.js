@@ -210,6 +210,10 @@ async function iniciar() {
   // Cada carga de datos se protege por separado: si una falla (catalogo
   // incompleto, permiso ausente), el sistema igual queda navegable.
   await cargarSinRomper(cargarGiroActual, 'el giro actual');
+  // Empresa (nombre, pais, moneda, IVA, logo). Debe cargarse ANTES de abrir
+  // Configuracion: si no, los selects de pais/moneda arrancan vacios y el
+  // guardado se aborta por "nombre de la empresa vacio".
+  await cargarSinRomper(cargarEmpresa, 'los datos de la empresa');
   // Cargar feature flags
   try { ESTADO.featureFlags = await window.api.featureFlags.listar(); } catch { ESTADO.featureFlags = {}; }
   await cargarSinRomper(cargarCategorias, 'las categorias');
@@ -265,6 +269,11 @@ async function cargarEmpresa() {
   // moneda_info la resuelve la API (simbolo, decimales, formato). Si una
   // base antigua no la trae, formatoMoneda cae en el valor por defecto.
   ESTADO.monedaInfo = (ESTADO.empresa && ESTADO.empresa.moneda_info) || null;
+  // Aviso unico si faltan las columnas de pais/moneda (migracion 012).
+  if (ESTADO.empresa && ESTADO.empresa.aviso_migracion && !ESTADO.avisoMigracionMostrado) {
+    ESTADO.avisoMigracionMostrado = true;
+    notificar(ESTADO.empresa.aviso_migracion, true);
+  }
   // Logo de la empresa
   if (ESTADO.empresa && ESTADO.empresa.logo_path) {
     try {
@@ -1204,6 +1213,7 @@ async function configurarEventosConfig() {
 
 async function cargarOpcionesConfig() {
   await renderEmpresaMoneda();
+  cargarPlanesPago();
   const giros = await window.api.giros.listar();
   document.getElementById('selectGiro').innerHTML = giros.map(g => `<option value="${g.nombre}">${g.nombre}</option>`).join('');
   document.getElementById('selectGiro').value = ESTADO.giro || giros[0]?.nombre;
@@ -1245,6 +1255,10 @@ async function renderEmpresaMoneda() {
   const selMoneda = document.getElementById('selectMoneda');
   if (!selPais || !selMoneda) return;
 
+  // Si la empresa aun no se cargo (p. ej. se entro directo a Configuracion),
+  // se carga aqui para no pintar valores por defecto.
+  if (!ESTADO.empresa) await cargarSinRomper(cargarEmpresa, 'los datos de la empresa');
+
   const cat = await cargarMonedas();
   selPais.innerHTML = cat.paises.map(p => `<option value="${p.codigo}">${escaparHtml(p.nombre)}</option>`).join('');
   selMoneda.innerHTML = cat.monedas.map(m => `<option value="${m.codigo}">${escaparHtml(m.nombre)} (${escaparHtml(m.simbolo)})</option>`).join('');
@@ -1277,11 +1291,14 @@ async function guardarEmpresaMoneda() {
 
   try {
     const resp = await window.api.empresa.guardar({ nombre, rif, pais, moneda, tasa_iva: tasaIva });
-    ESTADO.empresa = resp.empresa;
-    ESTADO.monedaInfo = resp.empresa && resp.empresa.moneda_info || null;
-    renderVistaPreviaMoneda();
+    // Releer desde la API: confirma que quedo guardado en la base y evita
+    // que la pantalla muestre valores que en realidad no persistieron.
+    ESTADO.empresa = await window.api.empresa.obtener();
+    ESTADO.monedaInfo = (ESTADO.empresa && ESTADO.empresa.moneda_info) || null;
+    // Repintar los selects con lo que realmente quedo guardado.
+    await renderEmpresaMoneda();
     if (resp.aviso) notificar(resp.aviso, true);
-    else notificar('Datos y moneda guardados');
+    else notificar('Datos, pais y moneda guardados');
     // Vuelve a pintar la vista con la nueva moneda (el dashboard y demas
     // pantallas se recalculan al navegar).
     if (ESTADO.vista !== 'config') navegar(ESTADO.vista);
@@ -1397,7 +1414,37 @@ async function renderPlanesComparativo(planes) {
     </table>`;
 }
 
+/* Rellena los selects de pago (Stripe/MP/PayPal y transferencia) con TODOS
+   los planes de pago del catalogo: Basico, Profesional y Empresa.
+   El plan Gratis no se paga, por eso no aparece. */
+async function cargarPlanesPago() {
+  const selPago = document.getElementById('pagoPlan');
+  const selTr = document.getElementById('trPlan');
+  if (!selPago && !selTr) return;
+
+  let planes = [];
+  try { planes = await window.api.planes.listar(); } catch { planes = []; }
+  // Solo planes con precio > 0 (free no se paga)
+  planes = (planes || []).filter((p) => p && p.codigo && p.codigo !== 'free');
+  if (!planes.length) {
+    planes = [
+      { codigo: 'basic', nombre: 'Basico' },
+      { codigo: 'pro', nombre: 'Profesional' },
+      { codigo: 'empresa', nombre: 'Empresa' },
+    ];
+  }
+  const opciones = planes.map((p) => `<option value="${escaparHtml(p.codigo)}">${escaparHtml(p.nombre)}</option>`).join('');
+
+  for (const sel of [selPago, selTr]) {
+    if (!sel) continue;
+    const actual = sel.value;
+    sel.innerHTML = opciones;
+    if (planes.some((p) => p.codigo === actual)) sel.value = actual;
+  }
+}
+
 async function iniciarPago(pasarela) {
+  await cargarPlanesPago();
   const planSel = document.getElementById('pagoPlan');
   const cicloSel = document.getElementById('pagoCiclo');
   const plan = (planSel && planSel.value) || 'basic';
@@ -1410,6 +1457,7 @@ async function iniciarPago(pasarela) {
 }
 
 async function abrirTransferencia() {
+  await cargarPlanesPago();
   const cont = document.getElementById('trDatosBanco');
   if (cont) cont.textContent = 'Cargando datos bancarios...';
   abrirModal('modalTransferencia');

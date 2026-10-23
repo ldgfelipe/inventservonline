@@ -34,10 +34,14 @@ async function leer(request) {
   if (!data) return error('Empresa no encontrada', 404);
 
   // Defaults para columnas que falten
+  const faltanPaisMoneda = data.pais === undefined || data.moneda === undefined;
   if (data.pais === undefined) data.pais = 'VE';
   if (data.moneda === undefined) data.moneda = 'VES';
   if (data.tasa_iva === undefined) data.tasa_iva = 0;
   if (data.logo_path === undefined) data.logo_path = null;
+  if (faltanPaisMoneda) {
+    data.aviso_migracion = 'La base de datos no tiene las columnas pais/moneda. Aplica sql/012_pais_y_moneda.sql en Supabase para poder guardarlas.';
+  }
 
   return Response.json({ ok: true, empresa: conMoneda(data) });
 }
@@ -102,7 +106,13 @@ async function actualizar(request) {
       guardado = true;
       const omitidas = Object.keys(cambios).filter((k) => !colsDisponibles.includes(k));
       if (omitidas.length) {
-        aviso = 'Falta aplicar migraciones en la base de datos (' + omitidas.join(', ') + ').';
+        const migraciones = [];
+        if (omitidas.includes('pais') || omitidas.includes('moneda')) migraciones.push('012_pais_y_moneda.sql');
+        if (omitidas.includes('tasa_iva')) migraciones.push('016_facturacion_iva.sql');
+        if (omitidas.includes('logo_path')) migraciones.push('027_logo_empresa.sql');
+        aviso = migraciones.length
+          ? 'Se guardo lo posible. Falta aplicar en Supabase: ' + migraciones.join(', ')
+          : 'Falta aplicar migraciones en la base de datos (' + omitidas.join(', ') + ').';
       }
       break;
     }
@@ -120,10 +130,14 @@ async function actualizar(request) {
   if (errLectura) return error('Se guardo, pero no se pudo releer la empresa: ' + errLectura.message, 500);
 
   // Defaults
+  const faltanPaisMonedaLectura = data.pais === undefined || data.moneda === undefined;
   if (data.pais === undefined) data.pais = 'VE';
   if (data.moneda === undefined) data.moneda = 'VES';
   if (data.tasa_iva === undefined) data.tasa_iva = 0;
   if (data.logo_path === undefined) data.logo_path = null;
+  if (faltanPaisMonedaLectura) {
+    data.aviso_migracion = 'La base de datos no tiene las columnas pais/moneda. Aplica sql/012_pais_y_moneda.sql en Supabase.';
+  }
 
   await auditar(sb, perfil, {
     accion: 'empresa.editar',
