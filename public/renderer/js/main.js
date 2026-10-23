@@ -497,6 +497,13 @@ function activarConfigTab(cual) {
   });
 }
 
+/* Abre Configuracion en una pestana concreta.
+   Uso: irAConfig('plan') | irAConfig('notificaciones') | ... */
+function irAConfig(tab) {
+  navegar('config', { tab });
+}
+window.irAConfig = irAConfig;
+
 function configurarNavegacion() {
   document.querySelectorAll('.nav-item').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -517,7 +524,7 @@ function configurarNavegacion() {
   });
 }
 
-function navegar(vista) {
+function navegar(vista, opciones) {
   ESTADO.vista = vista;
   document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.vista === vista));
   document.querySelectorAll('.vista').forEach(v => v.classList.toggle('active', v.id === 'vista-' + vista));
@@ -548,7 +555,12 @@ function navegar(vista) {
   if (vista === 'proveedores') renderProveedores();
   if (vista === 'usuarios') cargarVistaUsuarios();
   if (vista === 'contabilidad') cargarContabilidad();
-  if (vista === 'config') cargarOpcionesConfig();
+  if (vista === 'config') {
+    // Permite abrir Configuracion directamente en una pestana concreta:
+    // navegar('config', { tab: 'plan' })
+    if (opciones && opciones.tab) activarConfigTab(opciones.tab);
+    cargarOpcionesConfig();
+  }
   if (vista === 'bitacora') cargarVistaBitacora();
   if (vista === 'reportes') cargarReportes();
   if (vista === 'traslados') cargarTraslados();
@@ -576,7 +588,7 @@ function configurarMenu() {
     if (mapa[canal]) navegar(mapa[canal]);
     if (canal === 'accion:nuevo-producto') nuevoProducto();
     if (canal === 'accion:exportar') exportarProductosExcel();
-    if (canal === 'accion:webhook') navegar('config');
+    if (canal === 'accion:webhook') irAConfig('sistema');
     if (canal === 'accion:logout') cerrarSesion();
   });
 }
@@ -1556,7 +1568,8 @@ function abrirModalUpgrade(detalle) {
 
 function irASuscripcion() {
   cerrarModal('modalUpgrade');
-  navegar('config');
+  cerrarModal('modalMiPlan');
+  irAConfig('plan');
   setTimeout(() => {
     const el = document.getElementById('suscripcionContenido');
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1920,7 +1933,7 @@ async function aplicarImportacion() {
     notificar(msg);
     if (r.errores && r.errores.length) {
       document.getElementById('webhookResultado').textContent = r.errores.join('\n');
-      navegar('config');
+      irAConfig('sistema');
     }
     if (ESTADO.vista === 'productos') await cargarProductos();
     if (ESTADO.vista === 'dashboard') await cargarDashboard();

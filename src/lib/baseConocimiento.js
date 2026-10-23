@@ -292,7 +292,7 @@ Usa costo promedio ponderado. El margen se calcula como ventas menos costo de lo
     titulo: 'Tasa de IVA',
     descripcion: 'Configurar el porcentaje de IVA por empresa.',
     palabrasClave: ['iva', 'impuesto', 'tasa', 'facturacion'],
-    contenido: `En Configuracion → Empresa puedes definir la tasa de IVA (0-100%). Se usa en la factura impresa y como referencia para el timbrado electronico.`,
+    contenido: `En Configuracion → General puedes definir la tasa de IVA (0-100%). Se usa en la factura impresa y como referencia para el timbrado electronico.`,
   },
   {
     id: 'factura-pdf',
@@ -322,7 +322,7 @@ La factura incluye empresa, RIF, cliente, productos, subtotal, descuento, IVA y 
 - Chile: SII (DTE).
 - Espana: AEAT (FacturaE).
 
-Configuracion: Configuracion → Facturacion electronica → pais, proveedor, credenciales (JSON), RFC/NIT/RUT/CUIT, regimen fiscal, serie y folio.
+Configuracion: Configuracion → Facturacion → pais, proveedor, credenciales (JSON), RFC/NIT/RUT/CUIT, regimen fiscal, serie y folio.
 
 Si tu proveedor o pais no esta soportado, puedes solicitar la integracion. El super-admin gestiona las solicitudes en /admin.`,
   },
@@ -360,7 +360,9 @@ La trazabilidad de un producto muestra su historial de movimientos, eventos admi
     titulo: 'Empresa, pais, moneda e IVA',
     descripcion: 'Configurar nombre, RIF, pais, moneda, tasa de IVA y logo.',
     palabrasClave: ['empresa', 'pais', 'moneda', 'iva', 'logo', 'rif'],
-    contenido: `En Configuracion → Empresa puedes:
+    contenido: `La seccion Configuracion esta organizada en pestanas: General, Catalogo, Plan y pagos, Notificaciones, Facturacion y Sistema. Cada pestana agrupa los ajustes relacionados.
+
+En Configuracion → General puedes:
 - Cambiar el nombre y RIF.
 - Seleccionar pais y moneda (la moneda solo cambia la presentacion; no convierte valores).
 - Definir la tasa de IVA.
@@ -374,7 +376,7 @@ La moneda se usa en todo el sistema para formatear montos.`,
     titulo: 'Configuracion de alertas',
     descripcion: 'Elegir que alertas se generan y sus umbrales.',
     palabrasClave: ['alertas', 'configuracion', 'umbral', 'notificaciones'],
-    contenido: `Puedes activar/desactivar:
+    contenido: `En Configuracion → Notificaciones puedes activar/desactivar:
 - Stock bajo, stock agotado, stock agotado por almacen.
 - CxC vencida, CxP vencida.
 - Diferencia en caja.
@@ -387,7 +389,7 @@ Tambien defines el umbral de stock (% del minimo) y los dias de gracia para CxC.
     titulo: 'Notificaciones por correo',
     descripcion: 'Configurar SMTP para recibir alertas por email.',
     palabrasClave: ['email', 'correo', 'smtp', 'notificaciones'],
-    contenido: `Configura el servidor SMTP (host, puerto, usuario, contrasena), remitente y destinatarios.
+    contenido: `Configuracion → Notificaciones. Configura el servidor SMTP (host, puerto, usuario, contrasena), remitente y destinatarios.
 
 Cuando se generan alertas, se envia un resumen por email si la configuracion esta activa. Puedes enviar un correo de prueba desde el panel.`,
   },
@@ -397,7 +399,7 @@ Cuando se generan alertas, se envia un resumen por email si la configuracion est
     titulo: 'Notificaciones por WhatsApp',
     descripcion: 'Configurar WhatsApp Business Cloud API (Meta) para alertas.',
     palabrasClave: ['whatsapp', 'meta', 'notificaciones', 'cloud api'],
-    contenido: `Configura Phone Number ID, Access Token y telefonos destino (con codigo de pais).
+    contenido: `Configuracion → Notificaciones. Configura Phone Number ID, Access Token y telefonos destino (con codigo de pais).
 
 Las alertas se envian por WhatsApp cuando la configuracion esta activa. Puedes enviar un mensaje de prueba.`,
   },
@@ -407,7 +409,7 @@ Las alertas se envian por WhatsApp cuando la configuracion esta activa. Puedes e
     titulo: 'Suscripcion y planes',
     descripcion: 'Ver plan actual, consumo, vigencia y comparativo de planes.',
     palabrasClave: ['suscripcion', 'plan', 'pago', 'upgrade', 'limite', 'consumo'],
-    contenido: `En Configuracion → Suscripcion y plan puedes:
+    contenido: `En Configuracion → Plan y pagos puedes:
 - Ver tu plan actual, estado y vigencia.
 - Ver el consumo frente a los limites (productos, usuarios, proveedores, almacenes).
 - Comparar planes.
@@ -421,7 +423,7 @@ Si alcanzas un limite, la API responde 403 PlanLimitReached y se abre el modal d
     titulo: 'Categorias y campos personalizados',
     descripcion: 'Organizar productos por categoria y agregar campos segun el giro.',
     palabrasClave: ['categorias', 'campos personalizados', 'giro'],
-    contenido: `Las categorias agrupan productos. Puedes crear categorias desde Configuracion.
+    contenido: `Las categorias agrupan productos. Puedes crear categorias desde Configuracion → Catalogo.
 
 Los campos personalizados del giro permiten agregar atributos especificos (lote, espesor, principio activo, etc.) que se piden al crear productos.`,
   },
