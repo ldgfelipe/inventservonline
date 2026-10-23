@@ -133,7 +133,7 @@ async function crear(request) {
   return Response.json({ ok: true, id: creado.user.id }, { status: 201 });
 }
 
-/* PATCH /api/admin/usuarios { id, activo?, rol?, area?, super_admin?, password? } */
+/* PATCH /api/admin/usuarios { id, activo?, motivo?, rol?, area?, super_admin?, password? } */
 async function actualizar(request) {
   const { perfil } = await sesion(request);
   if (!perfil.super_admin) return error('Solo administradores de la plataforma', 403);
@@ -146,6 +146,11 @@ async function actualizar(request) {
   if (id === perfil.id && cuerpo.activo === false) return error('No puedes bloquearte a ti mismo');
 
   const sb = admin();
+
+  // Leer el perfil objetivo (para el log y para saber su empresa)
+  const { data: objetivo } = await sb.from('perfiles').select('id, empresa_id, activo, nombre').eq('id', id).maybeSingle();
+  if (!objetivo) return error('Usuario no encontrado', 404);
+
   const cambiosPerfil = {};
   if (cuerpo.activo !== undefined) cambiosPerfil.activo = cuerpo.activo === true;
   if (cuerpo.rol !== undefined) cambiosPerfil.rol = String(cuerpo.rol);
@@ -168,6 +173,19 @@ async function actualizar(request) {
     try {
       await sb.auth.admin.updateUserById(id, { ban_duration: cuerpo.activo === false ? '876000h' : 'none' });
     } catch { /* opcional */ }
+
+    // Registrar en el historial de bloqueos (best-effort)
+    const accion = cuerpo.activo === false ? 'bloqueo' : 'desbloqueo';
+    try {
+      await sb.from('usuarios_bloqueos').insert({
+        usuario_id: id,
+        empresa_id: objetivo.empresa_id || null,
+        accion,
+        motivo: cuerpo.motivo || null,
+        realizado_por: perfil.id,
+        realizado_por_nombre: perfil.nombre || null,
+      });
+    } catch { /* si falta la migracion 034, no rompe la operacion */ }
   }
 
   return Response.json({ ok: true });

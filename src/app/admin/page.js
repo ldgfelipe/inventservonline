@@ -34,6 +34,7 @@ export default function Admin() {
   const [usuariosCargando, setUsuariosCargando] = useState(false);
   const [usuarioDetalle, setUsuarioDetalle] = useState(null);
   const [nuevoUsuario, setNuevoUsuario] = useState({ nombre: '', email: '', password: '', rol: 'admin', area: 'Administracion', super_admin: false });
+  const [filtroUsuarios, setFiltroUsuarios] = useState({ texto: '', empresa: '', rol: '', estado: '' });
 
   useEffect(() => {
     fetch('/api/auth/sesion', { headers: auth() })
@@ -321,6 +322,15 @@ export default function Admin() {
     await actualizarUsuarioAdmin(id, { password: pass });
   }
 
+  async function bloquearUsuario(u) {
+    if (u.activo) {
+      const motivo = prompt('Motivo del bloqueo (opcional):') || '';
+      await actualizarUsuarioAdmin(u.id, { activo: false, motivo });
+    } else {
+      await actualizarUsuarioAdmin(u.id, { activo: true, motivo: '' });
+    }
+  }
+
   async function guardarConfigPagos(e) {
     e.preventDefault();
     setError('');
@@ -401,6 +411,19 @@ export default function Admin() {
       </main>
     );
   }
+
+  // Lista filtrada de usuarios
+  const usuariosFiltrados = usuarios.filter((u) => {
+    const t = filtroUsuarios.texto.trim().toLowerCase();
+    if (t && !String(u.nombre || '').toLowerCase().includes(t) && !String(u.email || '').toLowerCase().includes(t)) return false;
+    if (filtroUsuarios.empresa && u.empresa !== filtroUsuarios.empresa) return false;
+    if (filtroUsuarios.rol && u.rol !== filtroUsuarios.rol) return false;
+    if (filtroUsuarios.estado === 'activo' && !u.activo) return false;
+    if (filtroUsuarios.estado === 'bloqueado' && u.activo) return false;
+    if (filtroUsuarios.estado === 'super' && !u.super_admin) return false;
+    return true;
+  });
+  const empresasNombres = Array.from(new Set(usuarios.map((u) => u.empresa).filter(Boolean))).sort();
 
   return (
     <main className="admin admin-ancho" data-tab={tab}>
@@ -673,6 +696,34 @@ export default function Admin() {
           {usuariosCargando ? 'Cargando...' : 'Actualizar'}
         </button>
 
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8, marginBottom: 12 }}>
+          <input
+            placeholder="Buscar por nombre o email..."
+            value={filtroUsuarios.texto}
+            onChange={(e) => setFiltroUsuarios((f) => ({ ...f, texto: e.target.value }))}
+          />
+          <select value={filtroUsuarios.empresa} onChange={(e) => setFiltroUsuarios((f) => ({ ...f, empresa: e.target.value }))}>
+            <option value="">Todas las empresas</option>
+            {empresasNombres.map((e) => <option key={e} value={e}>{e}</option>)}
+          </select>
+          <select value={filtroUsuarios.rol} onChange={(e) => setFiltroUsuarios((f) => ({ ...f, rol: e.target.value }))}>
+            <option value="">Todos los roles</option>
+            <option value="admin">Administrador</option>
+            <option value="supervisor">Supervisor</option>
+            <option value="almacenista">Almacenista</option>
+            <option value="consultor">Consultor</option>
+          </select>
+          <select value={filtroUsuarios.estado} onChange={(e) => setFiltroUsuarios((f) => ({ ...f, estado: e.target.value }))}>
+            <option value="">Todos los estados</option>
+            <option value="activo">Activos</option>
+            <option value="bloqueado">Bloqueados</option>
+            <option value="super">Solo super-admin</option>
+          </select>
+        </div>
+        <p className="ayuda" style={{ marginBottom: 8 }}>
+          Mostrando {usuariosFiltrados.length} de {usuarios.length} usuarios.
+        </p>
+
         <form onSubmit={crearUsuarioAdmin} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8, marginBottom: 16, alignItems: 'end' }}>
           <div className="campo" style={{ marginBottom: 0 }}>
             <label>Nombre</label>
@@ -720,7 +771,7 @@ export default function Admin() {
             </tr>
           </thead>
           <tbody>
-            {usuarios.map((u) => (
+            {usuariosFiltrados.map((u) => (
               <tr key={u.id}>
                 <td>{u.nombre}</td>
                 <td style={{ fontSize: 12 }}>{u.email || '-'}</td>
@@ -735,7 +786,7 @@ export default function Admin() {
                 <td><span className={`estado ${u.activo ? 'verde' : 'rojo'}`}>{u.activo ? 'Activo' : 'Bloqueado'}</span></td>
                 <td>
                   <button className="btn-mini" onClick={() => verUsuario(u.id)}>Detalle</button>
-                  <button className="btn-mini" onClick={() => actualizarUsuarioAdmin(u.id, { activo: !u.activo })}>
+                  <button className="btn-mini" onClick={() => bloquearUsuario(u)}>
                     {u.activo ? 'Bloquear' : 'Desbloquear'}
                   </button>
                   <button className="btn-mini" onClick={() => resetPasswordUsuario(u.id)}>Clave</button>
@@ -785,6 +836,22 @@ export default function Admin() {
                   </tr>
                 ))}
                 {(usuarioDetalle.actividad || []).length === 0 && <tr><td colSpan={4} className="vacio">Sin actividad registrada</td></tr>}
+              </tbody>
+            </table>
+
+            <h4 style={{ fontSize: 13, margin: '12px 0 4px' }}>Historial de bloqueos</h4>
+            <table className="tabla-admin">
+              <thead><tr><th>Fecha</th><th>Accion</th><th>Motivo</th><th>Realizado por</th></tr></thead>
+              <tbody>
+                {(usuarioDetalle.bloqueos || []).map((b, i) => (
+                  <tr key={i}>
+                    <td style={{ fontSize: 12 }}>{b.created_at ? new Date(b.created_at).toLocaleString('es-VE') : '-'}</td>
+                    <td style={{ fontSize: 12 }}>{b.accion}</td>
+                    <td style={{ fontSize: 12 }}>{b.motivo || '-'}</td>
+                    <td style={{ fontSize: 12 }}>{b.realizado_por_nombre || '-'}</td>
+                  </tr>
+                ))}
+                {(usuarioDetalle.bloqueos || []).length === 0 && <tr><td colSpan={4} className="vacio">Sin bloqueos registrados</td></tr>}
               </tbody>
             </table>
           </div>

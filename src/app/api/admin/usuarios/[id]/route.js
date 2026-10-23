@@ -45,6 +45,11 @@ async function detalle(request, { params }) {
     .select('accion, entidad, detalle, fecha').eq('usuario_id', id)
     .order('fecha', { ascending: false }).limit(20);
 
+  // Historial de bloqueos
+  const { data: bloqueos } = await sb.from('usuarios_bloqueos')
+    .select('accion, motivo, realizado_por_nombre, created_at').eq('usuario_id', id)
+    .order('created_at', { ascending: false }).limit(20);
+
   return Response.json({
     ok: true,
     usuario: {
@@ -62,6 +67,7 @@ async function detalle(request, { params }) {
       storage_mb: Math.round((storageBytes / 1024 / 1024) * 100) / 100,
     },
     actividad: actividad || [],
+    bloqueos: bloqueos || [],
   });
 }
 
