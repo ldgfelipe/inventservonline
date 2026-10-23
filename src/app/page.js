@@ -35,7 +35,10 @@ export default function Landing() {
   return (
     <>
       <header className="landing-header">
-        <span className="logo">Sistema de Inventarios</span>
+        <Link href="/" className="landing-marca" aria-label="inventserOnline - inicio">
+          <img src="/logo.png" alt="inventserOnline" className="landing-logo" />
+          <span className="landing-tagline">Sistema de Inventarios</span>
+        </Link>
         <nav style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
           <Link href="/precios">Precios</Link>
           <Link href="/ayuda">Ayuda</Link>
