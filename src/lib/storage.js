@@ -75,4 +75,26 @@ export async function usoStorageTotal() {
   return total;
 }
 
+/* Lista recursivamente todos los archivos del bucket con su tamano. */
+export async function listarTodosArchivos() {
+  const sb = admin();
+  const archivos = [];
+  async function recorrer(pref) {
+    const { data, error } = await sb.storage.from(BUCKET).list(pref, { limit: 1000 });
+    if (error || !data) return;
+    for (const item of data) {
+      if (item.id) {
+        archivos.push({
+          ruta: `${pref}/${item.name}`,
+          bytes: item.metadata ? (item.metadata.size || 0) : 0,
+        });
+      } else {
+        await recorrer(`${pref}/${item.name}`);
+      }
+    }
+  }
+  await recorrer('empresas');
+  return archivos;
+}
+
 export { BUCKET };

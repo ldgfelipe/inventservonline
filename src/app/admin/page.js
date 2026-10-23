@@ -35,6 +35,8 @@ export default function Admin() {
   const [usuarioDetalle, setUsuarioDetalle] = useState(null);
   const [nuevoUsuario, setNuevoUsuario] = useState({ nombre: '', email: '', password: '', rol: 'admin', area: 'Administracion', super_admin: false });
   const [filtroUsuarios, setFiltroUsuarios] = useState({ texto: '', empresa: '', rol: '', estado: '' });
+  const [storageData, setStorageData] = useState(null);
+  const [storageCargando, setStorageCargando] = useState(false);
 
   useEffect(() => {
     fetch('/api/auth/sesion', { headers: auth() })
@@ -329,6 +331,35 @@ export default function Admin() {
     } else {
       await actualizarUsuarioAdmin(u.id, { activo: true, motivo: '' });
     }
+  }
+
+  async function cargarStorage() {
+    setStorageCargando(true);
+    setError('');
+    try {
+      const r = await fetch('/api/admin/storage', { headers: auth() });
+      const j = await r.json();
+      if (r.ok) setStorageData(j);
+      else setError(j.error || 'No se pudo analizar el storage');
+    } finally { setStorageCargando(false); }
+  }
+
+  async function limpiarHuerfanos() {
+    if (!storageData || !storageData.huerfanos || !storageData.huerfanos.length) {
+      return setMensaje('No hay archivos huerfanos');
+    }
+    if (!confirm(`Se eliminaran ${storageData.huerfanos.length} archivos huerfanos (${(storageData.huerfanos_bytes / 1024 / 1024).toFixed(2)} MB). ¿Continuar?`)) return;
+    setError(''); setMensaje('');
+    const r = await fetch('/api/admin/storage', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...auth() },
+      body: JSON.stringify({ accion: 'limpiar_huerfanos', rutas: storageData.huerfanos.map((h) => h.ruta) }),
+    });
+    const j = await r.json();
+    if (!r.ok) return setError(j.error || 'No se pudo limpiar');
+    setMensaje(`Archivos eliminados: ${j.eliminados}. Omitidos: ${(j.omitidos || []).length}.`);
+    cargarStorage();
+    cargarDashboard();
   }
 
   async function exportarUsuarios(lista) {
@@ -656,6 +687,64 @@ export default function Admin() {
           <input id="nuevoFlagPct" type="number" min="0" max="100" defaultValue="100" className="input-select" style={{ fontSize: 12, width: 90 }} />
           <button className="btn btn-secundario" onClick={crearFeatureFlag}>Crear flag</button>
         </div>
+      </section>
+
+      <section className="panel-admin sec-sistema">
+        <h2>Storage por empresa</h2>
+        <p className="ayuda">
+          Ranking de espacio usado por cada empresa y deteccion de archivos huerfanos
+          (archivos sin registro en la base). Los comprobantes de pago se conservan siempre.
+        </p>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+          <button className="btn btn-secundario" onClick={cargarStorage}>
+            {storageCargando ? 'Analizando...' : 'Analizar storage'}
+          </button>
+          <button className="btn btn-secundario" onClick={limpiarHuerfanos}>
+            Limpiar huerfanos
+          </button>
+        </div>
+        {storageData && (
+          <>
+            <p style={{ fontSize: 13 }}>
+              Total: <strong>{storageData.total_mb} MB</strong> en {storageData.total_archivos} archivos ·
+              Huerfanos: <strong>{(storageData.huerfanos_bytes / 1024 / 1024).toFixed(2)} MB</strong> ({storageData.huerfanos.length})
+            </p>
+            <table className="tabla-admin">
+              <thead><tr><th>#</th><th>Empresa</th><th>Archivos</th><th>Espacio (MB)</th><th>%</th></tr></thead>
+              <tbody>
+                {storageData.ranking.map((r, i) => (
+                  <tr key={r.empresa_id}>
+                    <td>{i + 1}</td>
+                    <td>{r.empresa}</td>
+                    <td>{r.archivos}</td>
+                    <td>{r.mb}</td>
+                    <td>{storageData.total_bytes > 0 ? Math.round((r.bytes / storageData.total_bytes) * 100) : 0}%</td>
+                  </tr>
+                ))}
+                {storageData.ranking.length === 0 && <tr><td colSpan={5} className="vacio">Sin archivos</td></tr>}
+              </tbody>
+            </table>
+            {storageData.huerfanos.length > 0 && (
+              <>
+                <h4 style={{ fontSize: 13, margin: '14px 0 4px' }}>Archivos huerfanos detectados</h4>
+                <table className="tabla-admin">
+                  <thead><tr><th>Ruta</th><th>KB</th></tr></thead>
+                  <tbody>
+                    {storageData.huerfanos.slice(0, 50).map((h) => (
+                      <tr key={h.ruta}>
+                        <td className="mono" style={{ fontSize: 11 }}>{h.ruta}</td>
+                        <td>{(h.bytes / 1024).toFixed(1)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {storageData.huerfanos.length > 50 && (
+                  <p className="ayuda">Mostrando 50 de {storageData.huerfanos.length}. Se eliminaran todos al pulsar "Limpiar huerfanos".</p>
+                )}
+              </>
+            )}
+          </>
+        )}
       </section>
 
       <section className="panel-admin sec-general">
