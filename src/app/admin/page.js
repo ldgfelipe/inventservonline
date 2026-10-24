@@ -443,6 +443,37 @@ export default function Admin() {
       '<a href="' + base + '/api/click/' + c.codigo + '?honeypot=1&e={{email}}" style="display:none;max-height:0;overflow:hidden;font-size:1px;color:#ffffff" aria-hidden="true">.</a>';
   }
 
+  function enlaceBajaCampana(c) {
+    const base = typeof window !== 'undefined' ? window.location.origin : '';
+    return base + '/baja?e={{email}}&c=' + (c.codigo || '');
+  }
+
+  function htmlBajaCampana(c) {
+    return '<a href="' + enlaceBajaCampana(c) + '" style="color:#64748b;font-size:12px;">Darse de baja</a>';
+  }
+
+  function emailsBajas() {
+    return (tracking && tracking.bajas_recientes ? tracking.bajas_recientes : [])
+      .map((b) => b.email)
+      .filter(Boolean)
+      .join('\n');
+  }
+
+  function descargarBajasCSV() {
+    const filas = [['email', 'campana', 'fecha']];
+    for (const b of (tracking && tracking.bajas_recientes) || []) {
+      filas.push([b.email, b.campana || '-', b.created_at || '']);
+    }
+    const csv = filas.map((f) => f.map((v) => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'bajas_correo.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   async function cargarUsuariosAdmin() {
     setUsuariosCargando(true);
     try {
@@ -1429,6 +1460,7 @@ export default function Admin() {
               <div className="adopcion-card"><h4>Aperturas email</h4><div className="valor">{tracking.resumen.aperturas}</div></div>
               <div className="adopcion-card"><h4>Bots filtrados</h4><div className="valor">{(tracking.resumen.aperturas_bot || 0) + (tracking.resumen.clicks_bot || 0)}</div></div>
               <div className="adopcion-card"><h4>Honeypot</h4><div className="valor">{tracking.resumen.honeypots || 0}</div></div>
+              <div className="adopcion-card"><h4>Bajas</h4><div className="valor">{tracking.resumen.bajas || 0}</div></div>
               <div className="adopcion-card"><h4>Tasa registro</h4><div className="valor">{tracking.resumen.tasa_registro}%</div></div>
             </div>
 
@@ -1436,7 +1468,7 @@ export default function Admin() {
               <thead>
                 <tr>
                   <th>Campana</th><th>Tipo</th><th>Estado</th><th>Visitas</th><th>Unicos</th>
-                  <th>Registros</th><th>Demos</th><th>Aperturas</th><th>Clicks</th><th>Tasa</th><th>Acciones</th>
+                  <th>Registros</th><th>Demos</th><th>Aperturas</th><th>Clicks</th><th>Bajas</th><th>Tasa</th><th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -1451,6 +1483,7 @@ export default function Admin() {
                     <td>{c.demos}</td>
                     <td>{c.aperturas}</td>
                     <td>{c.clicks}</td>
+                    <td>{c.bajas}</td>
                     <td>{c.tasa_registro}%</td>
                     <td style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                       <button className="btn-mini" onClick={() => editarCampana(c)}>Editar</button>
@@ -1462,7 +1495,7 @@ export default function Admin() {
                   </tr>
                 ))}
                 {(tracking.campanas || []).length === 0 && (
-                  <tr><td colSpan={11} className="vacio">Sin campanas. Crea la primera.</td></tr>
+                  <tr><td colSpan={12} className="vacio">Sin campanas. Crea la primera.</td></tr>
                 )}
               </tbody>
             </table>
@@ -1511,6 +1544,35 @@ export default function Admin() {
                 ))}
                 {(tracking.emails_recientes || []).length === 0 && (
                   <tr><td colSpan={7} className="vacio">Sin aperturas registradas</td></tr>
+                )}
+              </tbody>
+            </table>
+
+            <h3 style={{ fontSize: 14, marginTop: 18 }}>Bajas de correo</h3>
+            <p className="ayuda">
+              Correos que pidieron darse de baja. Usa esta lista para emparejarla con tu listado local.
+            </p>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+              <button className="btn btn-secundario" onClick={() => copiar(emailsBajas(), 'Lista de correos')}>
+                Copiar emails
+              </button>
+              <button className="btn btn-secundario" onClick={descargarBajasCSV}>
+                Descargar CSV
+              </button>
+            </div>
+            <table className="tabla-admin">
+              <thead><tr><th>Email</th><th>Campana</th><th>Fecha</th><th>Motivo</th></tr></thead>
+              <tbody>
+                {(tracking.bajas_recientes || []).map((b) => (
+                  <tr key={b.id}>
+                    <td>{b.email}</td>
+                    <td>{(tracking.campanas || []).find((c) => c.id === b.campana_id)?.nombre || '-'}</td>
+                    <td style={{ fontSize: 11 }}>{b.created_at ? new Date(b.created_at).toLocaleString('es-VE') : '-'}</td>
+                    <td style={{ fontSize: 11 }}>{b.motivo || '-'}</td>
+                  </tr>
+                ))}
+                {(tracking.bajas_recientes || []).length === 0 && (
+                  <tr><td colSpan={4} className="vacio">Sin bajas registradas</td></tr>
                 )}
               </tbody>
             </table>
@@ -1754,6 +1816,19 @@ export default function Admin() {
                       <input readOnly value={enlaceCampana(campanaEditando)} style={{ flex: 1 }} />
                       <button type="button" className="btn btn-secundario" onClick={() => copiar(enlaceCampana(campanaEditando), 'Enlace')}>Copiar</button>
                     </div>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Enlace de baja (para el pie del correo)</label>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <input readOnly value={enlaceBajaCampana(campanaEditando)} style={{ flex: 1, fontFamily: 'Consolas, monospace', fontSize: 12 }} />
+                      <button type="button" className="btn btn-secundario" onClick={() => copiar(enlaceBajaCampana(campanaEditando), 'Enlace de baja')}>Copiar enlace</button>
+                    </div>
+                    <textarea readOnly value={htmlBajaCampana(campanaEditando)} rows={2} style={{ width: '100%', marginTop: 6, fontFamily: 'Consolas, monospace', fontSize: 12 }} />
+                    <button type="button" className="btn btn-secundario" style={{ marginTop: 6 }} onClick={() => copiar(htmlBajaCampana(campanaEditando), 'HTML de baja')}>Copiar HTML</button>
+                    <p className="ayuda" style={{ marginTop: 4 }}>
+                      Reemplaza <code>{'{{email}}'}</code> por el correo del destinatario. La baja se registra
+                      solo cuando la persona pulsa "Confirmar baja" (los validadores de correo no la activan).
+                    </p>
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Pixel + honeypot (HTML para el correo)</label>

@@ -23,6 +23,7 @@ const PUBLICAS = [
   '/api/trafico',
   '/api/pixel',
   '/api/click',
+  '/api/bajas',
   '/api/landing',
   '/precios',
   '/ayuda',

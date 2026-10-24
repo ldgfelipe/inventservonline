@@ -18,11 +18,13 @@ async function analisis(request) {
     { data: trafico },
     { data: emails },
     { data: paginas },
+    { data: bajas },
   ] = await Promise.all([
     sb.from('campanas').select('*').order('created_at', { ascending: false }),
     sb.from('trafico').select('*').order('created_at', { ascending: false }).limit(3000),
     sb.from('email_eventos').select('*').order('created_at', { ascending: false }).limit(1000),
     sb.from('paginas').select('slug, titulo, publicado').order('updated_at', { ascending: false }),
+    sb.from('email_bajas').select('*').order('created_at', { ascending: false }).limit(5000),
   ]);
 
   const visitas = (trafico || []).filter((t) => t.evento === 'visita' && !t.bot);
@@ -33,6 +35,11 @@ async function analisis(request) {
   const aperturasBot = (emails || []).filter((e) => e.tipo === 'apertura' && e.bot);
   const clicksBot = (emails || []).filter((e) => e.tipo === 'click' && e.bot);
   const honeypots = (emails || []).filter((e) => e.tipo === 'honeypot');
+
+  const bajasPorCampana = {};
+  for (const b of bajas || []) {
+    if (b.campana_id) bajasPorCampana[b.campana_id] = (bajasPorCampana[b.campana_id] || 0) + 1;
+  }
 
   const unicos = new Set();
   for (const v of visitas) if (v.visitante_id) unicos.add(v.visitante_id);
@@ -109,6 +116,7 @@ async function analisis(request) {
       demos: m.demos,
       aperturas: m.aperturas,
       clicks: m.clicks,
+      bajas: bajasPorCampana[c.id] || 0,
       tasa_registro: m.visitas > 0 ? Math.round((m.registros / m.visitas) * 1000) / 10 : 0,
     };
   });
@@ -127,6 +135,7 @@ async function analisis(request) {
       aperturas_bot: aperturasBot.length,
       clicks_bot: clicksBot.length,
       honeypots: honeypots.length,
+      bajas: (bajas || []).length,
       tasa_registro: visitas.length > 0 ? Math.round((registros.length / visitas.length) * 1000) / 10 : 0,
       sin_campana: {
         visitas: sinCampana.visitas,
@@ -145,6 +154,7 @@ async function analisis(request) {
       .map(([fecha, m]) => ({ fecha, ...m })),
     trafico_reciente: (trafico || []).slice(0, 120),
     emails_recientes: (emails || []).slice(0, 120),
+    bajas_recientes: (bajas || []).slice(0, 200),
     paginas: paginas || [],
   });
 }
