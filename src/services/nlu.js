@@ -6,72 +6,54 @@
 const { clave } = require('./texto');
 
 const R = {
-  verboRegistro: /(registra|registrar|anota|apunta|ingresar|ingresa|cargar movimiento)/,
-  accionEntrada: /(entrada|ingreso|sumar|sumale|recibimos|recibido|compra de mercancia)/,
-  accionSalida: /(salida|egreso|retira|retirar|saca|sacar|descontar|restar|vendido|entregamos|despacho)/,
-  historial: /(movimientos|historial|kardex|entradas y salidas|registro de movimientos|bitacora de stock)/,
-  bajo: /(stock bajo|bajo de stock|bajo el minimo|bajo del minimo|por debajo del minimo|debajo del minimo|reorden|por agotarse|casi agotado|escasez|alerta de stock|falta stock|poco stock)/,
-  agotado: /(agotad|sin stock|no hay stock|cero unidades|sin existencias|vacio|no queda)/,
-  valor: /(valor del inventario|valor inventario|cuanto vale el inventario|cuanto vale|valorizado|valor total|capital en inventario)/,
-  conteo: /(cuantos productos|cuantos articulos|cuantos items|cuantas referencias|cuantos registros|total de productos)/,
-  top: /(mas movido|mas vendido|top producto|mayor movimiento|mas activo|mas salida)/,
-  traslados: /(traslado|traslados|movimiento entre almacenes|movimiento de almacen)/,
-  stockAlmacen: /(stock por almacen|stock en almacen|existencia por almacen|inventario por almacen|stock del almacen)/,
-  traslados: /(traslado|traslados|movimiento entre almacenes|movimiento de almacen)/,
-  stockAlmacen: /(stock por almacen|stock en almacen|existencia por almacen|inventario por almacen|stock del almacen)/,
-  traslados: /(traslado|traslados|movimiento entre almacenes|movimiento de almacen)/,
-  stockAlmacen: /(stock por almacen|stock en almacen|existencia por almacen|inventario por almacen|stock del almacen)/,
-  traslados: /(traslado|traslados|movimiento entre almacenes|movimiento de almacen)/,
-  stockAlmacen: /(stock por almacen|stock en almacen|existencia por almacen|inventario por almacen|stock del almacen)/,
-  traslados: /(traslado|traslados|movimiento entre almacenes|movimiento de almacen)/,
-  stockAlmacen: /(stock por almacen|stock en almacen|existencia por almacen|inventario por almacen|stock del almacen)/,
-  traslados: /(traslado|traslados|movimiento entre almacenes|movimiento de almacen)/,
-  stockAlmacen: /(stock por almacen|stock en almacen|existencia por almacen|inventario por almacen|stock del almacen)/,
-  traslados: /(traslado|traslados|movimiento entre almacenes|movimiento de almacen)/,
-  stockAlmacen: /(stock por almacen|stock en almacen|existencia por almacen|inventario por almacen|stock del almacen)/,
-  traslados: /(traslado|traslados|movimiento entre almacenes|movimiento de almacen)/,
-  stockAlmacen: /(stock por almacen|stock en almacen|existencia por almacen|inventario por almacen|stock del almacen)/,
-  traslados: /(traslado|traslados|movimiento entre almacenes|movimiento de almacen)/,
-  stockAlmacen: /(stock por almacen|stock en almacen|existencia por almacen|inventario por almacen|stock del almacen)/,
-  ventas: /(ventas|cuanto vendi|vendimos|facturacion|facturado|resumen de ventas)/,
-  cxc: /(cuentas por cobrar|por cobrar|deudores|cobros pendientes|quien me debe|saldo de clientes)/,
-  cxp: /(cuentas por pagar|por pagar a proveedores|proveedores que debo|debo a proveedores|saldo a proveedores)/,
-  caja: /(caja|cobros de hoy|ingresos de hoy|cuanto cobre hoy|resumen de caja)/,
-  margen: /(margen|ganancia|utilidad|rentabilidad|cuanto gane)/,
-  importar: /(importar|cargar archivo|subir excel|cargar excel|cargar csv|carga masiva|subir archivo)/,
-  crear: /(crear producto|nuevo producto|alta de producto|agregar producto|registrar producto|crear articulo)/,
-  ayuda: /(ayuda|que puedes hacer|como funciona|comandos|opciones|no se usar|tutorial|para que sirves|que sabes hacer|no entiendo)/,
-  consultaStock: /((cuanto|cuanta|cuantos|cuantas)[^]{0,25}(hay|tengo|queda)|stock de|existencia de|cuanto hay de)/,
-  info: /(informacion de|datos de|detalle de|ficha de|precio de|proveedor de|donde esta el producto)/,
-  saludo: /^(hola|buenas|buenos dias|buenas tardes|hey|saludos|que tal|holi)/,
+  /* --- Acciones de movimiento --- */
+  verboRegistro: /(registra|registrar|anota|anotar|apunta|apuntar|ingresa|ingresar|carga|cargar|suma|sumale|descuenta|descontar|movimiento de|movimiento para)/,
+  accionEntrada: /(entrada|ingreso|sumar|sumale|recibimos|recibido|recibi|compra de mercancia|compre|compraron|llegaron|llegada|abastec|reabastec)/,
+  accionSalida: /(salida|egreso|retira|retirar|saca|sacar|descontar|restar|vendido|vendimos|vendi|entregamos|entrega|despacho|merma|perdida|se dano|se rompio)/,
+  historial: /(movimientos|historial|kardex|entradas y salidas|registro de movimientos|bitacora de stock|trazabilidad|que paso con)/,
+
+  /* --- Stock --- */
+  bajo: /(stock bajo|bajo stock|bajos de stock|bajo de stock|bajo el minimo|bajo del minimo|por debajo del minimo|debajo del minimo|reorden|reordenar|por agotarse|por agotar|casi agotad|escasez|escasean|alerta de stock|falta stock|falta de stock|poco stock|pocas existencias|existencias bajas|menos stock|menos existencias|mas bajos|mas bajo|bajos|bajando|se (me |nos |les |le )?(esta|estan) (acabando|terminando|agotando)|inventario bajo|que me falta|que falta|faltantes|faltante|hay que comprar|hay que pedir|necesito (pedir|comprar|reponer|reabastecer|surtir)|debo (pedir|comprar|reponer|reabastecer|surtir)|tengo que (pedir|comprar|reponer|reabastecer|surtir)|que (pedir|comprar|reponer|reabastecer|surtir)|por pedir|para pedir|reabastecer|reponer|surtir|reponer stock)/,
+  agotado: /(agotad|agot|sin stock|no hay stock|cero unidades|sin existencias|vacio|no queda|no quedan|se (me |nos |les |le )?(acabo|acabaron|termino|terminaron|agoto|agotaron)|no tengo)/,
+  valor: /(valor del inventario|valor inventario|cuanto vale.*inventario|cuanto dinero.*inventario|cuanto vale.*mercancia|cuanto dinero.*mercancia|valorizado|valor total|valor de mi inventario|valor de lo que tengo|capital en inventario|invertido en inventario|cuanto tengo invertido|cuanto tengo en inventario)/,
+  conteo: /(cuantos productos|cuantos articulos|cuantos items|cuantos item|cuantas referencias|cuantos registros|total de productos|que productos tengo|productos tengo|productos registrados|lista de productos|listado de productos|catalogo de productos|cuantos productos hay|cuantos articulos hay|que inventario tengo|inventario tengo|resumen de inventario)/,
+  top: /(mas movido|mas movidos|mas vendido|mas vendidos|top producto|top productos|mayor movimiento|mayor rotacion|mas activo|mas salida|que se vende mas|que producto se vende mas|los que mas salen)/,
+
+  /* --- Almacenes / traslados --- */
+  traslados: /(traslado|traslados|movimiento entre almacenes|movimiento de almacen|pase entre almacenes|transferencia entre almacenes)/,
+  stockAlmacen: /(stock por almacen|stock en almacen|existencia por almacen|existencias por almacen|inventario por almacen|stock del almacen|distribucion por almacen|como esta el stock en cada almacen)/,
+
+  /* --- Comercial / finanzas --- */
+  ventas: /(ventas|cuanto vendi|cuanto vendimos|vendimos|vendi hoy|facturacion|facturado|resumen de ventas|como van las ventas|ultimas ventas|ventas de hoy|ventas recientes)/,
+  cxc: /(cuentas por cobrar|por cobrar|cobrar pendiente|deudores|clientes morosos|cobros pendientes|quien me debe|quienes me deben|que me deben|deudas de clientes|saldo de clientes|cuentas pendientes de cobro)/,
+  cxp: /(cuentas por pagar|por pagar a proveedores|proveedores que debo|debo a proveedores|a quien le debo|que debo|deudas con proveedores|saldo a proveedores|cuentas pendientes de pago)/,
+  caja: /(\bcaja\b|cierre de caja|resumen de caja|como va la caja|como esta la caja|cuanto hay en caja|efectivo de hoy|cobros de hoy|ingresos de hoy|cuanto cobre hoy)/,
+  margen: /(margen|ganancia|utilidad|rentabilidad|cuanto gane|cuanto estoy ganando|estoy ganando|cuanto he ganado)/,
+
+  /* --- Herramientas --- */
+  importar: /(importar|cargar archivo|subir excel|cargar excel|cargar csv|carga masiva|subir archivo|importar productos|subir productos|cargar productos|actualizar productos desde)/,
+  crear: /(crear producto|nuevo producto|alta de producto|agregar producto|registrar producto|crear articulo|nuevo articulo|agregar un producto|dar de alta)/,
+  ayuda: /(ayuda|que puedes hacer|como funciona|como usar|como se usa|no se como usar|comandos|opciones|no se usar|tutorial|para que sirves|que sabes hacer|no entiendo|ayudame|instrucciones|como te uso|necesito ayuda|me ayudas)/,
+
+  /* --- Consultas por producto --- */
+  consultaStock: /((cuanto|cuanta|cuantos|cuantas)[^]{0,30}(hay|tengo|queda|quedan|tiene)|stock de|existencia de|existencias de|cuanto hay de|tengo de|me queda de|cuantas unidades de|cuanto tengo de|hay de)/,
+  info: /(informacion de|datos de|detalle de|ficha de|precio de|cuanto cuesta|cuanto vale el producto|proveedor de|donde esta el producto|codigo de)/,
+  saludo: /^(hola|buenas|buen dia|buenos dias|buenas tardes|buenas noches|hey|saludos|que tal|holi|hola asistente)/,
+
   /* Palabras que indican comparacion/pregunta, no una orden de movimiento */
-  comparativo: /(mas |mayor |menos |mejor |peor |cual |quien |que |que$)/,
+  comparativo: /(cual|cuales|que |que$|cuanto|cuanta|cuantos|cuantas|lista|listado|dame|muestra|necesito|debo|tengo que|me gustaria|quisiera|como|donde)/,
+  /* Preguntas reales (para no confundir "que producto..." con un movimiento) */
+  pregunta: /^(cual|cuales|que|cuanto|cuanta|cuantos|cuantas|lista|listado|dame|muestra|muestrame|hay|existe|existen|donde|como|quien|quienes)\b/,
 };
 
 const DESCRIPCION = {
   saludo: 'Saludo',
   ayuda: 'Ver capacidades del asistente',
-  listar_bajo: 'Productos con stock bajo',
+  listar_bajo: 'Productos con stock bajo / por pedir',
   listar_agotados: 'Productos agotados',
   valor_inventario: 'Valor total del inventario',
   conteo_total: 'Cantidad de productos',
   top_movidos: 'Productos mas movidos',
-  traslados_recientes: 'Traslados entre almacenes',
-  stock_por_almacen: 'Stock por almacen',
-  traslados_recientes: 'Traslados entre almacenes',
-  stock_por_almacen: 'Stock por almacen',
-  traslados_recientes: 'Traslados entre almacenes',
-  stock_por_almacen: 'Stock por almacen',
-  traslados_recientes: 'Traslados entre almacenes',
-  stock_por_almacen: 'Stock por almacen',
-  traslados_recientes: 'Traslados entre almacenes',
-  stock_por_almacen: 'Stock por almacen',
-  traslados_recientes: 'Traslados entre almacenes',
-  stock_por_almacen: 'Stock por almacen',
-  traslados_recientes: 'Traslados entre almacenes',
-  stock_por_almacen: 'Stock por almacen',
-  traslados_recientes: 'Traslados entre almacenes',
-  stock_por_almacen: 'Stock por almacen',
   traslados_recientes: 'Traslados entre almacenes',
   stock_por_almacen: 'Stock por almacen',
   ventas_recientes: 'Ventas recientes',
@@ -117,8 +99,8 @@ function interpretar(texto) {
   if (R.historial.test(plano)) return { ...base, intencion: 'historial' };
 
   // 3. Acciones sin verbo explicito (si no es una pregunta comparativa)
-  if (R.accionSalida.test(plano) && !R.comparativo.test(plano)) return { ...base, intencion: 'registrar_salida' };
-  if (R.accionEntrada.test(plano) && !R.comparativo.test(plano)) return { ...base, intencion: 'registrar_entrada' };
+  if (R.accionSalida.test(plano) && !R.pregunta.test(plano)) return { ...base, intencion: 'registrar_salida' };
+  if (R.accionEntrada.test(plano) && !R.pregunta.test(plano)) return { ...base, intencion: 'registrar_entrada' };
 
   // 4. Alertas y agregados (mas especificos que "cuanto hay")
   if (R.bajo.test(plano)) return { ...base, intencion: 'listar_bajo' };
@@ -126,22 +108,6 @@ function interpretar(texto) {
   if (R.valor.test(plano)) return { ...base, intencion: 'valor_inventario' };
   if (R.conteo.test(plano)) return { ...base, intencion: 'conteo_total' };
   if (R.top.test(plano)) return { ...base, intencion: 'top_movidos' };
-  if (R.traslados.test(plano)) return { ...base, intencion: 'traslados_recientes' };
-  if (R.stockAlmacen.test(plano)) return { ...base, intencion: 'stock_por_almacen' };
-  if (R.traslados.test(plano)) return { ...base, intencion: 'traslados_recientes' };
-  if (R.stockAlmacen.test(plano)) return { ...base, intencion: 'stock_por_almacen' };
-  if (R.traslados.test(plano)) return { ...base, intencion: 'traslados_recientes' };
-  if (R.stockAlmacen.test(plano)) return { ...base, intencion: 'stock_por_almacen' };
-  if (R.traslados.test(plano)) return { ...base, intencion: 'traslados_recientes' };
-  if (R.stockAlmacen.test(plano)) return { ...base, intencion: 'stock_por_almacen' };
-  if (R.traslados.test(plano)) return { ...base, intencion: 'traslados_recientes' };
-  if (R.stockAlmacen.test(plano)) return { ...base, intencion: 'stock_por_almacen' };
-  if (R.traslados.test(plano)) return { ...base, intencion: 'traslados_recientes' };
-  if (R.stockAlmacen.test(plano)) return { ...base, intencion: 'stock_por_almacen' };
-  if (R.traslados.test(plano)) return { ...base, intencion: 'traslados_recientes' };
-  if (R.stockAlmacen.test(plano)) return { ...base, intencion: 'stock_por_almacen' };
-  if (R.traslados.test(plano)) return { ...base, intencion: 'traslados_recientes' };
-  if (R.stockAlmacen.test(plano)) return { ...base, intencion: 'stock_por_almacen' };
   if (R.traslados.test(plano)) return { ...base, intencion: 'traslados_recientes' };
   if (R.stockAlmacen.test(plano)) return { ...base, intencion: 'stock_por_almacen' };
   if (R.ventas.test(plano)) return { ...base, intencion: 'ventas_recientes' };

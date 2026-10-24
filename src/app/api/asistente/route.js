@@ -135,19 +135,25 @@ async function consultar(request) {
 
       case 'listar_bajo': {
         if (!puede(perfil.rol, 'productos.ver')) return responder(p, negar('productos.ver').texto);
-        // PostgREST no compara columnas entre si, asi que traemos los que
-        // tienen existencia y filtramos en memoria: actual <= minimo.
+        // PostgREST no compara columnas entre si, asi que traemos los
+        // productos activos y filtramos en memoria: actual <= minimo.
+        // Se incluyen los que estan en 0 (los mas urgentes de pedir).
         const { data } = await sb.from('productos')
           .select('codigo, nombre, stock_actual, stock_minimo')
-          .eq('empresa_id', perfil.empresa_id).eq('activo', true)
-          .gt('stock_actual', 0);
+          .eq('empresa_id', perfil.empresa_id).eq('activo', true);
         const bajos = (data || [])
           .filter((x) => Number(x.stock_actual) <= Number(x.stock_minimo))
-          .sort((a, b) => a.stock_actual - b.stock_actual).slice(0, 50);
+          .map((x) => ({
+            ...x,
+            faltan: Math.max(0, Number(x.stock_minimo) - Number(x.stock_actual)),
+          }))
+          .sort((a, b) => Number(a.stock_actual) - Number(b.stock_actual)).slice(0, 50);
         return responder(p, bajos.length
-          ? `Hay ${bajos.length} producto(s) en o por debajo del minimo:`
-          : 'Ningun producto esta por debajo del minimo. Todo en orden.',
-          tabla('Stock bajo', bajos, ['codigo', 'nombre', 'stock_actual', 'stock_minimo'], ['Codigo', 'Producto', 'Actual', 'Minimo']));
+          ? `Estos son los ${bajos.length} productos que necesitas reponer (de menor a mayor existencia):`
+          : 'No hay productos por debajo del minimo. No necesitas pedir nada por ahora.',
+          tabla('Productos por reponer', bajos,
+            ['codigo', 'nombre', 'stock_actual', 'stock_minimo', 'faltan'],
+            ['Codigo', 'Producto', 'Actual', 'Minimo', 'Faltan']));
       }
 
       case 'listar_agotados': {
