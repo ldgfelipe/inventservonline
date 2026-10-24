@@ -639,6 +639,28 @@ a { color: var(--primario); text-decoration: none; }
 .admin-tab:hover { color: var(--texto); }
 .admin-tab.activo { color: var(--primario); border-bottom-color: var(--primario); }
 
+/* Sub-pestanas dentro de una seccion del admin */
+.admin-subtabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--borde);
+  margin: 10px 0 18px;
+}
+.admin-subtab {
+  padding: 8px 14px;
+  border: none;
+  background: transparent;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--suave);
+  font-family: inherit;
+}
+.admin-subtab:hover { color: var(--texto); }
+.admin-subtab.activo { color: var(--primario); border-bottom-color: var(--primario); }
+
 .admin[data-tab="paginas"] .panel-admin:not(.sec-paginas) { display: none; }
 .admin[data-tab="general"] .panel-admin:not(.sec-general),
 .admin[data-tab="pagos"] .panel-admin:not(.sec-pagos),
