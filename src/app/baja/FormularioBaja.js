@@ -3,14 +3,22 @@
 import { useState } from 'react';
 import Link from 'next/link';
 
+const RE_EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
 export default function FormularioBaja({ email, codigo }) {
+  const [correo, setCorreo] = useState(email || '');
   const [estado, setEstado] = useState('inicial'); // inicial | enviando | listo | error
   const [mensaje, setMensaje] = useState('');
 
-  async function confirmar() {
-    if (!email) {
+  // Si el enlace no trae correo, se pide escribirlo.
+  const necesitaCorreo = !email;
+
+  async function confirmar(e) {
+    if (e) e.preventDefault();
+    const destino = String(correo || '').trim().toLowerCase();
+    if (!RE_EMAIL.test(destino)) {
       setEstado('error');
-      setMensaje('El enlace no incluye un correo valido.');
+      setMensaje('Escribe un correo electronico valido.');
       return;
     }
     setEstado('enviando');
@@ -18,7 +26,7 @@ export default function FormularioBaja({ email, codigo }) {
       const r = await fetch('/api/bajas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, codigo }),
+        body: JSON.stringify({ email: destino, codigo }),
       });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error || 'No se pudo registrar la baja');
@@ -43,23 +51,41 @@ export default function FormularioBaja({ email, codigo }) {
       {estado === 'listo' ? (
         <p style={{ color: '#16a34a', fontSize: 15, lineHeight: 1.6 }}>{mensaje}</p>
       ) : (
-        <>
-          <p style={{ color: '#64748b', fontSize: 14, lineHeight: 1.6, marginBottom: 18 }}>
+        <form onSubmit={confirmar}>
+          <p style={{ color: '#64748b', fontSize: 14, lineHeight: 1.6, marginBottom: 16 }}>
             Si ya no deseas recibir nuestras campanas por correo, confirma la baja.
-            {email ? <> El correo a dar de baja es <strong>{email}</strong>.</> : null}
           </p>
+
+          {necesitaCorreo ? (
+            <div className="campo" style={{ textAlign: 'left' }}>
+              <label>Correo que deseas dar de baja</label>
+              <input
+                type="email"
+                value={correo}
+                onChange={(e) => setCorreo(e.target.value)}
+                placeholder="tu@correo.com"
+                autoComplete="email"
+                required
+              />
+            </div>
+          ) : (
+            <p style={{ color: '#64748b', fontSize: 14, lineHeight: 1.6, marginBottom: 18 }}>
+              El correo a dar de baja es <strong>{email}</strong>.
+            </p>
+          )}
+
           {estado === 'error' && (
             <p style={{ color: '#dc2626', fontSize: 14, marginBottom: 12 }}>{mensaje}</p>
           )}
+
           <button
-            type="button"
+            type="submit"
             className="btn btn-primary"
-            onClick={confirmar}
             disabled={estado === 'enviando'}
           >
             {estado === 'enviando' ? 'Procesando...' : 'Confirmar baja'}
           </button>
-        </>
+        </form>
       )}
 
       <p style={{ marginTop: 24, fontSize: 12, color: '#94a3b8' }}>
