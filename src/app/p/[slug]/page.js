@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { admin } from '@/lib/supabase';
+import TrackVisita from '@/components/TrackVisita';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -33,6 +34,9 @@ export default async function PaginaPublica({ params }) {
   const html = String(data.html || '').replace(/\{\{REGISTRO\}\}/g, REGISTRO_IFRAME);
 
   return (
-    <div dangerouslySetInnerHTML={{ __html: html }} />
+    <>
+      <div dangerouslySetInnerHTML={{ __html: html }} />
+      <TrackVisita />
+    </>
   );
 }

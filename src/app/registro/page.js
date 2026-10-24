@@ -4,8 +4,13 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { PAISES, opcionesMoneda, monedaDePais, PAIS_POR_DEFECTO } from '@/lib/monedas';
+import TrackVisita from '@/components/TrackVisita';
 
 const MONEDAS = opcionesMoneda();
+
+function atribucion() {
+  try { return JSON.parse(localStorage.getItem('inv_atribucion') || 'null') || {}; } catch { return {}; }
+}
 
 function FormularioRegistro() {
   const router = useRouter();
@@ -62,7 +67,7 @@ function FormularioRegistro() {
       const r = await fetch('/api/auth/registro', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, ...atribucion() }),
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || 'No se pudo completar el registro');
@@ -246,6 +251,7 @@ function FormularioRegistro() {
           </p>
         )}
       </div>
+      {!embed && <TrackVisita />}
     </main>
   );
 }

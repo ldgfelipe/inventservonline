@@ -3,14 +3,23 @@ import { admin } from '@/lib/supabase';
 
 export const runtime = 'nodejs';
 
-/* POST /api/trafico { campana_id?, fuente?, medio?, utm_*, pagina?, evento?, ip?, user_agent?, referer? }
+/* POST /api/trafico { campana_id?, fuente?, medio?, utm_*, pagina?, evento?, visitante_id?, sesion_id? }
    Endpoint publico para tracking de visitas/registros/conversiones. */
 export async function POST(request) {
   let cuerpo; try { cuerpo = await request.json(); } catch { cuerpo = {}; }
   const sb = admin();
+
+  // Atribuir la visita a una campana por su utm_campaign (si existe).
+  let campanaId = cuerpo.campana_id || null;
+  if (!campanaId && cuerpo.utm_campaign) {
+    const { data: camp } = await sb.from('campanas')
+      .select('id').eq('utm_campaign', String(cuerpo.utm_campaign)).maybeSingle();
+    if (camp) campanaId = camp.id;
+  }
+
   const { error: err } = await sb.from('trafico').insert({
     empresa_id: cuerpo.empresa_id || null,
-    campana_id: cuerpo.campana_id || null,
+    campana_id: campanaId,
     fuente: cuerpo.fuente || null,
     medio: cuerpo.medio || null,
     utm_source: cuerpo.utm_source || null,
@@ -20,15 +29,13 @@ export async function POST(request) {
     utm_term: cuerpo.utm_term || null,
     pagina: cuerpo.pagina || null,
     ip: cuerpo.ip || null,
-    user_agent: cuerpo.user_agent || null,
+    user_agent: cuerpo.user_agent || (request.headers.get('user-agent') || null),
     referer: cuerpo.referer || null,
+    visitante_id: cuerpo.visitante_id || null,
+    sesion_id: cuerpo.sesion_id || null,
     evento: cuerpo.evento || 'visita',
   });
   if (err) return Response.json({ ok: false, error: err.message }, { status: 500 });
-  // Si es una visita a una landing page, incrementar contador
-  if (cuerpo.landing_slug) {
-    await sb.from('landing_pages').update({ visitas: sb.rpc ? 0 : 0 }).eq('slug', cuerpo.landing_slug);
-  }
   return Response.json({ ok: true });
 }
 

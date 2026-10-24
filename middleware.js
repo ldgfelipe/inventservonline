@@ -20,6 +20,8 @@ const PUBLICAS = [
   '/api/planes',
   '/api/webhooks',
   '/api/trafico',
+  '/api/pixel',
+  '/api/click',
   '/api/landing',
   '/precios',
   '/ayuda',

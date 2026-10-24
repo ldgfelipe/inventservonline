@@ -117,16 +117,30 @@ export async function POST(request) {
 
     // Tracking de marketing: registrar el registro como trafico y conversion.
     // Best-effort: si las tablas no existen, no afecta el registro.
+    let campanaId = null;
+    const utmCampaign = String(cuerpo.utm_campaign || '').trim();
+    if (utmCampaign) {
+      try {
+        const { data: camp } = await sb.from('campanas')
+          .select('id').eq('utm_campaign', utmCampaign).maybeSingle();
+        if (camp) campanaId = camp.id;
+      } catch { /* migracion 030 pendiente */ }
+    }
+
     try {
       await sb.from('trafico').insert({
         empresa_id: emp.id,
+        campana_id: campanaId,
         fuente: cuerpo.utm_source || cuerpo.fuente || 'directo',
-        medio: cuerpo.utm_medium || null,
+        medio: cuerpo.utm_medium || cuerpo.medio || null,
         utm_source: cuerpo.utm_source || null,
         utm_medium: cuerpo.utm_medium || null,
         utm_campaign: cuerpo.utm_campaign || null,
         utm_content: cuerpo.utm_content || null,
         utm_term: cuerpo.utm_term || null,
+        pagina: cuerpo.pagina || '/registro',
+        referer: cuerpo.referer || null,
+        visitante_id: cuerpo.visitante_id || null,
         evento: 'registro',
       });
     } catch { /* migracion 030 pendiente */ }
@@ -134,6 +148,7 @@ export async function POST(request) {
     try {
       await sb.from('conversiones').insert({
         empresa_id: emp.id,
+        campana_id: campanaId,
         tipo: 'registro',
         plan: PLAN_EN_PRUEBA,
         notas: 'Registro de nueva empresa',

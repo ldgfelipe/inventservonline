@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import Footer from '@/components/Footer';
+import TrackVisita, { registrarEvento } from '@/components/TrackVisita';
 
 export default function Landing() {
   const router = useRouter();
@@ -11,6 +12,7 @@ export default function Landing() {
 
   async function probarDemo() {
     setCargando(true);
+    registrarEvento('demo');
     try {
       const r = await fetch('/api/auth/login', {
         method: 'POST',
@@ -129,6 +131,7 @@ export default function Landing() {
       </main>
 
       <Footer />
+      <TrackVisita />
     </>
   );
 }

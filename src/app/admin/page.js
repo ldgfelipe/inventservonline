@@ -34,6 +34,10 @@ export default function Admin() {
   const [paginasCargando, setPaginasCargando] = useState(false);
   const [paginaEditando, setPaginaEditando] = useState(null);
   const [paginaModal, setPaginaModal] = useState(false);
+  const [tracking, setTracking] = useState(null);
+  const [trackingCargando, setTrackingCargando] = useState(false);
+  const [campanaEditando, setCampanaEditando] = useState(null);
+  const [campanaModal, setCampanaModal] = useState(false);
   const [usuarios, setUsuarios] = useState([]);
   const [usuariosCargando, setUsuariosCargando] = useState(false);
   const [usuarioDetalle, setUsuarioDetalle] = useState(null);
@@ -64,6 +68,7 @@ export default function Admin() {
     cargarTickets();
     cargarConfigPagos();
     cargarPaginas();
+    cargarTracking();
     cargarUsuariosAdmin();
   }, [usuario]);
 
@@ -332,6 +337,81 @@ export default function Admin() {
     if (!r.ok) return setError(j.error || 'No se pudo eliminar');
     setMensaje('Pagina eliminada');
     cargarPaginas();
+  }
+
+  async function cargarTracking() {
+    setTrackingCargando(true);
+    try {
+      const r = await fetch('/api/admin/tracking', { headers: auth() });
+      const j = await r.json();
+      if (r.ok) setTracking(j);
+      else setError(j.error || 'No se pudo cargar el seguimiento');
+    } finally { setTrackingCargando(false); }
+  }
+
+  function nuevaCampana() {
+    setCampanaEditando({
+      nombre: '', tipo: 'mailing', canal: 'email', estado: 'activa',
+      presupuesto: 0, moneda: 'USD', fecha_inicio: '', fecha_fin: '',
+      utm_source: 'email', utm_medium: 'email', utm_campaign: '',
+      utm_content: '', utm_term: '', landing_url: '',
+    });
+    setCampanaModal(true);
+  }
+
+  function editarCampana(c) {
+    setCampanaEditando({ ...c });
+    setCampanaModal(true);
+  }
+
+  async function guardarCampana(e) {
+    e.preventDefault();
+    if (!campanaEditando) return;
+    setError(''); setMensaje('');
+    const payload = { ...campanaEditando };
+    delete payload.id; delete payload.codigo; delete payload.email_pixel_token;
+    const url = campanaEditando.id ? '/api/admin/campanas/' + campanaEditando.id : '/api/admin/campanas';
+    const metodo = campanaEditando.id ? 'PATCH' : 'POST';
+    const r = await fetch(url, {
+      method: metodo,
+      headers: { 'Content-Type': 'application/json', ...auth() },
+      body: JSON.stringify(payload),
+    });
+    const j = await r.json();
+    if (!r.ok) return setError(j.error || 'No se pudo guardar la campana');
+    setMensaje('Campana guardada');
+    setCampanaModal(false);
+    setCampanaEditando(null);
+    cargarTracking();
+  }
+
+  async function eliminarCampana(id) {
+    if (!confirm('¿Eliminar esta campana?')) return;
+    setError(''); setMensaje('');
+    const r = await fetch('/api/admin/campanas/' + id, { method: 'DELETE', headers: auth() });
+    const j = await r.json();
+    if (!r.ok) return setError(j.error || 'No se pudo eliminar');
+    setMensaje('Campana eliminada');
+    cargarTracking();
+  }
+
+  function copiar(texto, etiqueta) {
+    try {
+      navigator.clipboard.writeText(texto);
+      setMensaje(etiqueta + ' copiado al portapapeles');
+    } catch {
+      setError('No se pudo copiar. Copia manualmente el texto.');
+    }
+  }
+
+  function enlaceCampana(c) {
+    const base = typeof window !== 'undefined' ? window.location.origin : '';
+    return base + '/api/click/' + c.codigo;
+  }
+
+  function pixelCampana(c) {
+    const base = typeof window !== 'undefined' ? window.location.origin : '';
+    return '<img src="' + base + '/api/pixel/' + c.email_pixel_token + '.gif?e={{email}}" width="1" height="1" alt="" />';
   }
 
   async function cargarUsuariosAdmin() {
@@ -1295,6 +1375,111 @@ export default function Admin() {
           {marketingCargando ? 'Cargando...' : 'Actualizar'}
         </button>
 
+        <h3 style={{ fontSize: 15, marginTop: 8 }}>Campanas y enlaces de seguimiento</h3>
+        <p className="ayuda">
+          Crea una campana para obtener un enlace de seguimiento y un pixel de apertura de correo.
+          Cada visita y registro queda atribuido a la campana por sus parametros UTM.
+        </p>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+          <button className="btn btn-secundario" onClick={cargarTracking}>
+            {trackingCargando ? 'Cargando...' : 'Actualizar seguimiento'}
+          </button>
+          <button className="btn btn-primary" onClick={nuevaCampana}>+ Nueva campana</button>
+        </div>
+
+        {tracking && (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 16 }}>
+              <div className="adopcion-card"><h4>Visitas</h4><div className="valor">{tracking.resumen.visitas}</div></div>
+              <div className="adopcion-card"><h4>Visitantes unicos</h4><div className="valor">{tracking.resumen.visitantes_unicos}</div></div>
+              <div className="adopcion-card"><h4>Registros</h4><div className="valor">{tracking.resumen.registros}</div></div>
+              <div className="adopcion-card"><h4>Demos</h4><div className="valor">{tracking.resumen.demos}</div></div>
+              <div className="adopcion-card"><h4>Aperturas email</h4><div className="valor">{tracking.resumen.aperturas}</div></div>
+              <div className="adopcion-card"><h4>Tasa registro</h4><div className="valor">{tracking.resumen.tasa_registro}%</div></div>
+            </div>
+
+            <table className="tabla-admin">
+              <thead>
+                <tr>
+                  <th>Campana</th><th>Tipo</th><th>Estado</th><th>Visitas</th><th>Unicos</th>
+                  <th>Registros</th><th>Demos</th><th>Aperturas</th><th>Clicks</th><th>Tasa</th><th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(tracking.campanas || []).map((c) => (
+                  <tr key={c.id}>
+                    <td>{c.nombre}</td>
+                    <td>{c.tipo}</td>
+                    <td>{c.estado}</td>
+                    <td>{c.visitas}</td>
+                    <td>{c.unicos}</td>
+                    <td>{c.registros}</td>
+                    <td>{c.demos}</td>
+                    <td>{c.aperturas}</td>
+                    <td>{c.clicks}</td>
+                    <td>{c.tasa_registro}%</td>
+                    <td style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                      <button className="btn-mini" onClick={() => editarCampana(c)}>Editar</button>
+                      <button className="btn-mini" onClick={() => copiar(enlaceCampana(c), 'Enlace')}>Copiar enlace</button>
+                      <button className="btn-mini" onClick={() => copiar(pixelCampana(c), 'Pixel')}>Copiar pixel</button>
+                      <button className="btn-mini" onClick={() => eliminarCampana(c.id)}>Eliminar</button>
+                    </td>
+                  </tr>
+                ))}
+                {(tracking.campanas || []).length === 0 && (
+                  <tr><td colSpan={11} className="vacio">Sin campanas. Crea la primera.</td></tr>
+                )}
+              </tbody>
+            </table>
+
+            <h3 style={{ fontSize: 14, marginTop: 18 }}>Trafico reciente</h3>
+            <table className="tabla-admin">
+              <thead><tr><th>Fecha</th><th>Evento</th><th>Fuente</th><th>Medio</th><th>Campana UTM</th><th>Pagina</th><th>Referer</th></tr></thead>
+              <tbody>
+                {(tracking.trafico_reciente || []).slice(0, 50).map((t) => (
+                  <tr key={t.id}>
+                    <td style={{ fontSize: 11 }}>{t.created_at ? new Date(t.created_at).toLocaleString('es-VE') : '-'}</td>
+                    <td>{t.evento}</td>
+                    <td>{t.fuente || '-'}</td>
+                    <td>{t.medio || '-'}</td>
+                    <td>{t.utm_campaign || '-'}</td>
+                    <td className="mono" style={{ fontSize: 11 }}>{t.pagina || '-'}</td>
+                    <td style={{ fontSize: 11, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {t.referer || '-'}
+                    </td>
+                  </tr>
+                ))}
+                {(tracking.trafico_reciente || []).length === 0 && (
+                  <tr><td colSpan={7} className="vacio">Sin trafico registrado</td></tr>
+                )}
+              </tbody>
+            </table>
+
+            <h3 style={{ fontSize: 14, marginTop: 18 }}>Aperturas y clicks de correo</h3>
+            <table className="tabla-admin">
+              <thead><tr><th>Fecha</th><th>Tipo</th><th>Email</th><th>Campana</th><th>URL</th></tr></thead>
+              <tbody>
+                {(tracking.emails_recientes || []).slice(0, 50).map((e) => (
+                  <tr key={e.id}>
+                    <td style={{ fontSize: 11 }}>{e.created_at ? new Date(e.created_at).toLocaleString('es-VE') : '-'}</td>
+                    <td>{e.tipo}</td>
+                    <td>{e.email || '-'}</td>
+                    <td>{(tracking.campanas || []).find((c) => c.id === e.campana_id)?.nombre || '-'}</td>
+                    <td style={{ fontSize: 11, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {e.url || '-'}
+                    </td>
+                  </tr>
+                ))}
+                {(tracking.emails_recientes || []).length === 0 && (
+                  <tr><td colSpan={5} className="vacio">Sin aperturas registradas</td></tr>
+                )}
+              </tbody>
+            </table>
+          </>
+        )}
+
+        <h3 style={{ fontSize: 15, marginTop: 24 }}>Analisis general</h3>
+
         {marketing && (
           <>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 16 }}>
@@ -1445,6 +1630,112 @@ export default function Admin() {
           </tbody>
         </table>
       </section>
+      {campanaModal && campanaEditando && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)',
+            zIndex: 1000, display: 'flex', justifyContent: 'center', alignItems: 'flex-start',
+            padding: 20, overflowY: 'auto',
+          }}
+        >
+          <div style={{ background: '#fff', borderRadius: 14, padding: 24, width: '100%', maxWidth: 860, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h2 style={{ margin: 0, fontSize: 18 }}>{campanaEditando.id ? 'Editar campana' : 'Nueva campana'}</h2>
+              <button className="btn btn-secundario" onClick={() => { setCampanaModal(false); setCampanaEditando(null); }}>Cerrar</button>
+            </div>
+
+            <form onSubmit={guardarCampana}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+                <div className="campo">
+                  <label>Nombre *</label>
+                  <input value={campanaEditando.nombre} onChange={(e) => setCampanaEditando({ ...campanaEditando, nombre: e.target.value })} required />
+                </div>
+                <div className="campo">
+                  <label>Tipo</label>
+                  <select value={campanaEditando.tipo} onChange={(e) => setCampanaEditando({ ...campanaEditando, tipo: e.target.value })}>
+                    <option value="mailing">Mailing</option>
+                    <option value="ccp">CCP</option>
+                    <option value="organico">Organico</option>
+                    <option value="referido">Referido</option>
+                    <option value="otro">Otro</option>
+                  </select>
+                </div>
+                <div className="campo">
+                  <label>Canal</label>
+                  <input value={campanaEditando.canal || ''} onChange={(e) => setCampanaEditando({ ...campanaEditando, canal: e.target.value })} placeholder="email, facebook, google..." />
+                </div>
+                <div className="campo">
+                  <label>Estado</label>
+                  <select value={campanaEditando.estado} onChange={(e) => setCampanaEditando({ ...campanaEditando, estado: e.target.value })}>
+                    <option value="borrador">Borrador</option>
+                    <option value="activa">Activa</option>
+                    <option value="pausada">Pausada</option>
+                    <option value="finalizada">Finalizada</option>
+                  </select>
+                </div>
+                <div className="campo">
+                  <label>Landing URL (destino)</label>
+                  <input value={campanaEditando.landing_url || ''} onChange={(e) => setCampanaEditando({ ...campanaEditando, landing_url: e.target.value })} placeholder="/p/olvidate-de-excel" />
+                </div>
+                <div className="campo">
+                  <label>Presupuesto</label>
+                  <input type="number" value={campanaEditando.presupuesto || 0} onChange={(e) => setCampanaEditando({ ...campanaEditando, presupuesto: e.target.value })} />
+                </div>
+                <div className="campo">
+                  <label>utm_source</label>
+                  <input value={campanaEditando.utm_source || ''} onChange={(e) => setCampanaEditando({ ...campanaEditando, utm_source: e.target.value })} placeholder="email" />
+                </div>
+                <div className="campo">
+                  <label>utm_medium</label>
+                  <input value={campanaEditando.utm_medium || ''} onChange={(e) => setCampanaEditando({ ...campanaEditando, utm_medium: e.target.value })} placeholder="email" />
+                </div>
+                <div className="campo">
+                  <label>utm_campaign</label>
+                  <input value={campanaEditando.utm_campaign || ''} onChange={(e) => setCampanaEditando({ ...campanaEditando, utm_campaign: e.target.value })} placeholder="lanzamiento-octubre" />
+                </div>
+                <div className="campo">
+                  <label>utm_content</label>
+                  <input value={campanaEditando.utm_content || ''} onChange={(e) => setCampanaEditando({ ...campanaEditando, utm_content: e.target.value })} placeholder="boton-principal" />
+                </div>
+                <div className="campo">
+                  <label>Fecha inicio</label>
+                  <input type="date" value={campanaEditando.fecha_inicio || ''} onChange={(e) => setCampanaEditando({ ...campanaEditando, fecha_inicio: e.target.value })} />
+                </div>
+                <div className="campo">
+                  <label>Fecha fin</label>
+                  <input type="date" value={campanaEditando.fecha_fin || ''} onChange={(e) => setCampanaEditando({ ...campanaEditando, fecha_fin: e.target.value })} />
+                </div>
+              </div>
+
+              {campanaEditando.id && (
+                <div style={{ marginTop: 16, display: 'grid', gap: 12 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Enlace de seguimiento (para el correo)</label>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <input readOnly value={enlaceCampana(campanaEditando)} style={{ flex: 1 }} />
+                      <button type="button" className="btn btn-secundario" onClick={() => copiar(enlaceCampana(campanaEditando), 'Enlace')}>Copiar</button>
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Pixel de apertura (HTML para el correo)</label>
+                    <textarea readOnly value={pixelCampana(campanaEditando)} rows={2} style={{ width: '100%', fontFamily: 'Consolas, monospace', fontSize: 12 }} />
+                    <button type="button" className="btn btn-secundario" style={{ marginTop: 6 }} onClick={() => copiar(pixelCampana(campanaEditando), 'Pixel')}>Copiar pixel</button>
+                    <p className="ayuda" style={{ marginTop: 4 }}>
+                      Reemplaza <code>{'{{email}}'}</code> por el correo del destinatario (o dejalo vacio).
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
+                <button type="button" className="btn btn-secundario" onClick={() => { setCampanaModal(false); setCampanaEditando(null); }}>Cancelar</button>
+                <button type="submit" className="btn btn-primary">Guardar campana</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {paginaModal && paginaEditando && (
         <div
           style={{

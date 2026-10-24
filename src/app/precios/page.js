@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Footer from '@/components/Footer';
+import TrackVisita from '@/components/TrackVisita';
 
 export default function Precios() {
   const [planes, setPlanes] = useState([]);
@@ -81,6 +82,7 @@ export default function Precios() {
       </section>
     </main>
     <Footer />
+    <TrackVisita />
     </>
   );
 }
