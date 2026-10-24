@@ -362,6 +362,21 @@ export default function Admin() {
     } finally { setTrackingCargando(false); }
   }
 
+  async function reiniciarEstadisticas(campanaId) {
+    const alcance = campanaId ? 'esta campana' : 'TODAS las campanas';
+    if (!confirm(`¿Reiniciar las estadisticas de ${alcance}? Se borraran visitas, aperturas y clicks. Las campanas y los registros de empresas NO se eliminan.`)) return;
+    setError(''); setMensaje('');
+    const r = await fetch('/api/admin/tracking', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...auth() },
+      body: JSON.stringify({ accion: 'reiniciar', campana_id: campanaId || null }),
+    });
+    const j = await r.json();
+    if (!r.ok) return setError(j.error || 'No se pudieron reiniciar las estadisticas');
+    setMensaje(`Estadisticas reiniciadas. Trafico: ${j.eliminados_trafico}. Email: ${j.eliminados_email}.`);
+    cargarTracking();
+  }
+
   function nuevaCampana() {
     setCampanaEditando({
       nombre: '', tipo: 'mailing', canal: 'email', estado: 'activa',
@@ -424,7 +439,8 @@ export default function Admin() {
 
   function pixelCampana(c) {
     const base = typeof window !== 'undefined' ? window.location.origin : '';
-    return '<img src="' + base + '/api/pixel/' + c.email_pixel_token + '.gif?e={{email}}" width="1" height="1" alt="" />';
+    return '<img src="' + base + '/api/pixel/' + c.email_pixel_token + '.gif?e={{email}}" width="1" height="1" alt="" />\n' +
+      '<a href="' + base + '/api/click/' + c.codigo + '?honeypot=1&e={{email}}" style="display:none;max-height:0;overflow:hidden;font-size:1px;color:#ffffff" aria-hidden="true">.</a>';
   }
 
   async function cargarUsuariosAdmin() {
@@ -1398,6 +1414,9 @@ export default function Admin() {
             {trackingCargando ? 'Cargando...' : 'Actualizar seguimiento'}
           </button>
           <button className="btn btn-primary" onClick={nuevaCampana}>+ Nueva campana</button>
+          <button className="btn btn-secundario" onClick={() => reiniciarEstadisticas(null)}>
+            Reiniciar estadisticas
+          </button>
         </div>
 
         {tracking && (
@@ -1408,6 +1427,8 @@ export default function Admin() {
               <div className="adopcion-card"><h4>Registros</h4><div className="valor">{tracking.resumen.registros}</div></div>
               <div className="adopcion-card"><h4>Demos</h4><div className="valor">{tracking.resumen.demos}</div></div>
               <div className="adopcion-card"><h4>Aperturas email</h4><div className="valor">{tracking.resumen.aperturas}</div></div>
+              <div className="adopcion-card"><h4>Bots filtrados</h4><div className="valor">{(tracking.resumen.aperturas_bot || 0) + (tracking.resumen.clicks_bot || 0)}</div></div>
+              <div className="adopcion-card"><h4>Honeypot</h4><div className="valor">{tracking.resumen.honeypots || 0}</div></div>
               <div className="adopcion-card"><h4>Tasa registro</h4><div className="valor">{tracking.resumen.tasa_registro}%</div></div>
             </div>
 
@@ -1435,6 +1456,7 @@ export default function Admin() {
                       <button className="btn-mini" onClick={() => editarCampana(c)}>Editar</button>
                       <button className="btn-mini" onClick={() => copiar(enlaceCampana(c), 'Enlace')}>Copiar enlace</button>
                       <button className="btn-mini" onClick={() => copiar(pixelCampana(c), 'Pixel')}>Copiar pixel</button>
+                      <button className="btn-mini" onClick={() => reiniciarEstadisticas(c.id)}>Reiniciar</button>
                       <button className="btn-mini" onClick={() => eliminarCampana(c.id)}>Eliminar</button>
                     </td>
                   </tr>
@@ -1447,7 +1469,7 @@ export default function Admin() {
 
             <h3 style={{ fontSize: 14, marginTop: 18 }}>Trafico reciente</h3>
             <table className="tabla-admin">
-              <thead><tr><th>Fecha</th><th>Evento</th><th>Fuente</th><th>Medio</th><th>Campana UTM</th><th>Pagina</th><th>Referer</th></tr></thead>
+              <thead><tr><th>Fecha</th><th>Evento</th><th>Fuente</th><th>Medio</th><th>Campana UTM</th><th>Pagina</th><th>Bot</th><th>Referer</th></tr></thead>
               <tbody>
                 {(tracking.trafico_reciente || []).slice(0, 50).map((t) => (
                   <tr key={t.id}>
@@ -1457,20 +1479,22 @@ export default function Admin() {
                     <td>{t.medio || '-'}</td>
                     <td>{t.utm_campaign || '-'}</td>
                     <td className="mono" style={{ fontSize: 11 }}>{t.pagina || '-'}</td>
+                    <td>{t.bot ? 'Si' : 'No'}</td>
                     <td style={{ fontSize: 11, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {t.referer || '-'}
                     </td>
                   </tr>
                 ))}
                 {(tracking.trafico_reciente || []).length === 0 && (
-                  <tr><td colSpan={7} className="vacio">Sin trafico registrado</td></tr>
+                  <tr><td colSpan={8} className="vacio">Sin trafico registrado</td></tr>
                 )}
               </tbody>
             </table>
 
             <h3 style={{ fontSize: 14, marginTop: 18 }}>Aperturas y clicks de correo</h3>
+            <p className="ayuda">Los eventos marcados como bot no se cuentan en las metricas.</p>
             <table className="tabla-admin">
-              <thead><tr><th>Fecha</th><th>Tipo</th><th>Email</th><th>Campana</th><th>URL</th></tr></thead>
+              <thead><tr><th>Fecha</th><th>Tipo</th><th>Email</th><th>Campana</th><th>Bot</th><th>Motivo</th><th>URL</th></tr></thead>
               <tbody>
                 {(tracking.emails_recientes || []).slice(0, 50).map((e) => (
                   <tr key={e.id}>
@@ -1478,13 +1502,15 @@ export default function Admin() {
                     <td>{e.tipo}</td>
                     <td>{e.email || '-'}</td>
                     <td>{(tracking.campanas || []).find((c) => c.id === e.campana_id)?.nombre || '-'}</td>
+                    <td>{e.bot ? 'Si' : 'No'}</td>
+                    <td style={{ fontSize: 11 }}>{e.motivo_bot || '-'}</td>
                     <td style={{ fontSize: 11, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {e.url || '-'}
                     </td>
                   </tr>
                 ))}
                 {(tracking.emails_recientes || []).length === 0 && (
-                  <tr><td colSpan={5} className="vacio">Sin aperturas registradas</td></tr>
+                  <tr><td colSpan={7} className="vacio">Sin aperturas registradas</td></tr>
                 )}
               </tbody>
             </table>
@@ -1730,11 +1756,12 @@ export default function Admin() {
                     </div>
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Pixel de apertura (HTML para el correo)</label>
-                    <textarea readOnly value={pixelCampana(campanaEditando)} rows={2} style={{ width: '100%', fontFamily: 'Consolas, monospace', fontSize: 12 }} />
+                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Pixel + honeypot (HTML para el correo)</label>
+                    <textarea readOnly value={pixelCampana(campanaEditando)} rows={3} style={{ width: '100%', fontFamily: 'Consolas, monospace', fontSize: 12 }} />
                     <button type="button" className="btn btn-secundario" style={{ marginTop: 6 }} onClick={() => copiar(pixelCampana(campanaEditando), 'Pixel')}>Copiar pixel</button>
                     <p className="ayuda" style={{ marginTop: 4 }}>
                       Reemplaza <code>{'{{email}}'}</code> por el correo del destinatario (o dejalo vacio).
+                      El enlace oculto es un honeypot: si un validador de correo lo activa, sus aperturas y clicks no cuentan.
                     </p>
                   </div>
                 </div>

@@ -25,6 +25,9 @@ function sesion() {
   } catch { return null; }
 }
 
+/* Deteccion simple de bots/crawlers en el navegador. */
+const UA_BOT = /(proofpoint|mimecast|barracuda|symantec|sophos|ironport|forcepoint|trendmicro|fireeye|messagelabs|cloudmark|scanner|validator|curl\/|wget\/|python-|go-http|java\/|libwww|axios\/|node-fetch|headless|phantomjs|selenium|puppeteer|playwright|googlebot|bingbot|yandexbot|baiduspider|facebookexternalhit|linkedinbot|twitterbot|telegrambot|discordbot|slackbot)/i;
+
 /* Construye el payload de tracking con UTM y procedencia. */
 function datosTracking(evento = 'visita', extra = {}) {
   try {
@@ -39,6 +42,8 @@ function datosTracking(evento = 'visita', extra = {}) {
     const referer = document.referrer || '';
     let refHost = '';
     try { refHost = referer ? new URL(referer).hostname : ''; } catch { refHost = ''; }
+    const ua = navigator.userAgent || '';
+    const bot = params.get('bot') === '1' || UA_BOT.test(ua);
     const payload = {
       evento,
       pagina: window.location.pathname,
@@ -48,6 +53,8 @@ function datosTracking(evento = 'visita', extra = {}) {
       referer,
       visitante_id: visitante(),
       sesion_id: sesion(),
+      bot,
+      motivo_bot: bot ? (params.get('bot') === '1' ? 'click-bot' : 'user-agent-bot') : null,
       ...extra,
     };
     guardarAtribucion(payload);

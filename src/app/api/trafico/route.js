@@ -17,7 +17,7 @@ export async function POST(request) {
     if (camp) campanaId = camp.id;
   }
 
-  const { error: err } = await sb.from('trafico').insert({
+  const fila = {
     empresa_id: cuerpo.empresa_id || null,
     campana_id: campanaId,
     fuente: cuerpo.fuente || null,
@@ -33,8 +33,19 @@ export async function POST(request) {
     referer: cuerpo.referer || null,
     visitante_id: cuerpo.visitante_id || null,
     sesion_id: cuerpo.sesion_id || null,
+    bot: cuerpo.bot === true,
+    motivo_bot: cuerpo.motivo_bot || null,
     evento: cuerpo.evento || 'visita',
-  });
+  };
+
+  let { error: err } = await sb.from('trafico').insert(fila);
+  // Respaldo si aun no se aplico la migracion 039 (columnas bot).
+  if (err && /bot|motivo_bot|schema cache/i.test(err.message)) {
+    const sinBot = { ...fila };
+    delete sinBot.bot;
+    delete sinBot.motivo_bot;
+    ({ error: err } = await sb.from('trafico').insert(sinBot));
+  }
   if (err) return Response.json({ ok: false, error: err.message }, { status: 500 });
   return Response.json({ ok: true });
 }

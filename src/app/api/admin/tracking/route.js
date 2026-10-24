@@ -25,11 +25,14 @@ async function analisis(request) {
     sb.from('paginas').select('slug, titulo, publicado').order('updated_at', { ascending: false }),
   ]);
 
-  const visitas = (trafico || []).filter((t) => t.evento === 'visita');
-  const demos = (trafico || []).filter((t) => t.evento === 'demo');
+  const visitas = (trafico || []).filter((t) => t.evento === 'visita' && !t.bot);
+  const demos = (trafico || []).filter((t) => t.evento === 'demo' && !t.bot);
   const registros = (trafico || []).filter((t) => t.evento === 'registro');
-  const aperturas = (emails || []).filter((e) => e.tipo === 'apertura');
-  const clicks = (emails || []).filter((e) => e.tipo === 'click');
+  const aperturas = (emails || []).filter((e) => e.tipo === 'apertura' && !e.bot);
+  const clicks = (emails || []).filter((e) => e.tipo === 'click' && !e.bot);
+  const aperturasBot = (emails || []).filter((e) => e.tipo === 'apertura' && e.bot);
+  const clicksBot = (emails || []).filter((e) => e.tipo === 'click' && e.bot);
+  const honeypots = (emails || []).filter((e) => e.tipo === 'honeypot');
 
   const unicos = new Set();
   for (const v of visitas) if (v.visitante_id) unicos.add(v.visitante_id);
@@ -121,6 +124,9 @@ async function analisis(request) {
       demos: demos.length,
       aperturas: aperturas.length,
       clicks: clicks.length,
+      aperturas_bot: aperturasBot.length,
+      clicks_bot: clicksBot.length,
+      honeypots: honeypots.length,
       tasa_registro: visitas.length > 0 ? Math.round((registros.length / visitas.length) * 1000) / 10 : 0,
       sin_campana: {
         visitas: sinCampana.visitas,
@@ -144,3 +150,39 @@ async function analisis(request) {
 }
 
 export const GET = manejar(analisis);
+
+/* POST /api/admin/tracking { accion: 'reiniciar', campana_id? }
+   Borra los eventos de trafico y de correo (de una campana o todos).
+   No elimina las campanas ni las conversiones: solo las estadisticas. */
+async function reiniciar(request) {
+  const { perfil } = await sesion(request);
+  if (!perfil.super_admin) return error('Solo administradores de la plataforma', 403);
+
+  let cuerpo; try { cuerpo = await request.json(); } catch { return error('Cuerpo JSON invalido'); }
+  if (cuerpo.accion !== 'reiniciar') return error('Accion invalida');
+  const campanaId = cuerpo.campana_id ? String(cuerpo.campana_id) : null;
+
+  const sb = admin();
+  let elimTrafico = 0;
+  let elimEmail = 0;
+
+  try {
+    if (campanaId) {
+      const { data: t } = await sb.from('trafico').delete().eq('campana_id', campanaId).select('id');
+      const { data: e } = await sb.from('email_eventos').delete().eq('campana_id', campanaId).select('id');
+      elimTrafico = (t || []).length;
+      elimEmail = (e || []).length;
+    } else {
+      const { data: t } = await sb.from('trafico').delete().gte('created_at', '1970-01-01').select('id');
+      const { data: e } = await sb.from('email_eventos').delete().gte('created_at', '1970-01-01').select('id');
+      elimTrafico = (t || []).length;
+      elimEmail = (e || []).length;
+    }
+  } catch (err) {
+    return error('No se pudieron reiniciar las estadisticas: ' + err.message, 500);
+  }
+
+  return Response.json({ ok: true, eliminados_trafico: elimTrafico, eliminados_email: elimEmail });
+}
+
+export const POST = manejar(reiniciar);
