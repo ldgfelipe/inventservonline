@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { asegurarSesion } from '@/lib/sesionCliente';
 
 export default function Admin() {
   const [usuario, setUsuario] = useState(null);
@@ -47,11 +48,23 @@ export default function Admin() {
   const [storageCargando, setStorageCargando] = useState(false);
 
   useEffect(() => {
-    fetch('/api/auth/sesion', { headers: auth() })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => setUsuario(j ? j.usuario : null))
-      .catch(() => setUsuario(null))
-      .finally(() => setCargandoSesion(false));
+    (async () => {
+      // Renueva la sesion si el access token expiro (la sesion dura hasta
+      // cerrar sesion o ser bloqueado).
+      await asegurarSesion();
+      try {
+        const r = await fetch('/api/auth/sesion', { headers: auth() });
+        const j = r.ok ? await r.json() : null;
+        setUsuario(j ? j.usuario : null);
+      } catch {
+        setUsuario(null);
+      } finally {
+        setCargandoSesion(false);
+      }
+    })();
+    // Mantiene el token fresco durante sesiones largas en /admin.
+    const intervalo = setInterval(() => { asegurarSesion(); }, 30 * 60 * 1000);
+    return () => clearInterval(intervalo);
   }, []);
 
   useEffect(() => {

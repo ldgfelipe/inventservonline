@@ -76,7 +76,7 @@ function FormularioRegistro() {
         localStorage.setItem('inventarios_sesion', JSON.stringify({
           access_token: j.access_token, refresh_token: j.refresh_token,
         }));
-        document.cookie = `invetser_token=${j.access_token}; path=/; max-age=2592000; SameSite=Lax`;
+        document.cookie = `invetser_token=${j.access_token}; path=/; max-age=31536000; SameSite=Lax`;
         if (embed) {
           try { (window.top || window).location.href = '/panel'; } catch { router.push('/panel'); }
         } else {

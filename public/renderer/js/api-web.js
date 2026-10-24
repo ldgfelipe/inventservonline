@@ -16,9 +16,13 @@ function leerSesion() {
 }
 
 function guardarSesion(s) {
-  localStorage.setItem(CLAVE_SESION, JSON.stringify(s));
-  // Cookie para que el middleware proteja las rutas del sistema
-  document.cookie = `invetser_token=${s.access_token}; path=/; max-age=2592000; SameSite=Lax`;
+  if (!s || !s.access_token) return;
+  localStorage.setItem(CLAVE_SESION, JSON.stringify({
+    access_token: s.access_token,
+    refresh_token: s.refresh_token || null,
+  }));
+  // Cookie de un año: la sesion se renueva con el refresh token.
+  document.cookie = `invetser_token=${s.access_token}; path=/; max-age=31536000; SameSite=Lax`;
 }
 
 function borrarSesion() {
@@ -31,8 +35,55 @@ function token() {
   return s ? s.access_token : null;
 }
 
-async function pedir(ruta, opciones = {}) {
-  const t = token();
+function tokenExpirado(t) {
+  try {
+    const partes = String(t).split('.');
+    if (partes.length !== 3) return true;
+    const payload = JSON.parse(atob(partes[1].replace(/-/g, '+').replace(/_/g, '/')));
+    if (!payload.exp) return true;
+    return payload.exp * 1000 < Date.now() + 60000;
+  } catch {
+    return true;
+  }
+}
+
+/* Renueva la sesion con el refresh token. Devuelve el nuevo access token.
+   Usa un unico refresco en vuelo para evitar rotaciones simultaneas. */
+let refrescoEnCurso = null;
+async function refrescarSesion() {
+  if (refrescoEnCurso) return refrescoEnCurso;
+  refrescoEnCurso = (async () => {
+    const s = leerSesion();
+    if (!s || !s.refresh_token) return null;
+    try {
+      const r = await fetch('/api/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: s.refresh_token }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.access_token) return null;
+      guardarSesion({ access_token: j.access_token, refresh_token: j.refresh_token || s.refresh_token });
+      return j.access_token;
+    } catch {
+      return null;
+    }
+  })();
+  try {
+    return await refrescoEnCurso;
+  } finally {
+    refrescoEnCurso = null;
+  }
+}
+
+async function pedir(ruta, opciones = {}, _reintento = false) {
+  const esAuth = ruta.startsWith('/api/auth/');
+  let t = token();
+  // Renovacion proactiva: si el access token expiro, se renueva antes.
+  if (!esAuth && t && tokenExpirado(t)) {
+    t = await refrescarSesion();
+  }
+
   const cabeceras = Object.assign({}, opciones.cabeceras || {});
   if (opciones.json !== undefined) cabeceras['Content-Type'] = 'application/json';
   if (t) cabeceras.Authorization = 'Bearer ' + t;
@@ -57,7 +108,10 @@ async function pedir(ruta, opciones = {}) {
     clearTimeout(temporizador);
   }
 
-  if (respuesta.status === 401) {
+  if (respuesta.status === 401 && !esAuth && !_reintento) {
+    // Puede que solo haya expirado el access token: se renueva y reintenta.
+    const nuevo = await refrescarSesion();
+    if (nuevo) return pedir(ruta, opciones, true);
     borrarSesion();
     if (!location.pathname.startsWith('/entrar')) {
       location.href = '/entrar?expiro=1';

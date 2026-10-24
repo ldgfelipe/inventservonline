@@ -46,7 +46,7 @@ function FormularioEntrar() {
       if (recordar) localStorage.setItem('ultimo_email', form.email);
       else localStorage.removeItem('ultimo_email');
 
-      document.cookie = `invetser_token=${j.access_token}; path=/; max-age=2592000; SameSite=Lax`;
+      document.cookie = `invetser_token=${j.access_token}; path=/; max-age=31536000; SameSite=Lax`;
       router.push('/panel');
     } catch (err) {
       setError(err.message);

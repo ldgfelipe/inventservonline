@@ -26,7 +26,7 @@ export default function Landing() {
         access_token: j.access_token,
         refresh_token: j.refresh_token,
       }));
-      document.cookie = `invetser_token=${j.access_token}; path=/; max-age=2592000; SameSite=Lax`;
+      document.cookie = `invetser_token=${j.access_token}; path=/; max-age=31536000; SameSite=Lax`;
       router.push('/panel');
     } catch (err) {
       alert('No se pudo iniciar sesion demo: ' + err.message);
