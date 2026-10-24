@@ -3,7 +3,7 @@
    Clasifica el texto y extrae cantidades; la resolucion de entidades
    (productos, personas) la hace el servicio, que conoce los datos. */
 
-const { clave } = require('./texto');
+const { clave, similitud } = require('./texto');
 
 const R = {
   /* --- Acciones de movimiento --- */
@@ -91,6 +91,178 @@ const DESCRIPCION = {
   desconocido: 'No reconocida',
 };
 
+/* ------------------------------------------------------------
+   Capa difusa: entiende variaciones, sinonimos y errores leves.
+   Solo se usa cuando las reglas no reconocen la intencion.
+   ------------------------------------------------------------ */
+
+/* Normaliza jerga comun hacia terminos del sistema. */
+const SINONIMOS = [
+  [/\bmercancia(s)?\b/g, 'producto'],
+  [/\barticulo(s)?\b/g, 'producto'],
+  [/\bitem(s)?\b/g, 'producto'],
+  [/\bplata\b/g, 'dinero'],
+  [/\bvaro(s)?\b/g, 'dinero'],
+  [/\bbodega(s)?\b/g, 'almacen'],
+  [/\bdeposito(s)?\b/g, 'almacen'],
+  [/\bfaltante(s)?\b/g, 'stock bajo'],
+  [/\bfaltan\b/g, 'stock bajo'],
+  [/\bse me acabo\b/g, 'agotado'],
+  [/\bse me acabaron\b/g, 'agotado'],
+  [/\bdeudor(es)?\b/g, 'por cobrar'],
+  [/\bmoroso(s)?\b/g, 'por cobrar'],
+  [/\butilidad(es)?\b/g, 'ganancia'],
+  [/\bguita\b/g, 'ganancia'],
+  [/\bmovi\b/g, 'movimiento'],
+  [/\bencargar\b/g, 'reponer'],
+  [/\bsurtir\b/g, 'reponer'],
+  [/\breabastecer\b/g, 'reponer'],
+  [/\bmal vendido(s)?\b/g, 'estancado'],
+  [/\bno rotan?\b/g, 'baja rotacion'],
+  [/\bcaro(s)?\b/g, 'precio'],
+  [/\bbarato(s)?\b/g, 'precio'],
+];
+
+function normalizar(texto) {
+  let t = clave(texto);
+  for (const [re, valor] of SINONIMOS) t = t.replace(re, valor);
+  return t.replace(/\s+/g, ' ').trim();
+}
+
+/* Ejemplos naturales por intencion (se comparan por similitud de texto). */
+const EJEMPLOS = {
+  listar_bajo: ['que productos necesito reponer', 'que debo comprar', 'que me falta', 'productos con stock bajo', 'cuales son los productos mas bajos', 'que se esta agotando', 'productos por pedir', 'necesito reabastecer', 'que productos estan en el minimo', 'que falta en el inventario', 'que tengo que pedir', 'que productos escasean'],
+  listar_agotados: ['productos agotados', 'que no hay en stock', 'que se acabo', 'productos sin existencias', 'que esta en cero', 'no queda nada de', 'cuales estan agotados'],
+  consultar_stock: ['cuanto tengo de cemento', 'cuantas unidades hay de arroz', 'stock de cemento', 'me queda cemento', 'existencia de arroz', 'cuanto hay de pintura', 'tengo cemento'],
+  info_producto: ['precio de cemento', 'cuanto cuesta el cemento', 'datos del producto', 'ficha del producto', 'informacion de arroz', 'proveedor de cemento'],
+  mas_vendidos: ['productos mas vendidos', 'que se vende mas', 'cuales son los mas vendidos', 'top ventas', 'que producto tiene mas salida', 'lo que mas se vende', 'ranking de ventas', 'cuales son los que mas se venden', 'que se venden mas'],
+  productos_estancados: ['productos estancados', 'que no se mueve', 'productos con baja rotacion', 'que no se vende', 'stock muerto', 'productos viejos sin movimiento', 'que tiene mucho tiempo sin moverse', 'que productos tienen poca salida'],
+  proveedores_compras: ['a que proveedor le compro mas', 'cual proveedor me vende mas', 'compras por proveedor', 'de donde compro', 'proveedor con mas compras', 'a quien le compro menos', 'volumen de compras por proveedor'],
+  proveedores_rentabilidad: ['que proveedor me da mas ganancia', 'proveedores mas rentables', 'rentabilidad por proveedor', 'donde invierto y gano mas', 'que proveedor conviene', 'proveedor con mejor margen'],
+  rentabilidad_productos: ['que producto deja mas margen', 'productos mas rentables', 'productos menos rentables', 'donde gano mas', 'que producto conviene vender', 'margen por producto'],
+  rendimiento_almacen: ['que almacen vende mas', 'rendimiento por almacen', 'que bodega se mueve mas', 'almacen con mas ventas', 'comparar almacenes', 'que almacen es mas rentable'],
+  ventas_recientes: ['ventas de hoy', 'ultimas ventas', 'cuanto vendi hoy', 'como van las ventas', 'muestrame las ventas', 'que se vendio'],
+  cxc_pendientes: ['quien me debe', 'cuentas por cobrar', 'clientes morosos', 'que me deben', 'cobros pendientes', 'deudas de clientes'],
+  cxp_pendientes: ['a quien le debo', 'cuentas por pagar', 'deudas con proveedores', 'que debo', 'pagos pendientes a proveedores'],
+  caja_hoy: ['como va la caja', 'cuanto hay en caja', 'cierre de caja', 'cobros de hoy', 'efectivo de hoy', 'resumen de caja'],
+  margen: ['cuanto gane', 'cuanto he ganado', 'margen de ganancia', 'utilidad', 'rentabilidad general'],
+  valor_inventario: ['cuanto vale el inventario', 'valor del inventario', 'cuanto dinero tengo en mercancia', 'capital en inventario', 'cuanto tengo invertido'],
+  conteo_total: ['cuantos productos tengo', 'cuantos articulos hay', 'total de productos', 'que inventario tengo', 'lista de productos', 'catalogo'],
+  top_movidos: ['productos mas movidos', 'que producto se mueve mas', 'mayor rotacion', 'mas salidas', 'que se mueve mas'],
+  traslados_recientes: ['traslados recientes', 'que traslados se hicieron', 'movimientos entre almacenes', 'transferencias entre bodegas'],
+  stock_por_almacen: ['stock por almacen', 'cuanto hay en cada almacen', 'inventario por bodega', 'distribucion por almacen'],
+  historial: ['ultimos movimientos', 'historial de movimientos', 'kardex', 'que paso con este producto', 'trazabilidad'],
+  ayuda: ['que puedes hacer', 'ayuda', 'como funciona', 'no se usar', 'que sabes hacer', 'instrucciones'],
+  saludo: ['hola', 'buenos dias', 'que tal', 'hey'],
+  registrar_entrada: ['registra entrada de 50 de cemento', 'ingresa 10 de arroz', 'recibi mercancia', 'sumale stock a cemento', 'anota entrada'],
+  registrar_salida: ['registra salida de 5 de cemento', 'saca 10 de arroz', 'retira mercancia', 'descuenta stock', 'baja 3 unidades'],
+  modificar_minmax: ['cambia el minimo de cemento a 10', 'pon el maximo en 50', 'ajusta el stock minimo', 'actualiza minimos y maximos'],
+  notificar: ['avisa a almacen que hay que reponer', 'notifica a ventas', 'manda un aviso a todos', 'informa al equipo', 'comunica al area'],
+  registrar_traslado: ['traslada 5 de cemento al almacen', 'mueve productos entre bodegas', 'hacer un traslado', 'transferir mercancia'],
+  resumen_general: ['como va todo', 'resumen general', 'dame un panorama', 'como esta el negocio', 'que tal va el inventario', 'estado general', 'dame el estado del inventario', 'quiero saber mis numeros'],
+  recomendaciones: ['en que me enfoco', 'que deberia hacer', 'recomiendame', 'como mejoro', 'que acciones tomo', 'dame recomendaciones', 'que me conviene', 'dame un consejo', 'que me sugieres', 'en que deberia enfocarme'],
+};
+
+/* Palabras clave especificas (evitan falsos positivos de palabras genericas). */
+const PALABRAS = {
+  listar_bajo: ['reponer', 'pedir', 'comprar', 'stock bajo', 'bajos', 'minimo', 'agotando', 'reabastecer', 'surtir', 'escasez', 'escaso', 'escasean', 'poco stock', 'reorden', 'falta', 'traer'],
+  listar_agotados: ['agotado', 'sin stock', 'no hay', 'se acabo', 'cero', 'sin existencias', 'vacio'],
+  consultar_stock: ['cuanto tengo', 'cuantas unidades', 'stock de', 'existencia', 'me queda', 'hay de', 'tengo de'],
+  info_producto: ['precio', 'cuanto cuesta', 'ficha', 'informacion', 'datos del', 'proveedor de', 'codigo'],
+  mas_vendidos: ['mas vendido', 'mas vendidos', 'se vende mas', 'top ventas', 'ranking', 'mas salen', 'se venden', 'se vende'],
+  productos_estancados: ['estancado', 'no se mueve', 'no se vende', 'baja rotacion', 'stock muerto', 'sin movimiento', 'poco movimiento', 'antiguo', 'viejo', 'no rota', 'poca salida', 'frenado'],
+  proveedores_compras: ['le compro', 'compro mas', 'compro menos', 'volumen de compras', 'compras por proveedor', 'de donde compro', 'me vende mas'],
+  proveedores_rentabilidad: ['proveedor', 'rentabilidad', 'retorno', 'inversion', 'conviene', 'mejor margen'],
+  rentabilidad_productos: ['margen', 'rentabilidad', 'mas rentable', 'menos rentable', 'deja mas', 'deja menos', 'conviene vender', 'mas gana', 'cual gana', 'que gana'],
+  rendimiento_almacen: ['almacen vende', 'bodega vende', 'rendimiento', 'vende mas', 'mueve mas', 'mas ventas'],
+  ventas_recientes: ['ventas', 'vendi', 'vendimos', 'facturacion', 'facturado', 'ultimas ventas'],
+  cxc_pendientes: ['me deben', 'por cobrar', 'deudores', 'morosos', 'cobros pendientes', 'deudas de clientes'],
+  cxp_pendientes: ['debo', 'por pagar', 'deudas con proveedores', 'pagos pendientes'],
+  caja_hoy: ['caja', 'efectivo', 'cobros de hoy', 'cierre de caja', 'ingresos de hoy'],
+  margen: ['margen', 'ganancia', 'utilidad', 'rentabilidad', 'cuanto gane'],
+  valor_inventario: ['vale el inventario', 'valor del inventario', 'capital', 'invertido', 'dinero en inventario', 'valorizado'],
+  conteo_total: ['cuantos productos', 'cuantos articulos', 'total de productos', 'lista de productos', 'catalogo', 'inventario tengo'],
+  top_movidos: ['mas movido', 'mas movidos', 'rotacion', 'mayor movimiento', 'mas salidas', 'se mueve mas'],
+  traslados_recientes: ['traslados', 'transferencias', 'entre almacenes', 'entre bodegas'],
+  stock_por_almacen: ['stock por almacen', 'por almacen', 'por bodega', 'cada almacen', 'cada bodega', 'distribucion'],
+  historial: ['movimientos', 'historial', 'kardex', 'trazabilidad', 'que paso con'],
+  ayuda: ['ayuda', 'que puedes hacer', 'como funciona', 'no se usar', 'instrucciones'],
+  saludo: ['hola', 'buenos dias', 'buenas tardes', 'que tal', 'hey'],
+  registrar_entrada: ['entrada', 'ingreso', 'recibi', 'sumale', 'abastecer', 'compre'],
+  registrar_salida: ['salida', 'saca', 'retira', 'descuenta', 'resta', 'merma', 'baja', 'perdida'],
+  modificar_minmax: ['minimo', 'maximo', 'stock minimo', 'stock maximo'],
+  notificar: ['avisa', 'aviso', 'notifica', 'manda un aviso', 'manda mensaje', 'mandar aviso', 'informa', 'comunica', 'mensaje a', 'alerta a'],
+  registrar_traslado: ['traslada', 'transferir', 'mover', 'pasar', 'entre almacenes', 'entre bodegas'],
+  resumen_general: ['como va todo', 'resumen', 'panorama', 'como esta el negocio', 'estado general', 'que tal va', 'mis numeros', 'estado del inventario'],
+  recomendaciones: ['recomienda', 'recomendaciones', 'que hago', 'que deberia hacer', 'en que me enfoco', 'enfocarme', 'como mejoro', 'acciones', 'sugerencias', 'sugiere', 'sugieres', 'que me conviene', 'deberia', 'consejo', 'que me recomiendas'],
+};
+
+/* Etiqueta y consulta canonica para el "¿Quisiste decir...?" */
+const SUGERENCIAS = {
+  listar_bajo: { etiqueta: '¿Qué productos necesito reponer?', texto: 'que productos necesito reponer' },
+  listar_agotados: { etiqueta: '¿Qué productos están agotados?', texto: 'productos agotados' },
+  consultar_stock: { etiqueta: 'Consultar stock de un producto', texto: 'cuanto tengo de cemento' },
+  mas_vendidos: { etiqueta: '¿Cuáles son los más vendidos?', texto: 'cuales son los productos mas vendidos' },
+  productos_estancados: { etiqueta: 'Productos estancados', texto: 'productos estancados' },
+  proveedores_compras: { etiqueta: 'Compras por proveedor', texto: 'compras por proveedor' },
+  proveedores_rentabilidad: { etiqueta: 'Rentabilidad por proveedor', texto: 'proveedores mas rentables' },
+  rentabilidad_productos: { etiqueta: 'Rentabilidad por producto', texto: 'productos mas rentables' },
+  rendimiento_almacen: { etiqueta: 'Rendimiento por almacén', texto: 'rendimiento por almacen' },
+  ventas_recientes: { etiqueta: 'Ventas recientes', texto: 'ventas de hoy' },
+  cxc_pendientes: { etiqueta: '¿Quién me debe?', texto: 'quien me debe' },
+  cxp_pendientes: { etiqueta: '¿A quién le debo?', texto: 'a quien le debo' },
+  caja_hoy: { etiqueta: 'Resumen de caja', texto: 'como va la caja' },
+  margen: { etiqueta: 'Margen y ganancia', texto: 'cuanto gane' },
+  valor_inventario: { etiqueta: 'Valor del inventario', texto: 'cuanto vale el inventario' },
+  conteo_total: { etiqueta: 'Cantidad de productos', texto: 'cuantos productos tengo' },
+  top_movidos: { etiqueta: 'Productos más movidos', texto: 'productos mas movidos' },
+  traslados_recientes: { etiqueta: 'Traslados recientes', texto: 'traslados recientes' },
+  stock_por_almacen: { etiqueta: 'Stock por almacén', texto: 'stock por almacen' },
+  historial: { etiqueta: 'Historial de movimientos', texto: 'ultimos movimientos' },
+  ayuda: { etiqueta: '¿Qué puedes hacer?', texto: 'que puedes hacer' },
+  resumen_general: { etiqueta: 'Dame un resumen general', texto: 'como va todo' },
+  recomendaciones: { etiqueta: '¿Qué me recomiendas?', texto: 'que me recomiendas' },
+};
+
+function clasificarDifuso(texto) {
+  const t = normalizar(texto);
+  if (!t) return { intencion: 'desconocido', confianza: 0, sugerencias: [] };
+  const tokens = t.split(' ').filter((x) => x.length >= 3);
+  if (!tokens.length) return { intencion: 'desconocido', confianza: 0, sugerencias: [] };
+
+  const puntajes = [];
+  for (const [intencion, ejemplos] of Object.entries(EJEMPLOS)) {
+    let mejor = 0;
+    for (const ej of ejemplos) {
+      const s = similitud(t, normalizar(ej));
+      if (s > mejor) mejor = s;
+    }
+    const kws = PALABRAS[intencion] || [];
+    for (const k of kws) {
+      const nk = normalizar(k);
+      if (nk && t.includes(nk)) mejor = Math.max(mejor, 0.64);
+    }
+    puntajes.push({ intencion, puntaje: Math.round(mejor * 100) / 100 });
+  }
+  puntajes.sort((a, b) => b.puntaje - a.puntaje);
+
+  const top = puntajes[0] || { intencion: 'desconocido', puntaje: 0 };
+  if (top.puntaje >= 0.44) {
+    return { intencion: top.intencion, confianza: top.puntaje, sugerencias: [] };
+  }
+
+  const sugerencias = puntajes
+    .filter((p) => p.puntaje >= 0.24 && SUGERENCIAS[p.intencion])
+    .slice(0, 3)
+    .map((p) => ({
+      intencion: p.intencion,
+      etiqueta: SUGERENCIAS[p.intencion].etiqueta,
+      texto: SUGERENCIAS[p.intencion].texto,
+      puntaje: p.puntaje,
+    }));
+  return { intencion: 'desconocido', confianza: top.puntaje, sugerencias };
+}
+
 /* Extrae la primera cantidad con unidad opcional */
 function extraerCantidad(textoPlano) {
   const m = textoPlano.match(/(\d+(?:[.,]\d+)?)\s*(unidades|unds|und|u|pzs|pza|cajas|cj|bolsas|sacos|kg|kilos|litros|lt|metros|ml)?/);
@@ -101,7 +273,7 @@ function extraerCantidad(textoPlano) {
 }
 
 /* Devuelve la intencion aplicando reglas en orden de especificidad */
-function interpretar(texto) {
+function interpretarReglas(texto) {
   const plano = clave(texto);
   const cantidad = extraerCantidad(plano);
   const base = { texto, textoPlano: plano, cantidad, confianza: 1 };
@@ -163,6 +335,14 @@ function interpretar(texto) {
   if (R.saludo.test(plano)) return { ...base, intencion: 'saludo' };
 
   return { ...base, intencion: 'desconocido' };
+}
+
+/* Punto de entrada: primero reglas exactas, luego capa difusa. */
+function interpretar(texto) {
+  const reglas = interpretarReglas(texto);
+  if (reglas.intencion !== 'desconocido') return reglas;
+  const difuso = clasificarDifuso(texto);
+  return { ...reglas, ...difuso };
 }
 
 /* Capacidades reales del asistente, para la respuesta de ayuda */

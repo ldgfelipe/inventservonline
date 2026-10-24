@@ -955,12 +955,109 @@ async function consultar(request) {
         return responder(p, 'Puedes cargar productos masivamente desde un CSV o Excel. Reviso las columnas, detecto duplicados y te muestro una vista previa antes de aplicar.',
           [{ id: 'importar', etiqueta: 'Abrir importador', tipo: 'abrir_importador' }]);
 
+      case 'resumen_general': {
+        if (!puede(perfil.rol, 'productos.ver')) return responder(p, negar('productos.ver').texto);
+        const { data: prods } = await sb.from('productos')
+          .select('id, stock_actual, stock_minimo, precio_venta')
+          .eq('empresa_id', perfil.empresa_id).eq('activo', true);
+        const activos = prods || [];
+        const bajos = activos.filter((x) => Number(x.stock_actual) <= Number(x.stock_minimo));
+        const agotados = activos.filter((x) => Number(x.stock_actual) <= 0);
+        const valor = activos.reduce((a, x) => a + (Number(x.stock_actual) || 0) * (Number(x.precio_venta) || 0), 0);
+        const { data: ventasR } = await sb.from('ventas')
+          .select('total').eq('empresa_id', perfil.empresa_id).eq('estado', 'confirmada');
+        const totalVentas = (ventasR || []).reduce((a, v) => a + (Number(v.total) || 0), 0);
+        const { data: cxcR } = await sb.from('cuentas_por_cobrar')
+          .select('saldo').eq('empresa_id', perfil.empresa_id).in('estado', ['pendiente', 'parcial']);
+        const totalCxc = (cxcR || []).reduce((a, c) => a + (Number(c.saldo) || 0), 0);
+        const { data: cxpR } = await sb.from('cuentas_por_pagar')
+          .select('saldo').eq('empresa_id', perfil.empresa_id).in('estado', ['pendiente', 'parcial']);
+        const totalCxp = (cxpR || []).reduce((a, c) => a + (Number(c.saldo) || 0), 0);
+        const filas = [
+          { indicador: 'Productos activos', valor: activos.length },
+          { indicador: 'Por reponer', valor: bajos.length },
+          { indicador: 'Agotados', valor: agotados.length },
+          { indicador: 'Valor del inventario', valor: moneda(valor) },
+          { indicador: 'Ventas confirmadas', valor: moneda(totalVentas) },
+          { indicador: 'Por cobrar', valor: moneda(totalCxc) },
+          { indicador: 'Por pagar', valor: moneda(totalCxp) },
+        ];
+        return responder(p, 'Este es el panorama general de tu negocio:',
+          tabla('Resumen general', filas, ['indicador', 'valor'], ['Indicador', 'Valor']));
+      }
+
+      case 'recomendaciones': {
+        if (!puede(perfil.rol, 'productos.ver') || !puede(perfil.rol, 'ventas.ver')) {
+          return responder(p, 'Necesitas permisos de productos y ventas para ver recomendaciones.');
+        }
+        const { data: prods } = await sb.from('productos')
+          .select('id, codigo, nombre, stock_actual, stock_minimo, created_at')
+          .eq('empresa_id', perfil.empresa_id).eq('activo', true);
+        const activos = prods || [];
+        const bajos = activos.filter((x) => Number(x.stock_actual) <= Number(x.stock_minimo));
+        const agotados = activos.filter((x) => Number(x.stock_actual) <= 0);
+        const { data: movs } = await sb.from('movimientos')
+          .select('producto_id, fecha').eq('empresa_id', perfil.empresa_id);
+        const ultimo = {};
+        const conteo = {};
+        for (const m of movs || []) {
+          conteo[m.producto_id] = (conteo[m.producto_id] || 0) + 1;
+          if (!ultimo[m.producto_id] || new Date(m.fecha) > new Date(ultimo[m.producto_id])) {
+            ultimo[m.producto_id] = m.fecha;
+          }
+        }
+        const hoyMs = Date.now();
+        const estancados = activos.filter((x) => Number(x.stock_actual) > 0).map((x) => {
+          const ult = ultimo[x.id] || x.created_at;
+          return { ...x, dias: Math.max(0, Math.floor((hoyMs - new Date(ult).getTime()) / 86400000)), movs: conteo[x.id] || 0 };
+        }).filter((x) => x.movs <= 3 || x.dias >= 30).sort((a, b) => b.dias - a.dias);
+        const vendidos = (await ventasPorProducto(sb, perfil.empresa_id)).sort((a, b) => b.ingresos - a.ingresos).slice(0, 5);
+        const hoy = new Date().toISOString().slice(0, 10);
+        const { data: cxc } = await sb.from('cuentas_por_cobrar')
+          .select('saldo, fecha_vencimiento').eq('empresa_id', perfil.empresa_id).in('estado', ['pendiente', 'parcial']);
+        const vencidas = (cxc || []).filter((c) => c.fecha_vencimiento && c.fecha_vencimiento < hoy);
+        const totalVencido = vencidas.reduce((a, c) => a + (Number(c.saldo) || 0), 0);
+
+        const recs = [];
+        if (agotados.length) {
+          recs.push({ prioridad: 'Alta', accion: 'Reponer agotados', detalle: `${agotados.length} productos sin stock (${agotados.slice(0, 3).map((x) => x.nombre).join(', ')})` });
+        }
+        if (bajos.length) {
+          recs.push({ prioridad: 'Alta', accion: 'Reponer stock bajo', detalle: `${bajos.length} productos en o bajo el minimo` });
+        }
+        if (vencidas.length) {
+          recs.push({ prioridad: 'Alta', accion: 'Cobrar cartera vencida', detalle: `${vencidas.length} cuentas por ${moneda(totalVencido)}` });
+        }
+        if (estancados.length) {
+          recs.push({ prioridad: 'Media', accion: 'Liquidar productos estancados', detalle: `${estancados.length} productos con pocos movimientos (${estancados.slice(0, 3).map((x) => x.nombre).join(', ')})` });
+        }
+        if (vendidos.length) {
+          recs.push({ prioridad: 'Media', accion: 'Asegurar stock de los mas vendidos', detalle: vendidos.slice(0, 3).map((x) => x.nombre).join(', ') });
+        }
+        if (!recs.length) {
+          recs.push({ prioridad: 'Baja', accion: 'Todo en orden', detalle: 'No hay alertas relevantes por ahora' });
+        }
+        return responder(p, 'Estas son las acciones que te recomiendo priorizar:',
+          tabla('Recomendaciones', recs, ['prioridad', 'accion', 'detalle'], ['Prioridad', 'Accion', 'Detalle']));
+      }
+
       case 'ayuda':
         return responder(p, 'Puedo ayudarte con: stock de un producto, productos por reponer (stock bajo), agotados, valor del inventario, conteo de productos, productos mas vendidos, productos estancados o de baja rotacion, compras y volumen por proveedor, rentabilidad por proveedor y por producto, rendimiento por almacen, movimientos por persona, registrar entradas, salidas o traslados, ventas recientes, cuentas por cobrar, cuentas por pagar, caja del dia, margen de ganancia y envio de avisos a un area. Tambien puedo cambiar el stock minimo y maximo de un producto (te pido confirmacion). Escribe algo como "que productos necesito reponer", "cuales son los mas vendidos", "que proveedor me da mas ganancia" o "pon el minimo de cemento en 10".');
 
-      default:
-        return responder(p, 'No entendi eso. Prueba con "¿cuanto cemento tengo?", "stock bajo" o "registrar entrada de 50 de cemento".',
+      default: {
+        const sugerencias = p.sugerencias || [];
+        if (sugerencias.length) {
+          return responder(p, 'No estoy seguro de lo que necesitas. ¿Quisiste decir...?',
+            sugerencias.map((s) => ({
+              id: 'sug-' + s.intencion,
+              etiqueta: s.etiqueta,
+              tipo: 'consulta_rapida',
+              texto: s.texto,
+            })));
+        }
+        return responder(p, 'No entendi eso. Puedes preguntarme de forma natural: "que productos necesito reponer", "que se vende mas", "quien me debe", "como va todo" o "que me recomiendas".',
           [{ id: 'ayuda', etiqueta: 'Ver que puedo hacer', tipo: 'ayuda' }]);
+      }
     }
   } catch (err) {
     return responder(p, 'Ocurrio un error al consultar: ' + err.message);

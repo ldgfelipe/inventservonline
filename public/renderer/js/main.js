@@ -1881,6 +1881,18 @@ async function ejecutarAccionAsistente(e) {
     agregarMensaje('asistente', r.texto, r.tablas);
     return;
   }
+  if (accion.tipo === 'consulta_rapida') {
+    const texto = accion.texto || accion.etiqueta || '';
+    agregarMensaje('usuario', texto);
+    try {
+      const r = await window.api.asistente.consultar(texto);
+      agregarMensaje('asistente', r.texto, r.tablas);
+      mostrarAcciones(r.acciones);
+    } catch (err) {
+      agregarMensaje('asistente', 'Error: ' + err.message);
+    }
+    return;
+  }
   if (accion.tipo === 'trazar') {
     cerrarAsistente();
     return verTrazabilidad(accion.productoId);
