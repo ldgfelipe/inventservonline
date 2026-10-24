@@ -639,6 +639,7 @@ a { color: var(--primario); text-decoration: none; }
 .admin-tab:hover { color: var(--texto); }
 .admin-tab.activo { color: var(--primario); border-bottom-color: var(--primario); }
 
+.admin[data-tab="paginas"] .panel-admin:not(.sec-paginas) { display: none; }
 .admin[data-tab="general"] .panel-admin:not(.sec-general),
 .admin[data-tab="pagos"] .panel-admin:not(.sec-pagos),
 .admin[data-tab="marketing"] .panel-admin:not(.sec-marketing),

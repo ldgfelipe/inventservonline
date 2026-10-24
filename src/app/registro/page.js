@@ -1,14 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { PAISES, opcionesMoneda, monedaDePais, PAIS_POR_DEFECTO } from '@/lib/monedas';
 
 const MONEDAS = opcionesMoneda();
 
-export default function Registro() {
+function FormularioRegistro() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const embed = searchParams.get('embed') === '1';
   const [giros, setGiros] = useState([]);
   const [detalle, setDetalle] = useState(null);
   const [form, setForm] = useState({
@@ -70,7 +72,11 @@ export default function Registro() {
           access_token: j.access_token, refresh_token: j.refresh_token,
         }));
         document.cookie = `invetser_token=${j.access_token}; path=/; max-age=2592000; SameSite=Lax`;
-        router.push('/panel');
+        if (embed) {
+          try { (window.top || window).location.href = '/panel'; } catch { router.push('/panel'); }
+        } else {
+          router.push('/panel');
+        }
       } else {
         router.push('/entrar?nuevo=1');
       }
@@ -234,11 +240,21 @@ export default function Registro() {
           </button>
         </form>
 
-        <p className="pie">
-          Ya tienes cuenta? <Link href="/entrar">Entrar</Link>
-        </p>
+        {!embed && (
+          <p className="pie">
+            Ya tienes cuenta? <Link href="/entrar">Entrar</Link>
+          </p>
+        )}
       </div>
     </main>
+  );
+}
+
+export default function Registro() {
+  return (
+    <Suspense fallback={<div className="tarjeta"><h1>Crea tu cuenta</h1></div>}>
+      <FormularioRegistro />
+    </Suspense>
   );
 }
 

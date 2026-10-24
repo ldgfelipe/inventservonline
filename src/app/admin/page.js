@@ -30,6 +30,10 @@ export default function Admin() {
   const [configPagos, setConfigPagos] = useState(null);
   const [configPagosCargando, setConfigPagosCargando] = useState(false);
   const [configPagosMensaje, setConfigPagosMensaje] = useState('');
+  const [paginas, setPaginas] = useState([]);
+  const [paginasCargando, setPaginasCargando] = useState(false);
+  const [paginaEditando, setPaginaEditando] = useState(null);
+  const [paginaModal, setPaginaModal] = useState(false);
   const [usuarios, setUsuarios] = useState([]);
   const [usuariosCargando, setUsuariosCargando] = useState(false);
   const [usuarioDetalle, setUsuarioDetalle] = useState(null);
@@ -59,6 +63,7 @@ export default function Admin() {
     cargarFeatureFlags();
     cargarTickets();
     cargarConfigPagos();
+    cargarPaginas();
     cargarUsuariosAdmin();
   }, [usuario]);
 
@@ -266,6 +271,67 @@ export default function Admin() {
     const j = await r.json();
     if (!r.ok) return setError(j.error || `No se pudo probar ${pasarela}`);
     setConfigPagosMensaje(j.mensaje || `${pasarela} OK`);
+  }
+
+  async function cargarPaginas() {
+    setPaginasCargando(true);
+    try {
+      const r = await fetch('/api/admin/paginas', { headers: auth() });
+      const j = await r.json();
+      if (r.ok) setPaginas(j.paginas || []);
+      else setError(j.error || 'No se pudieron cargar las paginas');
+    } finally { setPaginasCargando(false); }
+  }
+
+  function abrirNuevaPagina() {
+    setPaginaEditando({ slug: '', titulo: '', tipo: 'landing', html: '', publicado: false });
+    setPaginaModal(true);
+  }
+
+  function abrirEditarPagina(p) {
+    setPaginaEditando({ ...p, html: '' });
+    setPaginaModal(true);
+    // Cargar el HTML completo
+    fetch('/api/admin/paginas/' + p.id, { headers: auth() })
+      .then((r) => r.json())
+      .then((j) => { if (j.ok) setPaginaEditando(j.pagina); })
+      .catch(() => {});
+  }
+
+  async function guardarPagina(e) {
+    e.preventDefault();
+    if (!paginaEditando) return;
+    setError(''); setMensaje('');
+    const payload = {
+      slug: paginaEditando.slug,
+      titulo: paginaEditando.titulo,
+      tipo: paginaEditando.tipo,
+      html: paginaEditando.html,
+      publicado: paginaEditando.publicado,
+    };
+    const url = paginaEditando.id ? '/api/admin/paginas/' + paginaEditando.id : '/api/admin/paginas';
+    const metodo = paginaEditando.id ? 'PATCH' : 'POST';
+    const r = await fetch(url, {
+      method: metodo,
+      headers: { 'Content-Type': 'application/json', ...auth() },
+      body: JSON.stringify(payload),
+    });
+    const j = await r.json();
+    if (!r.ok) return setError(j.error || 'No se pudo guardar la pagina');
+    setMensaje('Pagina guardada correctamente');
+    setPaginaModal(false);
+    setPaginaEditando(null);
+    cargarPaginas();
+  }
+
+  async function eliminarPagina(id) {
+    if (!confirm('¿Eliminar esta pagina? Esta accion no se puede deshacer.')) return;
+    setError(''); setMensaje('');
+    const r = await fetch('/api/admin/paginas/' + id, { method: 'DELETE', headers: auth() });
+    const j = await r.json();
+    if (!r.ok) return setError(j.error || 'No se pudo eliminar');
+    setMensaje('Pagina eliminada');
+    cargarPaginas();
   }
 
   async function cargarUsuariosAdmin() {
@@ -526,6 +592,7 @@ export default function Admin() {
           ['general', 'General'],
           ['usuarios', 'Usuarios'],
           ['pagos', 'Pagos'],
+          ['paginas', 'Paginas'],
           ['marketing', 'Marketing'],
           ['soporte', 'Soporte'],
           ['sistema', 'Sistema'],
@@ -1174,6 +1241,51 @@ export default function Admin() {
         </form>
       </section>
 
+      <section className="panel-admin sec-paginas">
+        <h2>Paginas publicas (landing y blog)</h2>
+        <p className="ayuda">
+          Crea paginas de aterrizaje y blog editables en HTML puro. Usa el marcador{' '}
+          <code>{'{{REGISTRO}}'}</code> para insertar el formulario de registro.
+          Las paginas publicadas quedan disponibles en <code>/p/{'{slug}'}</code>.
+        </p>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+          <button className="btn btn-secundario" onClick={cargarPaginas}>
+            {paginasCargando ? 'Cargando...' : 'Actualizar'}
+          </button>
+          <button className="btn btn-primary" onClick={abrirNuevaPagina}>
+            + Nueva pagina
+          </button>
+        </div>
+        <table className="tabla-admin">
+          <thead>
+            <tr><th>Titulo</th><th>Slug</th><th>Tipo</th><th>Estado</th><th>Actualizada</th><th>Acciones</th></tr>
+          </thead>
+          <tbody>
+            {paginas.map((p) => (
+              <tr key={p.id}>
+                <td>{p.titulo}</td>
+                <td className="mono" style={{ fontSize: 12 }}>{p.slug}</td>
+                <td>{p.tipo}</td>
+                <td>{p.publicado ? 'Publicada' : 'Borrador'}</td>
+                <td style={{ fontSize: 12 }}>{p.updated_at ? new Date(p.updated_at).toLocaleString('es-VE') : '-'}</td>
+                <td style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <button className="btn-mini" onClick={() => abrirEditarPagina(p)}>Editar</button>
+                  {p.publicado && (
+                    <a className="btn-mini" href={'/p/' + p.slug} target="_blank" rel="noopener" style={{ textDecoration: 'none' }}>
+                      Ver
+                    </a>
+                  )}
+                  <button className="btn-mini" onClick={() => eliminarPagina(p.id)}>Eliminar</button>
+                </td>
+              </tr>
+            ))}
+            {paginas.length === 0 && !paginasCargando && (
+              <tr><td colSpan={6} className="vacio">Sin paginas. Crea la primera.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </section>
+
       <section className="panel-admin sec-marketing">
         <h2>Marketing y conversion</h2>
         <p className="ayuda">
@@ -1333,6 +1445,115 @@ export default function Admin() {
           </tbody>
         </table>
       </section>
+      {paginaModal && paginaEditando && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)',
+            zIndex: 1000, display: 'flex', justifyContent: 'center', alignItems: 'flex-start',
+            padding: 20, overflowY: 'auto',
+          }}
+        >
+          <div
+            style={{
+              background: '#fff', borderRadius: 14, padding: 24, width: '100%', maxWidth: 1280,
+              boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h2 style={{ margin: 0, fontSize: 18 }}>
+                {paginaEditando.id ? 'Editar pagina' : 'Nueva pagina'}
+              </h2>
+              <button className="btn btn-secundario" onClick={() => { setPaginaModal(false); setPaginaEditando(null); }}>
+                Cerrar
+              </button>
+            </div>
+
+            <form onSubmit={guardarPagina}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 12 }}>
+                <div className="campo">
+                  <label>Titulo</label>
+                  <input
+                    value={paginaEditando.titulo}
+                    onChange={(e) => setPaginaEditando({ ...paginaEditando, titulo: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="campo">
+                  <label>Slug (URL)</label>
+                  <input
+                    value={paginaEditando.slug}
+                    onChange={(e) => setPaginaEditando({ ...paginaEditando, slug: e.target.value })}
+                    placeholder="se-genera-del-titulo"
+                  />
+                </div>
+                <div className="campo">
+                  <label>Tipo</label>
+                  <select
+                    value={paginaEditando.tipo}
+                    onChange={(e) => setPaginaEditando({ ...paginaEditando, tipo: e.target.value })}
+                  >
+                    <option value="landing">Landing</option>
+                    <option value="blog">Blog</option>
+                  </select>
+                </div>
+                <div className="campo" style={{ display: 'flex', alignItems: 'flex-end' }}>
+                  <label className="check-label">
+                    <input
+                      type="checkbox"
+                      checked={paginaEditando.publicado}
+                      onChange={(e) => setPaginaEditando({ ...paginaEditando, publicado: e.target.checked })}
+                    />
+                    Publicada
+                  </label>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 12 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
+                    HTML (puro)
+                  </label>
+                  <textarea
+                    value={paginaEditando.html}
+                    onChange={(e) => setPaginaEditando({ ...paginaEditando, html: e.target.value })}
+                    rows={22}
+                    style={{
+                      width: '100%', fontFamily: 'Consolas, monospace', fontSize: 12.5,
+                      border: '1px solid #e2e8f0', borderRadius: 8, padding: 10,
+                      resize: 'vertical', minHeight: 360,
+                    }}
+                    placeholder="<div>...</div>"
+                  />
+                  <p className="ayuda" style={{ marginTop: 6 }}>
+                    Usa <code>{'{{REGISTRO}}'}</code> para insertar el formulario de registro.
+                  </p>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
+                    Vista previa
+                  </label>
+                  <iframe
+                    title="Vista previa"
+                    srcDoc={(paginaEditando.html || '').replace(/\{\{REGISTRO\}\}/g, '<div style="padding:20px;text-align:center;background:#f1f5f9;border:2px dashed #cbd5e1;border-radius:8px;color:#64748b;font-family:sans-serif;">[ Formulario de registro ]</div>')}
+                    sandbox="allow-scripts allow-same-origin"
+                    style={{ width: '100%', height: 420, border: '1px solid #e2e8f0', borderRadius: 8, background: '#fff' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button type="button" className="btn btn-secundario" onClick={() => { setPaginaModal(false); setPaginaEditando(null); }}>
+                  Cancelar
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Guardar pagina
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </main>
   );
 }
