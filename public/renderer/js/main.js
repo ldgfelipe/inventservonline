@@ -1866,6 +1866,15 @@ async function ejecutarAccionAsistente(e) {
     cerrarAsistente();
     return nuevoProducto();
   }
+  if (accion.tipo === 'abrir_traslado') {
+    cerrarAsistente();
+    await abrirNuevoTraslado();
+    if (accion.productoId) {
+      const sel = document.getElementById('trProducto');
+      if (sel) sel.value = accion.productoId;
+    }
+    return;
+  }
   if (accion.tipo === 'ayuda') {
     agregarMensaje('usuario', 'ayuda');
     const r = await window.api.asistente.consultar('ayuda');
@@ -1919,6 +1928,7 @@ async function ejecutarAccionAsistente(e) {
     const r = await window.api.asistente.ejecutar(accion);
     if (r.ok) {
       agregarMensaje('asistente', r.texto || 'Listo.');
+      if (accion.tipo === 'confirmar_notificacion') cargarNotificaciones();
       if (ESTADO.vista === 'productos') await cargarProductos();
       if (ESTADO.vista === 'movimientos') await cargarMovimientos();
       if (ESTADO.vista === 'dashboard') await cargarDashboard();

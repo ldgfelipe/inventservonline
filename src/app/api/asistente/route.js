@@ -26,7 +26,7 @@ function tokensUtiles(nombre) {
 
 async function buscarProducto(sb, empresaId, texto, usuarioId) {
   const { data: alias } = await sb.from('asistente_alias')
-    .select('frase, producto_id, productos(nombre, codigo, stock_actual)')
+    .select('frase, producto_id, productos(nombre, codigo, stock_actual, stock_minimo, stock_maximo)')
     .eq('empresa_id', empresaId).eq('usuario_id', usuarioId);
 
   for (const a of alias || []) {
@@ -36,7 +36,7 @@ async function buscarProducto(sb, empresaId, texto, usuarioId) {
   }
 
   const { data: productos } = await sb.from('productos')
-    .select('id, codigo, nombre, stock_actual').eq('empresa_id', empresaId).eq('activo', true);
+    .select('id, codigo, nombre, stock_actual, stock_minimo, stock_maximo').eq('empresa_id', empresaId).eq('activo', true);
   if (!productos || !productos.length) return { encontrado: false, vacio: true };
 
   const puntuados = productos.map((p) => {
@@ -61,6 +61,64 @@ async function buscarProducto(sb, empresaId, texto, usuarioId) {
 
   if (!puntuados.length || puntuados[0].puntaje < UMBRAL) return { encontrado: false };
   return { encontrado: true, producto: puntuados[0].producto, origen: 'tokens' };
+}
+
+/* Extrae todos los numeros de una frase (para minimos/maximos). */
+function numerosDe(texto) {
+  return (String(texto).match(/\d+(?:[.,]\d+)?/g) || [])
+    .map((n) => Number(n.replace(',', '.')))
+    .filter((n) => Number.isFinite(n));
+}
+
+/* Ventas confirmadas agregadas por producto (unidades, ingresos, costo, margen). */
+async function ventasPorProducto(sb, empresaId) {
+  const { data: ventas } = await sb.from('ventas')
+    .select('id').eq('empresa_id', empresaId).eq('estado', 'confirmada');
+  const ids = (ventas || []).map((v) => v.id);
+  if (!ids.length) return [];
+  const { data: det } = await sb.from('venta_detalle')
+    .select('producto_id, cantidad, subtotal, costo_unitario, almacen_id, productos(nombre, codigo, proveedor_id)')
+    .in('venta_id', ids);
+  const mapa = {};
+  for (const d of det || []) {
+    const id = d.producto_id;
+    if (!id) continue;
+    if (!mapa[id]) {
+      mapa[id] = {
+        producto_id: id,
+        nombre: d.productos ? d.productos.nombre : '-',
+        codigo: d.productos ? d.productos.codigo : '',
+        proveedor_id: d.productos ? d.productos.proveedor_id : null,
+        unidades: 0, ingresos: 0, costo: 0,
+      };
+    }
+    mapa[id].unidades += Number(d.cantidad) || 0;
+    mapa[id].ingresos += Number(d.subtotal) || 0;
+    mapa[id].costo += (Number(d.cantidad) || 0) * (Number(d.costo_unitario) || 0);
+  }
+  return Object.values(mapa).map((x) => ({
+    ...x,
+    ganancia: x.ingresos - x.costo,
+    margen: x.ingresos > 0 ? ((x.ingresos - x.costo) / x.ingresos) * 100 : 0,
+  }));
+}
+
+/* Ventas confirmadas agregadas por almacen. */
+async function ventasPorAlmacen(sb, empresaId) {
+  const { data: ventas } = await sb.from('ventas')
+    .select('id').eq('empresa_id', empresaId).eq('estado', 'confirmada');
+  const ids = (ventas || []).map((v) => v.id);
+  if (!ids.length) return [];
+  const { data: det } = await sb.from('venta_detalle')
+    .select('cantidad, subtotal, almacen_id').in('venta_id', ids);
+  const mapa = {};
+  for (const d of det || []) {
+    const id = d.almacen_id || 'sin';
+    if (!mapa[id]) mapa[id] = { almacen_id: id, unidades: 0, ingresos: 0 };
+    mapa[id].unidades += Number(d.cantidad) || 0;
+    mapa[id].ingresos += Number(d.subtotal) || 0;
+  }
+  return Object.values(mapa);
 }
 
 /* -- Formato de las respuestas del asistente --------------------------------
@@ -543,6 +601,263 @@ async function consultar(request) {
         return responder(p, `Ventas confirmadas: ${moneda(total)}. Costo: ${moneda(costos)}. Margen: ${moneda(margen)} (${pct.toFixed(1)}%).`);
       }
 
+      case 'mas_vendidos': {
+        if (!puede(perfil.rol, 'ventas.ver')) return responder(p, negar('ventas.ver').texto);
+        const datos = await ventasPorProducto(sb, perfil.empresa_id);
+        if (!datos.length) return responder(p, 'Aun no hay ventas confirmadas para calcular los mas vendidos.');
+        const top = datos.sort((a, b) => b.ingresos - a.ingresos).slice(0, 20);
+        const filas = top.map((x) => ({
+          producto: x.nombre,
+          unidades: x.unidades,
+          ingresos: moneda(x.ingresos),
+          ganancia: moneda(x.ganancia),
+          margen: x.margen.toFixed(1) + '%',
+        }));
+        return responder(p, 'Productos mas vendidos por ingresos:',
+          tabla('Mas vendidos', filas,
+            ['producto', 'unidades', 'ingresos', 'ganancia', 'margen'],
+            ['Producto', 'Unidades', 'Ingresos', 'Ganancia', 'Margen %']));
+      }
+
+      case 'productos_estancados': {
+        if (!puede(perfil.rol, 'productos.ver')) return responder(p, negar('productos.ver').texto);
+        const { data: prods } = await sb.from('productos')
+          .select('id, codigo, nombre, stock_actual, created_at')
+          .eq('empresa_id', perfil.empresa_id).eq('activo', true).gt('stock_actual', 0);
+        if (!prods || !prods.length) return responder(p, 'No hay productos con stock para analizar.');
+        const { data: movs } = await sb.from('movimientos')
+          .select('producto_id, fecha').eq('empresa_id', perfil.empresa_id);
+        const ultimo = {};
+        const conteo = {};
+        for (const m of movs || []) {
+          conteo[m.producto_id] = (conteo[m.producto_id] || 0) + 1;
+          if (!ultimo[m.producto_id] || new Date(m.fecha) > new Date(ultimo[m.producto_id])) {
+            ultimo[m.producto_id] = m.fecha;
+          }
+        }
+        const hoy = Date.now();
+        const filas = prods.map((pr) => {
+          const ult = ultimo[pr.id] || pr.created_at;
+          const dias = Math.max(0, Math.floor((hoy - new Date(ult).getTime()) / 86400000));
+          return {
+            producto: pr.nombre,
+            codigo: pr.codigo || '-',
+            stock: pr.stock_actual,
+            movimientos: conteo[pr.id] || 0,
+            dias_sin_mover: dias,
+            ingreso: String(pr.created_at || '').slice(0, 10),
+          };
+        }).filter((x) => x.movimientos <= 3 || x.dias_sin_mover >= 30)
+          .sort((a, b) => b.dias_sin_mover - a.dias_sin_mover)
+          .slice(0, 25);
+        return responder(p, filas.length
+          ? 'Estos productos tienen stock y casi no se mueven. Considera promociones o dejar de comprarlos:'
+          : 'Todos los productos con stock tienen movimiento reciente. No hay estancados.',
+          tabla('Productos estancados', filas,
+            ['producto', 'codigo', 'stock', 'movimientos', 'dias_sin_mover', 'ingreso'],
+            ['Producto', 'Codigo', 'Stock', 'Movs', 'Dias sin mover', 'Ingreso']));
+      }
+
+      case 'proveedores_compras': {
+        if (!puede(perfil.rol, 'compras.ver')) return responder(p, negar('compras.ver').texto);
+        const { data: compras } = await sb.from('compras')
+          .select('proveedor_id, total, fecha, proveedores(nombre)')
+          .eq('empresa_id', perfil.empresa_id).neq('estado', 'anulada');
+        const { data: det } = await sb.from('compra_detalle')
+          .select('cantidad, compras(proveedor_id, estado)')
+          .eq('empresa_id', perfil.empresa_id);
+        const mapa = {};
+        const filaProv = (id, nombre) => {
+          const k = id || 'sin';
+          if (!mapa[k]) mapa[k] = { proveedor: nombre || 'Sin proveedor', compras: 0, invertido: 0, unidades: 0, ultima: null };
+          if (nombre && mapa[k].proveedor === 'Sin proveedor') mapa[k].proveedor = nombre;
+          return mapa[k];
+        };
+        for (const c of compras || []) {
+          const f = filaProv(c.proveedor_id, c.proveedores ? c.proveedores.nombre : null);
+          f.compras++;
+          f.invertido += Number(c.total) || 0;
+          if (!f.ultima || new Date(c.fecha) > new Date(f.ultima)) f.ultima = c.fecha;
+        }
+        for (const d of det || []) {
+          if (d.compras && d.compras.estado === 'anulada') continue;
+          const provId = d.compras ? d.compras.proveedor_id : null;
+          filaProv(provId, null).unidades += Number(d.cantidad) || 0;
+        }
+        const filas = Object.values(mapa)
+          .sort((a, b) => b.invertido - a.invertido)
+          .map((x) => ({
+            proveedor: x.proveedor,
+            compras: x.compras,
+            unidades: Math.round(x.unidades * 100) / 100,
+            invertido: moneda(x.invertido),
+            ultima: String(x.ultima || '').slice(0, 10),
+          }));
+        return responder(p, filas.length
+          ? 'Compras por proveedor (de mayor a menor inversion):'
+          : 'Aun no hay compras registradas.',
+          tabla('Compras por proveedor', filas,
+            ['proveedor', 'compras', 'unidades', 'invertido', 'ultima'],
+            ['Proveedor', 'Compras', 'Unidades', 'Invertido', 'Ultima']));
+      }
+
+      case 'proveedores_rentabilidad': {
+        if (!puede(perfil.rol, 'reportes.ver')) return responder(p, negar('reportes.ver').texto);
+        const prods = await ventasPorProducto(sb, perfil.empresa_id);
+        const { data: compras } = await sb.from('compras')
+          .select('proveedor_id, total').eq('empresa_id', perfil.empresa_id).neq('estado', 'anulada');
+        const { data: proveedores } = await sb.from('proveedores')
+          .select('id, nombre').eq('empresa_id', perfil.empresa_id);
+        const nombres = {};
+        for (const pr of proveedores || []) nombres[pr.id] = pr.nombre;
+        const mapa = {};
+        const fila = (id) => {
+          const k = id || 'sin';
+          if (!mapa[k]) mapa[k] = { proveedor: nombres[id] || 'Sin proveedor', invertido: 0, ventas: 0, costo: 0, unidades: 0 };
+          return mapa[k];
+        };
+        for (const c of compras || []) fila(c.proveedor_id).invertido += Number(c.total) || 0;
+        for (const x of prods) {
+          const f = fila(x.proveedor_id);
+          f.ventas += x.ingresos;
+          f.costo += x.costo;
+          f.unidades += x.unidades;
+        }
+        const filas = Object.values(mapa).map((x) => {
+          const ganancia = x.ventas - x.costo;
+          return {
+            ...x,
+            ganancia,
+            retorno: x.invertido > 0 ? (ganancia / x.invertido) * 100 : 0,
+            margen: x.ventas > 0 ? (ganancia / x.ventas) * 100 : 0,
+          };
+        }).sort((a, b) => b.ganancia - a.ganancia).map((x) => ({
+          proveedor: x.proveedor,
+          invertido: moneda(x.invertido),
+          ventas: moneda(x.ventas),
+          ganancia: moneda(x.ganancia),
+          retorno: x.invertido > 0 ? x.retorno.toFixed(1) + '%' : '-',
+          margen: x.ventas > 0 ? x.margen.toFixed(1) + '%' : '-',
+        }));
+        return responder(p, 'Rentabilidad por proveedor (ventas atribuidas a sus productos):',
+          tabla('Rentabilidad por proveedor', filas,
+            ['proveedor', 'invertido', 'ventas', 'ganancia', 'retorno', 'margen'],
+            ['Proveedor', 'Invertido', 'Ventas', 'Ganancia', 'Retorno s/inv.', 'Margen %']));
+      }
+
+      case 'rentabilidad_productos': {
+        if (!puede(perfil.rol, 'reportes.ver')) return responder(p, negar('reportes.ver').texto);
+        const datos = await ventasPorProducto(sb, perfil.empresa_id);
+        if (!datos.length) return responder(p, 'Aun no hay ventas confirmadas para calcular la rentabilidad.');
+        const peor = /menos|peor|bajo/.test(p.textoPlano);
+        const orden = datos.slice()
+          .sort((a, b) => (peor ? a.margen - b.margen : b.margen - a.margen))
+          .slice(0, 20);
+        const filas = orden.map((x) => ({
+          producto: x.nombre,
+          unidades: x.unidades,
+          ingresos: moneda(x.ingresos),
+          costo: moneda(x.costo),
+          ganancia: moneda(x.ganancia),
+          margen: x.margen.toFixed(1) + '%',
+        }));
+        return responder(p, peor
+          ? 'Productos con menor margen (revisa precios o costos):'
+          : 'Productos con mayor margen:',
+          tabla('Rentabilidad por producto', filas,
+            ['producto', 'unidades', 'ingresos', 'costo', 'ganancia', 'margen'],
+            ['Producto', 'Unidades', 'Ingresos', 'Costo', 'Ganancia', 'Margen %']));
+      }
+
+      case 'rendimiento_almacen': {
+        if (!puede(perfil.rol, 'ventas.ver')) return responder(p, negar('ventas.ver').texto);
+        const ventasAlm = await ventasPorAlmacen(sb, perfil.empresa_id);
+        const { data: almacenes } = await sb.from('almacenes')
+          .select('id, nombre').eq('empresa_id', perfil.empresa_id);
+        const { data: stock } = await sb.from('producto_almacen')
+          .select('almacen_id, cantidad').eq('empresa_id', perfil.empresa_id);
+        const nombres = {};
+        for (const a of almacenes || []) nombres[a.id] = a.nombre;
+        const stockMap = {};
+        for (const s of stock || []) stockMap[s.almacen_id] = (stockMap[s.almacen_id] || 0) + (Number(s.cantidad) || 0);
+        const mapa = {};
+        for (const v of ventasAlm) {
+          const k = v.almacen_id || 'sin';
+          mapa[k] = { almacen_id: k, unidades: v.unidades, ingresos: v.ingresos };
+        }
+        for (const a of almacenes || []) {
+          if (!mapa[a.id]) mapa[a.id] = { almacen_id: a.id, unidades: 0, ingresos: 0 };
+        }
+        const filas = Object.values(mapa)
+          .sort((a, b) => b.ingresos - a.ingresos)
+          .map((x) => ({
+            almacen: nombres[x.almacen_id] || 'Sin almacen',
+            unidades: x.unidades,
+            ingresos: moneda(x.ingresos),
+            stock: Math.round((stockMap[x.almacen_id] || 0) * 100) / 100,
+          }));
+        return responder(p, 'Rendimiento por almacen (ventas y stock actual):',
+          tabla('Rendimiento por almacen', filas,
+            ['almacen', 'unidades', 'ingresos', 'stock'],
+            ['Almacen', 'Unidades vendidas', 'Ingresos', 'Stock actual']));
+      }
+
+      case 'modificar_minmax': {
+        if (!puede(perfil.rol, 'productos.editar')) return responder(p, negar('productos.editar').texto);
+        const r = await buscarProducto(sb, perfil.empresa_id, p.textoPlano, perfil.id);
+        if (!r.encontrado) return responder(p, 'No encontre ese producto. Escribe su nombre o codigo.');
+        const prod = r.producto;
+        const nums = numerosDe(p.textoPlano);
+        const mencionaMin = /minimo|\bmin\b/.test(p.textoPlano);
+        const mencionaMax = /maximo|\bmax\b/.test(p.textoPlano);
+        if (!nums.length) {
+          return responder(p, `Dime el nuevo valor para ${prod.nombre}. Por ejemplo: "pon el minimo en 10 y el maximo en 50".`);
+        }
+        let minimo = Number(prod.stock_minimo) || 0;
+        let maximo = Number(prod.stock_maximo) || 0;
+        if (mencionaMin && mencionaMax) {
+          if (nums.length < 2) return responder(p, `Necesito dos numeros para ${prod.nombre}: minimo y maximo.`);
+          minimo = nums[0];
+          maximo = nums[1];
+        } else if (mencionaMin) {
+          minimo = nums[0];
+        } else if (mencionaMax) {
+          maximo = nums[0];
+        } else {
+          return responder(p, `Dime si ${nums[0]} es el minimo o el maximo de ${prod.nombre}.`);
+        }
+        if (maximo > 0 && minimo > maximo) {
+          return responder(p, `El minimo (${minimo}) no puede ser mayor que el maximo (${maximo}).`);
+        }
+        return responder(p,
+          `Vas a cambiar los limites de ${prod.nombre} (actual: minimo ${prod.stock_minimo || 0}, maximo ${prod.stock_maximo || 0}) a minimo ${minimo} y maximo ${maximo}. ¿Confirmas?`,
+          [{ id: 'confirmar_minmax', etiqueta: 'Confirmar cambio', tipo: 'confirmar_minmax', productoId: prod.id, productoNombre: prod.nombre, stock_minimo: minimo, stock_maximo: maximo }]);
+      }
+
+      case 'notificar': {
+        const areas = ['Administracion', 'Almacen', 'Farmacia / Despacho', 'Compras', 'Ventas', 'Contabilidad'];
+        const plano = p.textoPlano;
+        const area = areas.find((a) => plano.includes(clave(a))) || null;
+        let mensaje = p.texto
+          .replace(/^.*?\b(que|sobre|por)\b\s*/i, '')
+          .replace(/^.*?\b(al|a la|a el|a los|a las)\s+(almacen|administracion|compras|ventas|contabilidad|equipo|todos)\s*/i, '')
+          .trim();
+        if (!mensaje || mensaje.length < 3) mensaje = p.texto.trim();
+        return responder(p,
+          `Vas a enviar este aviso${area ? ' al area ' + area : ' a toda la empresa'}: "${mensaje}". ¿Confirmas?`,
+          [{ id: 'confirmar_notificacion', etiqueta: 'Enviar aviso', tipo: 'confirmar_notificacion', titulo: 'Aviso del asistente', mensaje, destino_area: area }]);
+      }
+
+      case 'registrar_traslado': {
+        if (!puede(perfil.rol, 'productos.editar')) return responder(p, negar('productos.editar').texto);
+        const r = await buscarProducto(sb, perfil.empresa_id, p.textoPlano, perfil.id);
+        return responder(p,
+          r.encontrado
+            ? `Abrire el formulario de traslado con ${r.producto.nombre}. Elige el almacen de origen, el destino y confirma el movimiento.`
+            : 'Abrire el formulario de traslado. Elige el producto, los almacenes de origen y destino, y confirma el movimiento.',
+          [{ id: 'abrir_traslado', etiqueta: 'Abrir traslado', tipo: 'abrir_traslado', productoId: r.encontrado ? r.producto.id : null }]);
+      }
+
       case 'traslados_recientes': {
         if (!puede(perfil.rol, 'movimientos.ver')) return responder(p, negar('movimientos.ver').texto);
         const { data } = await sb.from('traslados')
@@ -641,7 +956,7 @@ async function consultar(request) {
           [{ id: 'importar', etiqueta: 'Abrir importador', tipo: 'abrir_importador' }]);
 
       case 'ayuda':
-        return responder(p, 'Puedo ayudarte con: stock de un producto, productos con stock bajo, agotados, valor total del inventario, movimientos por persona, registrar entradas o salidas, ventas recientes, cuentas por cobrar, cuentas por pagar, caja del dia, margen de ganancia, traslados entre almacenes y stock por almacen. Escribe algo como "cuanto cemento tengo" o "stock por almacen".');
+        return responder(p, 'Puedo ayudarte con: stock de un producto, productos por reponer (stock bajo), agotados, valor del inventario, conteo de productos, productos mas vendidos, productos estancados o de baja rotacion, compras y volumen por proveedor, rentabilidad por proveedor y por producto, rendimiento por almacen, movimientos por persona, registrar entradas, salidas o traslados, ventas recientes, cuentas por cobrar, cuentas por pagar, caja del dia, margen de ganancia y envio de avisos a un area. Tambien puedo cambiar el stock minimo y maximo de un producto (te pido confirmacion). Escribe algo como "que productos necesito reponer", "cuales son los mas vendidos", "que proveedor me da mas ganancia" o "pon el minimo de cemento en 10".');
 
       default:
         return responder(p, 'No entendi eso. Prueba con "¿cuanto cemento tengo?", "stock bajo" o "registrar entrada de 50 de cemento".',

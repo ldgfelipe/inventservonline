@@ -14,8 +14,13 @@ async function listar(request) {
     if (/notificaciones|does not exist|schema cache/i.test(err.message)) return Response.json({ ok: true, notificaciones: [], no_leidas: 0 });
     return error(err.message, 500);
   }
-  const noLeidas = (data || []).filter((n) => !n.leida).length;
-  return Response.json({ ok: true, notificaciones: data || [], no_leidas: noLeidas });
+  const visibles = (data || []).filter((n) => {
+    if (n.destino_usuario) return n.destino_usuario === perfil.id;
+    if (n.destino_area) return n.destino_area === perfil.area;
+    return true;
+  });
+  const noLeidas = visibles.filter((n) => !n.leida).length;
+  return Response.json({ ok: true, notificaciones: visibles, no_leidas: noLeidas });
 }
 
 /* POST /api/notificaciones { accion: 'marcar_leida'|'marcar_todas'|'generar' } */
