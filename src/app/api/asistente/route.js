@@ -15,6 +15,11 @@ export const runtime = 'nodejs';
 
 const UMBRAL = 0.55;
 
+function formatoFecha(f) {
+  if (!f) return '-';
+  return String(f).replace('T', ' ').slice(0, 16);
+}
+
 function tokensUtiles(nombre) {
   return clave(nombre).split(' ').filter((t) => t.length >= 4 && !/^[\d.,]+[a-z]{0,3}$/.test(t));
 }
@@ -101,6 +106,7 @@ async function consultar(request) {
   const { perfil, sb, sbRpc } = await sesion(request);
   // Verificar modulo asistente
   try { await exigirModulo(sb, perfil, 'asistente'); } catch (e) { return e.respuesta(); }
+  let cuerpo;
   try { cuerpo = await request.json(); } catch { cuerpo = {}; }
 
   // La moneda con la que se muestran los importes. Si la base aun no
@@ -517,7 +523,7 @@ async function consultar(request) {
       case 'margen': {
         if (!puede(perfil.rol, 'reportes.ver')) return responder(p, negar('reportes.ver').texto);
         const { data: ventas } = await sb.from('ventas')
-          .select('total').eq('empresa_id', perfil.empresa_id).eq('estado', 'confirmada');
+          .select('id, total').eq('empresa_id', perfil.empresa_id).eq('estado', 'confirmada');
         const ids = (ventas || []).map((v) => v.id);
         let costos = 0;
         if (ids.length) {

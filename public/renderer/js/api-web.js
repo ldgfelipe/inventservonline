@@ -488,7 +488,7 @@ window.api = {
   asistente: {
     consultar: (texto) => pedir('/api/asistente', { metodo: 'POST', json: { texto } }),
     ejecutar: (accion) => pedir('/api/asistente/ejecutar', { metodo: 'POST', json: { accion } }),
-    aprender: (frase, productoId) => pedir('/api/asistente/aprender', { metodo: 'POST', json: { frase, producto_id: productoId } }),
+    aprender: (frase, productoId) => pedir('/api/asistente/alias', { metodo: 'POST', json: { frase, producto_id: productoId } }),
     alias: () => pedir('/api/asistente/alias').then((r) => r.alias || []),
     aliasEliminar: (id) => pedir('/api/asistente/alias?id=' + id, { metodo: 'DELETE' }),
     productos: () => pedir('/api/productos?limite=300').then((r) => r.productos),
