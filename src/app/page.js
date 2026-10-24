@@ -120,7 +120,7 @@ export default function Landing() {
               <a className="btn" href="https://wa.me/522227328662" target="_blank" rel="noopener">
                 Contactar por WhatsApp
               </a>
-              <a className="btn btn-secundario" href="mailto:ldgframe@gmail.com">
+              <a className="btn btn-secundario" href="mailto:contacto@inventser.online">
                 Escribir por correo
               </a>
             </div>

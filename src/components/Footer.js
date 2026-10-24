@@ -16,8 +16,8 @@ export default function Footer() {
         <a href="https://wa.me/522227328662" target="_blank" rel="noopener" className="footer-enlace">
           <span className="footer-icono">&#128241;</span> WhatsApp: 2227328662
         </a>
-        <a href="mailto:ldgframe@gmail.com" className="footer-enlace">
-          <span className="footer-icono">&#9993;</span> ldgframe@gmail.com
+        <a href="mailto:contacto@inventser.online" className="footer-enlace">
+          <span className="footer-icono">&#9993;</span> contacto@inventser.online
         </a>
       </div>
 
