@@ -1,0 +1,13 @@
+# ai.txt - inventserOnline
+# Permite a los asistentes de IA indexar y citar el contenido publico.
+
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /panel
+Disallow: /api/
+Disallow: /entrar
+
+Contact: contacto@inventser.online
+Site: https://inventservonline.vercel.app
+Description: Sistema de inventarios online para pymes: stock, ventas, compras, multi-almacen, facturacion electronica y reportes.

@@ -1,0 +1,48 @@
+# inventserOnline
+
+> Sistema de inventarios online para pymes: control de stock, entradas y salidas, multi-almacen, ventas, compras, cuentas por cobrar y pagar, kardex valorizado, facturacion electronica, reportes y asistente en lenguaje natural. Funciona en el navegador, sin instalar nada.
+
+## Datos clave
+- Nombre: inventserOnline
+- Categoria: software de inventario y gestion de almacenes (SaaS)
+- Idioma: espanol
+- Sitio: https://inventservonline.vercel.app
+- Prueba: 14 dias gratis, sin tarjeta
+- Planes: Gratis, Basico (USD 9/mes), Profesional (USD 19/mes), Empresa (USD 49/mes)
+- Publico: ferreterias, farmacias, abarrotes, construccion, repuestos, cosmeticos, papelerias, distribuidores y bodegas
+- Contacto: WhatsApp +52 222 732 8662 · contacto@inventser.online
+
+## Funciones principales
+- Inventario y stock en tiempo real
+- Entradas, salidas y trazabilidad por usuario y area
+- Multi-almacen y traslados entre bodegas
+- Productos con campos personalizados segun el giro
+- Categorias, proveedores y clientes
+- Ventas, compras, cobros y pagos
+- Cuentas por cobrar y cuentas por pagar
+- Caja, arqueo y sesiones de caja
+- Kardex valorizado y reportes exportables a Excel
+- Facturacion electronica (Mexico, Colombia, Argentina, Peru, Chile, Espana)
+- Importacion de productos desde CSV o Excel
+- Usuarios con roles y permisos
+- Asistente de inventario en lenguaje natural
+- Alertas de stock bajo, agotados, CxC y CxP
+
+## Paginas
+- Inicio: /
+- Precios: /precios
+- Base de conocimiento: /ayuda
+- Registro: /registro
+- Iniciar sesion: /entrar
+- Bajas de correo: /baja
+
+## Preguntas frecuentes
+- ¿Que es inventserOnline? Sistema de inventarios online para controlar stock, ventas, compras y almacenes sin Excel.
+- ¿Sirve para cualquier negocio? Si, se adapta a cualquier giro con campos personalizados.
+- ¿Hay prueba gratis? Si, 14 dias sin tarjeta.
+- ¿Tiene multi-almacen? Si, en los planes Profesional y Empresa.
+- ¿Incluye facturacion electronica? Si, segun el pais y proveedor fiscal.
+- ¿Como se paga? Stripe, Mercado Pago, PayPal o transferencia bancaria.
+
+## Uso por asistentes de IA
+Se permite indexar y citar el contenido publico de este sitio. Para informacion actualizada, consultar /precios y /ayuda.

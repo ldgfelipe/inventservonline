@@ -45,6 +45,9 @@ export default function Admin() {
   const [pagBajas, setPagBajas] = useState(1);
   const [pagFreemium, setPagFreemium] = useState(1);
   const [pagCampanas, setPagCampanas] = useState(1);
+  const [pixelesConfig, setPixelesConfig] = useState(null);
+  const [pixelesCargando, setPixelesCargando] = useState(false);
+  const [pixelesMensaje, setPixelesMensaje] = useState('');
   const [usuarios, setUsuarios] = useState([]);
   const [usuariosCargando, setUsuariosCargando] = useState(false);
   const [usuarioDetalle, setUsuarioDetalle] = useState(null);
@@ -88,6 +91,7 @@ export default function Admin() {
     cargarConfigPagos();
     cargarPaginas();
     cargarTracking();
+    cargarPixeles();
     cargarUsuariosAdmin();
   }, [usuario]);
 
@@ -381,6 +385,42 @@ export default function Admin() {
     if (!r.ok) return setError(j.error || 'No se pudieron reiniciar las estadisticas');
     setMensaje(`Estadisticas reiniciadas. Trafico: ${j.eliminados_trafico}. Email: ${j.eliminados_email}.`);
     cargarTracking();
+  }
+
+  async function cargarPixeles() {
+    setPixelesCargando(true);
+    try {
+      const r = await fetch('/api/admin/pixeles', { headers: auth() });
+      const j = await r.json();
+      if (r.ok) {
+        setPixelesConfig(j.config || {});
+        if (j.aviso) setPixelesMensaje(j.aviso);
+      } else {
+        setError(j.error || 'No se pudo cargar la configuracion de pixeles');
+      }
+    } finally { setPixelesCargando(false); }
+  }
+
+  async function guardarPixeles(e) {
+    e.preventDefault();
+    setError(''); setMensaje(''); setPixelesMensaje('');
+    const form = e.target;
+    const payload = {
+      ga_measurement_id: form.elements.ga_measurement_id.value.trim(),
+      gtm_id: form.elements.gtm_id.value.trim(),
+      head_code: form.elements.head_code.value,
+      body_open_code: form.elements.body_open_code.value,
+      body_close_code: form.elements.body_close_code.value,
+    };
+    const r = await fetch('/api/admin/pixeles', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...auth() },
+      body: JSON.stringify(payload),
+    });
+    const j = await r.json();
+    if (!r.ok) return setError(j.error || 'No se pudo guardar');
+    setPixelesMensaje('Configuracion guardada. Los cambios se aplican al recargar el sitio.');
+    cargarPixeles();
   }
 
   function nuevaCampana() {
@@ -1458,6 +1498,7 @@ export default function Admin() {
             ['trafico', 'Trafico'],
             ['correo', 'Correo'],
             ['bajas', 'Bajas'],
+            ['pixeles', 'Pixeles'],
             ['freemium', 'Freemium'],
           ].map(([id, nombre]) => (
             <button
@@ -1720,6 +1761,58 @@ export default function Admin() {
             ) : (
               <p className="ayuda">Cargando bajas...</p>
             )}
+          </>
+        )}
+
+        {/* ---------- PIXELES ---------- */}
+        {marketingTab === 'pixeles' && (
+          <>
+            <h3 style={{ fontSize: 15, marginTop: 4 }}>Pixeles y codigo de seguimiento</h3>
+            <p className="ayuda">
+              Configura Google Analytics 4, Google Tag Manager y codigo adicional para pixeles
+              (Meta, TikTok, LinkedIn, etc.). Los IDs generan el codigo estandar automaticamente.
+            </p>
+
+            {pixelesMensaje && <div className="mensaje ok" style={{ marginBottom: 10 }}>{pixelesMensaje}</div>}
+            {pixelesCargando && <p className="ayuda">Cargando...</p>}
+
+            {pixelesConfig && (
+              <form onSubmit={guardarPixeles}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
+                  <div className="campo">
+                    <label>Google Analytics 4 (Measurement ID)</label>
+                    <input name="ga_measurement_id" defaultValue={pixelesConfig.ga_measurement_id || ''} placeholder="G-XXXXXXXXXX" />
+                  </div>
+                  <div className="campo">
+                    <label>Google Tag Manager (Container ID)</label>
+                    <input name="gtm_id" defaultValue={pixelesConfig.gtm_id || ''} placeholder="GTM-XXXXXXX" />
+                  </div>
+                </div>
+
+                <div className="campo">
+                  <label>Codigo en &lt;head&gt; (JavaScript)</label>
+                  <textarea name="head_code" rows={4} defaultValue={pixelesConfig.head_code || ''} placeholder="window.dataLayer = window.dataLayer || [];" style={{ fontFamily: 'Consolas, monospace', fontSize: 12.5 }} />
+                  <div className="ayuda">Se inserta al final del &lt;head&gt;. Pega el JavaScript sin las etiquetas &lt;script&gt; (si las incluyes, se extraen automaticamente).</div>
+                </div>
+
+                <div className="campo">
+                  <label>Codigo despues de abrir &lt;body&gt; (JavaScript)</label>
+                  <textarea name="body_open_code" rows={4} defaultValue={pixelesConfig.body_open_code || ''} placeholder="// Pixel o inicializacion" style={{ fontFamily: 'Consolas, monospace', fontSize: 12.5 }} />
+                </div>
+
+                <div className="campo">
+                  <label>Codigo antes de cerrar &lt;/body&gt; (JavaScript)</label>
+                  <textarea name="body_close_code" rows={4} defaultValue={pixelesConfig.body_close_code || ''} placeholder="// Eventos finales" style={{ fontFamily: 'Consolas, monospace', fontSize: 12.5 }} />
+                </div>
+
+                <button type="submit" className="btn">Guardar pixeles</button>
+              </form>
+            )}
+
+            <p className="ayuda" style={{ marginTop: 12 }}>
+              Los cambios se aplican en la siguiente carga del sitio. Si pegas un snippet completo
+              con etiquetas &lt;script&gt;, el sistema conserva solo el JavaScript interior.
+            </p>
           </>
         )}
 

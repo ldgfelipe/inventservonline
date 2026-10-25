@@ -671,3 +671,101 @@ a { color: var(--primario); text-decoration: none; }
 }
 
 .admin[data-tab="usuarios"] .panel-admin:not(.sec-usuarios) { display: none; }
+
+/* ---- Landing: secciones SEO / IA ---- */
+.seo-seccion {
+  max-width: 940px;
+  margin: 0 auto 48px;
+  padding: 0 24px;
+}
+.seo-seccion h2 {
+  font-size: 26px;
+  margin: 0 0 14px;
+  letter-spacing: -0.5px;
+}
+.seo-seccion p {
+  color: var(--suave);
+  font-size: 15.5px;
+  line-height: 1.7;
+  margin: 0 0 12px;
+}
+.seo-titulo-centrado {
+  grid-column: 1 / -1;
+  font-size: 26px;
+  text-align: center;
+  margin: 0 0 8px;
+  letter-spacing: -0.5px;
+}
+.seo-lista {
+  columns: 2;
+  gap: 32px;
+  margin: 8px 0 0;
+  padding-left: 20px;
+  color: var(--suave);
+  font-size: 15px;
+  line-height: 1.8;
+}
+.seo-pasos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-top: 8px;
+}
+.seo-pasos article {
+  background: #fff;
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  padding: 20px;
+}
+.seo-pasos h3 { font-size: 16px; margin: 10px 0 6px; }
+.seo-pasos p { font-size: 14px; margin: 0; }
+.seo-paso-numero {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--primario);
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+}
+.seo-planes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+  margin-top: 8px;
+}
+.seo-plan {
+  background: #fff;
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  padding: 18px;
+}
+.seo-plan h3 { font-size: 16px; margin: 0 0 6px; }
+.seo-plan-precio { font-size: 28px; font-weight: 700; color: var(--primario); }
+.seo-plan-precio span { font-size: 13px; color: var(--suave); font-weight: 500; }
+.seo-plan p { font-size: 13.5px; margin: 8px 0 0; }
+.faq-home { display: grid; gap: 10px; margin-top: 8px; }
+.faq-home details {
+  background: #fff;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.faq-home summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--texto);
+}
+.faq-home details p {
+  margin: 10px 0 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+@media (max-width: 640px) {
+  .seo-lista { columns: 1; }
+  .seo-seccion h2, .seo-titulo-centrado { font-size: 22px; }
+}
