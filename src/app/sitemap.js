@@ -8,8 +8,7 @@ export default async function sitemap() {
     { url: '/precios', changeFrequency: 'monthly', priority: 0.9 },
     { url: '/ayuda', changeFrequency: 'weekly', priority: 0.8 },
     { url: '/registro', changeFrequency: 'monthly', priority: 0.8 },
-    { url: '/entrar', changeFrequency: 'yearly', priority: 0.3 },
-    { url: '/baja', changeFrequency: 'yearly', priority: 0.1 },
+    { url: '/mapa-del-sitio', changeFrequency: 'monthly', priority: 0.5 },
   ];
 
   try {

@@ -30,7 +30,10 @@ export default function Footer() {
       </div>
 
       <div className="footer-base">
-        © {new Date().getFullYear()} inventserOnline. Todos los derechos reservados.
+        © {new Date().getFullYear()} inventserOnline. Todos los derechos reservados ·{' '}
+        <Link href="/mapa-del-sitio" style={{ color: 'inherit', textDecoration: 'underline' }}>
+          Mapa del sitio
+        </Link>
       </div>
     </footer>
   );
