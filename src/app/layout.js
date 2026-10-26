@@ -1,7 +1,12 @@
 import './globals.css';
-import PixelesSitio from '@/components/PixelesSitio';
+import { leerConfigSitio, snippetGa4, snippetGtmHead } from '@/lib/config-sitio';
 
 const BASE = (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://inventservonline.vercel.app').replace(/\/+$/, '');
+
+// El layout lee la configuracion de pixeles en cada peticion para que los
+// scripts esten en el HTML inicial (antes de la hidratacion) y Google los
+// detecte desde la primera carga.
+export const dynamic = 'force-dynamic';
 
 export const metadata = {
   metadataBase: new URL(BASE),
@@ -57,12 +62,47 @@ export const viewport = {
   themeColor: '#2563eb',
 };
 
-export default function RootLayout({ children }) {
+function soloJs(codigo) {
+  return String(codigo || '')
+    .replace(/<script[^>]*>/gi, '')
+    .replace(/<\/script>/gi, '')
+    .trim();
+}
+
+export default async function RootLayout({ children }) {
+  const cfg = await leerConfigSitio({ force: true });
+  const gtmHead = snippetGtmHead(cfg.gtm_id);
+  const gaJs = snippetGa4(cfg.ga_measurement_id);
+  const headJs = soloJs(cfg.head_code);
+  const bodyOpenJs = soloJs(cfg.body_open_code);
+  const bodyCloseJs = soloJs(cfg.body_close_code);
+
   return (
     <html lang="es">
+      <head>
+        {gtmHead && <script dangerouslySetInnerHTML={{ __html: gtmHead }} />}
+        {cfg.ga_measurement_id && (
+          <>
+            <script async src={`https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(cfg.ga_measurement_id)}`} />
+            <script dangerouslySetInnerHTML={{ __html: gaJs }} />
+          </>
+        )}
+        {headJs && <script dangerouslySetInnerHTML={{ __html: headJs }} />}
+      </head>
       <body>
+        {bodyOpenJs && <script dangerouslySetInnerHTML={{ __html: bodyOpenJs }} />}
+        {cfg.gtm_id && (
+          <noscript>
+            <iframe
+              src={`https://www.googletagmanager.com/ns.html?id=${encodeURIComponent(cfg.gtm_id)}`}
+              height="0"
+              width="0"
+              style={{ display: 'none', visibility: 'hidden' }}
+            />
+          </noscript>
+        )}
         {children}
-        <PixelesSitio />
+        {bodyCloseJs && <script dangerouslySetInnerHTML={{ __html: bodyCloseJs }} />}
       </body>
     </html>
   );
