@@ -19,6 +19,7 @@ const PUBLICAS = [
   '/api/giros/',
   '/api/monedas',
   '/api/planes',
+  '/api/pixeles',
   '/api/webhooks',
   '/api/trafico',
   '/api/pixel',

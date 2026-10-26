@@ -1,5 +1,5 @@
 import './globals.css';
-import { leerConfigSitio, snippetGa4, snippetGtmHead } from '@/lib/config-sitio';
+import PixelesSitio from '@/components/PixelesSitio';
 
 const BASE = (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://inventservonline.vercel.app').replace(/\/+$/, '');
 
@@ -57,41 +57,12 @@ export const viewport = {
   themeColor: '#2563eb',
 };
 
-/* Si el admin pega un snippet completo con <script>, dejamos solo el JS
-   para poder insertarlo en un <script> real (los scripts inyectados por
-   innerHTML no se ejecutan). */
-function soloJs(codigo) {
-  return String(codigo || '')
-    .replace(/<script[^>]*>/gi, '')
-    .replace(/<\/script>/gi, '')
-    .trim();
-}
-
-export default async function RootLayout({ children }) {
-  const cfg = await leerConfigSitio();
-  const gtmHead = snippetGtmHead(cfg.gtm_id);
-  const gaJs = snippetGa4(cfg.ga_measurement_id);
-  const headJs = soloJs(cfg.head_code);
-  const bodyOpenJs = soloJs(cfg.body_open_code);
-  const bodyCloseJs = soloJs(cfg.body_close_code);
-
+export default function RootLayout({ children }) {
   return (
     <html lang="es">
-      <head>
-        {gtmHead && <script dangerouslySetInnerHTML={{ __html: gtmHead }} />}
-        {cfg.ga_measurement_id && (
-          <>
-            <script async src={`https://www.googletagmanager.com/gtag/js?id=${cfg.ga_measurement_id}`} />
-            <script dangerouslySetInnerHTML={{ __html: gaJs }} />
-          </>
-        )}
-        {headJs && <script dangerouslySetInnerHTML={{ __html: headJs }} />}
-      </head>
       <body>
-        {bodyOpenJs && <script dangerouslySetInnerHTML={{ __html: bodyOpenJs }} />}
-        {cfg.gtm_id && <noscript><iframe src={`https://www.googletagmanager.com/ns.html?id=${cfg.gtm_id}`} height="0" width="0" style={{ display: 'none', visibility: 'hidden' }} /></noscript>}
         {children}
-        {bodyCloseJs && <script dangerouslySetInnerHTML={{ __html: bodyCloseJs }} />}
+        <PixelesSitio />
       </body>
     </html>
   );
