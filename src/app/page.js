@@ -4,7 +4,7 @@ import DemoButton from '@/components/DemoButton';
 import TrackVisita from '@/components/TrackVisita';
 import { catalogoPlanes } from '@/lib/planes';
 
-const BASE = (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://inventservonline.vercel.app').replace(/\/+$/, '');
+const BASE = (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://inventser.online').replace(/\/+$/, '');
 
 export const metadata = {
   title: 'Sistema de Inventarios Online | Control de stock, ventas y almacenes',

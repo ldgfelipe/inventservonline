@@ -9,5 +9,5 @@ Disallow: /api/
 Disallow: /entrar
 
 Contact: contacto@inventser.online
-Site: https://inventservonline.vercel.app
+Site: https://inventser.online
 Description: Sistema de inventarios online para pymes: stock, ventas, compras, multi-almacen, facturacion electronica y reportes.

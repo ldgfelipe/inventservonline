@@ -6,7 +6,7 @@
 - Nombre: inventserOnline
 - Categoria: software de inventario y gestion de almacenes (SaaS)
 - Idioma: espanol
-- Sitio: https://inventservonline.vercel.app
+- Sitio: https://inventser.online
 - Prueba: 14 dias gratis, sin tarjeta
 - Planes: Gratis, Basico (USD 9/mes), Profesional (USD 19/mes), Empresa (USD 49/mes)
 - Publico: ferreterias, farmacias, abarrotes, construccion, repuestos, cosmeticos, papelerias, distribuidores y bodegas

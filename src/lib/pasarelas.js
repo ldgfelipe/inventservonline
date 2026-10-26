@@ -25,7 +25,7 @@ export class PasarelaNoConfigurada extends Error {
 }
 
 function appUrl() {
-  return (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://inventservonline.vercel.app')
+  return (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://inventser.online')
     .replace(/\/+$/, '');
 }
 

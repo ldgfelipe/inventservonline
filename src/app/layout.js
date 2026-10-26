@@ -1,7 +1,7 @@
 import './globals.css';
 import { leerConfigSitio, snippetGa4, snippetGtmHead } from '@/lib/config-sitio';
 
-const BASE = (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://inventservonline.vercel.app').replace(/\/+$/, '');
+const BASE = (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://inventser.online').replace(/\/+$/, '');
 
 // El layout lee la configuracion de pixeles en cada peticion para que los
 // scripts esten en el HTML inicial (antes de la hidratacion) y Google los
