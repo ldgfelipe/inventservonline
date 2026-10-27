@@ -1,6 +1,5 @@
 import { notFound } from 'next/navigation';
 import { admin } from '@/lib/supabase';
-import TrackVisita from '@/components/TrackVisita';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -36,7 +35,6 @@ export default async function PaginaPublica({ params }) {
   return (
     <>
       <div dangerouslySetInnerHTML={{ __html: html }} />
-      <TrackVisita />
     </>
   );
 }

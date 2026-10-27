@@ -441,7 +441,7 @@ Los campos personalizados del giro permiten agregar atributos especificos (lote,
 - Empresas registradas (cambiar plan, suspender, reactivar, extender trial).
 - Pagos pendientes (aprobar/rechazar transferencias).
 - Solicitudes de facturacion electronica.
-- Marketing y conversion (freemium, scoring, trafico, campanas, landings, pixeles).
+- Marketing y conversion (freemium, scoring, pixeles).
 - Claves de administrador.
 
 Para acceder, el perfil debe tener super_admin = true.`,
@@ -491,18 +491,16 @@ Los webhooks confirman el pago y activan el plan. Las transferencias quedan en r
   {
     id: 'marketing',
     categoria: 'administracion',
-    titulo: 'Marketing y tracking',
-    descripcion: 'Campanas, trafico, conversiones, pixeles y landing pages.',
-    palabrasClave: ['marketing', 'campanas', 'utm', 'pixeles', 'facebook', 'google', 'landing', 'conversiones', 'trafico'],
+    titulo: 'Marketing y pixeles',
+    descripcion: 'Analisis de usuarios freemium, probabilidad de conversion y configuracion de pixeles.',
+    palabrasClave: ['marketing', 'freemium', 'scoring', 'conversion', 'pixeles', 'google analytics', 'tag manager'],
     contenido: `El panel de marketing (super-admin) permite:
-- Campanas: CCP, organico, mailing, referido; con presupuesto, fechas y UTM.
-- Trafico: visitas, registros y conversiones por fuente/medio/campana.
-- Conversiones: registro, activacion, pago, upgrade, churn.
-- Pixeles: Facebook, Google, TikTok, LinkedIn, Twitter, custom.
-- Landing pages: crear, publicar y medir visitas/conversiones.
-- Scoring de conversion freemium (0-100).
+- Ver usuarios freemium con probabilidad de conversion (scoring 0-100).
+- Identificar empresas con alta probabilidad de upgrade.
+- Configurar pixeles de seguimiento: Google Analytics 4, Google Tag Manager y codigo personalizado en head/body.
 
-El tracking se registra via POST /api/trafico (publico) con parametros UTM.`,
+El rastreo de campanas, trafico y conversiones se lleva con herramientas externas
+(Google Analytics, Tag Manager, etc.), no en la base de datos del sistema.`,
   },
   {
     id: 'ab-testing',

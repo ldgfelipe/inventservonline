@@ -16,7 +16,7 @@ async function contarPorEmpresa(sb, tabla, extra = {}) {
   return mapa;
 }
 
-/* GET /api/admin/marketing -> analytics completo para super-admin */
+/* GET /api/admin/marketing -> analytics de freemium para super-admin */
 async function analisis(request) {
   const { perfil } = await sesion(request);
   if (!perfil.super_admin) return error('Solo administradores de la plataforma', 403);
@@ -71,22 +71,6 @@ async function analisis(request) {
     };
   });
 
-  const [{ data: trafico }, { data: campanas }, { data: conversiones }, { data: landings }, { data: pixeles }] = await Promise.all([
-    sbAdmin.from('trafico').select('fuente, evento').limit(2000),
-    sbAdmin.from('campanas').select('*').order('created_at', { ascending: false }),
-    sbAdmin.from('conversiones').select('*').order('created_at', { ascending: false }).limit(200),
-    sbAdmin.from('landing_pages').select('id, nombre, slug, visitas, conversiones, publicada').order('visitas', { ascending: false }),
-    sbAdmin.from('pixeles').select('*').order('created_at', { ascending: false }),
-  ]);
-
-  const porFuente = {};
-  const porEvento = {};
-  for (const t of trafico || []) {
-    const f = t.fuente || 'directo';
-    porFuente[f] = (porFuente[f] || 0) + 1;
-    porEvento[t.evento] = (porEvento[t.evento] || 0) + 1;
-  }
-
   const scores = freemiumUsers.map((u) => u.score);
   const avgScore = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
   const highProb = freemiumUsers.filter((u) => u.score >= 60).length;
@@ -94,11 +78,6 @@ async function analisis(request) {
   return Response.json({
     ok: true,
     freemium_users: freemiumUsers,
-    traffic: { por_fuente: porFuente, por_evento: porEvento, total: (trafico || []).length },
-    campanas: campanas || [],
-    conversiones: conversiones || [],
-    landings: landings || [],
-    pixeles: pixeles || [],
     resumen: {
       total_empresas: (empresas || []).length,
       freemium: freemiumUsers.filter((u) => u.plan === 'free' || (u.suscripcion && u.suscripcion.estado === 'trial')).length,

@@ -69,7 +69,6 @@ export default async function MapaDelSitio() {
         <h2 style={{ marginTop: 28 }}>Otros enlaces</h2>
         <ul className="seo-lista">
           <li><Link href="/entrar">Iniciar sesión</Link></li>
-          <li><Link href="/baja">Darse de baja de correos</Link></li>
           <li><a href="/sitemap.xml">Sitemap XML para buscadores</a></li>
         </ul>
       </main>

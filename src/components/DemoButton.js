@@ -2,7 +2,6 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { registrarEvento } from '@/components/TrackVisita';
 
 export default function DemoButton() {
   const router = useRouter();
@@ -10,7 +9,6 @@ export default function DemoButton() {
 
   async function probarDemo() {
     setCargando(true);
-    registrarEvento('demo');
     try {
       const r = await fetch('/api/auth/login', {
         method: 'POST',

@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import Footer from '@/components/Footer';
 import DemoButton from '@/components/DemoButton';
-import TrackVisita from '@/components/TrackVisita';
 import { catalogoPlanes } from '@/lib/planes';
 
 const BASE = (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://inventser.online').replace(/\/+$/, '');
@@ -340,7 +339,6 @@ export default function Landing() {
       </main>
 
       <Footer />
-      <TrackVisita />
     </>
   );
 }
