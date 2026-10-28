@@ -62,20 +62,27 @@ export const viewport = {
   themeColor: '#2563eb',
 };
 
-function soloJs(codigo) {
-  return String(codigo || '')
-    .replace(/<script[^>]*>/gi, '')
-    .replace(/<\/script>/gi, '')
-    .trim();
+/* Separa los scripts (JS ejecutable) del resto del HTML. Los scripts inyectados
+   por innerHTML NO se ejecutan, asi que hay que renderizarlos como <script>. */
+function extraerScripts(codigo) {
+  const scripts = [];
+  const html = String(codigo || '').replace(/<script([^>]*)>([\s\S]*?)<\/script>/gi, (_, attrs, body) => {
+    const src = /src\s*=\s*["']([^"']+)["']/i.exec(attrs);
+    if (src) scripts.push({ src: src[1], code: '' });
+    else scripts.push({ src: '', code: body.trim() });
+    return '';
+  }).trim();
+  return { scripts, html };
 }
 
 export default async function RootLayout({ children }) {
   const cfg = await leerConfigSitio({ force: true });
   const gtmHead = snippetGtmHead(cfg.gtm_id);
   const gaJs = snippetGa4(cfg.ga_measurement_id);
-  const headJs = soloJs(cfg.head_code);
-  const bodyOpenJs = soloJs(cfg.body_open_code);
-  const bodyCloseJs = soloJs(cfg.body_close_code);
+
+  const headExtra = extraerScripts(cfg.head_code);
+  const bodyOpenExtra = extraerScripts(cfg.body_open_code);
+  const bodyCloseExtra = extraerScripts(cfg.body_close_code);
 
   return (
     <html lang="es">
@@ -87,10 +94,20 @@ export default async function RootLayout({ children }) {
             <script dangerouslySetInnerHTML={{ __html: gaJs }} />
           </>
         )}
-        {headJs && <script dangerouslySetInnerHTML={{ __html: headJs }} />}
+        {headExtra.scripts.map((s, i) =>
+          s.src
+            ? <script key={`hs-${i}`} src={s.src} async />
+            : <script key={`hs-${i}`} dangerouslySetInnerHTML={{ __html: s.code }} />
+        )}
+        {headExtra.html && <div dangerouslySetInnerHTML={{ __html: headExtra.html }} />}
       </head>
       <body>
-        {bodyOpenJs && <script dangerouslySetInnerHTML={{ __html: bodyOpenJs }} />}
+        {bodyOpenExtra.scripts.map((s, i) =>
+          s.src
+            ? <script key={`bo-${i}`} src={s.src} async />
+            : <script key={`bo-${i}`} dangerouslySetInnerHTML={{ __html: s.code }} />
+        )}
+        {bodyOpenExtra.html && <div dangerouslySetInnerHTML={{ __html: bodyOpenExtra.html }} />}
         {cfg.gtm_id && (
           <noscript>
             <iframe
@@ -102,7 +119,12 @@ export default async function RootLayout({ children }) {
           </noscript>
         )}
         {children}
-        {bodyCloseJs && <script dangerouslySetInnerHTML={{ __html: bodyCloseJs }} />}
+        {bodyCloseExtra.scripts.map((s, i) =>
+          s.src
+            ? <script key={`bc-${i}`} src={s.src} async />
+            : <script key={`bc-${i}`} dangerouslySetInnerHTML={{ __html: s.code }} />
+        )}
+        {bodyCloseExtra.html && <div dangerouslySetInnerHTML={{ __html: bodyCloseExtra.html }} />}
       </body>
     </html>
   );
