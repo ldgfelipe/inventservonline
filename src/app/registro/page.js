@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { t, detectLocale } from '@/lib/i18n';
+import { t, detectLocale, tl } from '@/lib/i18n';
 import { PAISES, opcionesMoneda, monedaDePais, PAIS_POR_DEFECTO } from '@/lib/monedas';
 
 const MONEDAS = opcionesMoneda();
@@ -140,12 +140,12 @@ function FormularioRegistro() {
               ))}
             </select>
             <div className="ayuda">
-              {t('registro_ayuda_moneda', lang)}
+              {tl('registro_ayuda_moneda')}
             </div>
           </div>
 
           <div className="campo">
-            <label>{t('registro_campo_giro', lang)}</label>
+            <label>{tl('registro_campo_giro')}</label>
             <select name="giro" value={form.giro} onChange={cambiar} required>
               {giros.map((g) => (
                 <option key={g.id} value={g.nombre}>{g.nombre}</option>
@@ -238,7 +238,7 @@ function FormularioRegistro() {
           )}
 
           <button className="btn btn-bloque" disabled={cargando}>
-            {cargando ? t('login_entrando', lang) : t('registro_continuar', lang)}
+            {cargando ? tl('login_entrando') : tl('registro_continuar')}
           </button>
         </form>
 

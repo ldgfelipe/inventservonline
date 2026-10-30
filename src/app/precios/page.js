@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Footer from '@/components/Footer';
-import { t } from '@/lib/i18n';
+import { t, tl } from '@/lib/i18n';
 
 export default function Precios() {
   const [planes, setPlanes] = useState([]);

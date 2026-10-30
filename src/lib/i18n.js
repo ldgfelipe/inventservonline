@@ -375,4 +375,9 @@ export function setLanguageClient(l) {
   window.location.reload();
 }
 
-export default { t, detectLocale, setLanguageClient };
+export function tl(key) {
+  if (typeof document === 'undefined') return t(key, 'es');
+  const cookieValue = document.cookie.split(';').find(c => c.trim().startsWith('inventser_lang='))?.split('=')[1];
+  return t(key, detectLocale(cookieValue));
+}
+export default { t, detectLocale, setLanguageClient, tl };
