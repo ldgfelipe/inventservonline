@@ -2,7 +2,7 @@ import Link from 'next/link';
 import Footer from '@/components/Footer';
 import DemoButton from '@/components/DemoButton';
 import { catalogoPlanes } from '@/lib/planes';
-import { t, detectLocale } from '@/lib/i18n';
+import { detectLocale, t } from '@/lib/i18n';
 import { cookies } from 'next/headers';
 
 const BASE = (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://inventser.online').replace(/\/+$/, '');
@@ -62,33 +62,7 @@ const FAQS_EN = [
   { q: t('faq_q7', 'en'), a: t('faq_a7', 'en') },
   { q: t('faq_q8', 'en'), a: t('faq_a8', 'en') },
 ];
-    a: 'Sí. Se adapta a ferreterías, farmacias, abarrotes, construcción, repuestos, cosméticos, papelerías y cualquier giro. Cada empresa configura sus propios campos de producto, categorías y almacenes.',
-  },
-  {
-    q: '¿Puedo probarlo gratis?',
-    a: 'Sí. Todas las cuentas nuevas incluyen 14 días de prueba gratis con las funciones del plan Profesional. No se requiere tarjeta de crédito para comenzar.',
-  },
-  {
-    q: '¿Puedo dejar de usar Excel?',
-    a: 'Sí. inventserOnline reemplaza las hojas de cálculo para el control de inventario: registra movimientos con trazabilidad, calcula el kardex valorizado, alerta sobre stock bajo y permite exportar a Excel cuando lo necesites.',
-  },
-  {
-    q: '¿Funciona con varios almacenes o sucursales?',
-    a: 'Sí. Los planes Profesional y Empresa incluyen multi-almacén, traslados entre bodegas, stock por almacén y reportes de rendimiento por ubicación.',
-  },
-  {
-    q: '¿Incluye facturación electrónica?',
-    a: 'Sí, según el país y el proveedor fiscal configurado. El sistema soporta Facturama y SW Sapien en México, DIAN en Colombia, AFIP en Argentina, SUNAT en Perú, SII en Chile, AEAT en España y timbrado manual en otros casos.',
-  },
-  {
-    q: '¿Cómo se pagan los planes?',
-    a: 'Puedes pagar con Stripe, Mercado Pago, PayPal o transferencia bancaria. El administrador de la plataforma habilita los medios disponibles y los pagos se confirman automáticamente.',
-  },
-  {
-    q: '¿Mis datos están seguros?',
-    a: 'La plataforma usa autenticación, permisos por rol y separación de datos por empresa. Cada usuario ve únicamente la información de su organización y los movimientos quedan registrados en la bitácora.',
-  },
-];
+
 
 export default function Landing() {
   const planes = catalogoPlanes();
