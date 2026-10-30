@@ -3,12 +3,15 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Footer from '@/components/Footer';
+import { t } from '@/lib/i18n';
 
 export default function Precios() {
   const [planes, setPlanes] = useState([]);
   const [cargando, setCargando] = useState(true);
+  const [lang, setLang] = useState('es');
 
   useEffect(() => {
+    try { const m = document.cookie.match(/inventser_lang=([^;]+)/); setLang(m ? m[1] : 'es'); } catch { setLang('es'); }
     fetch('/api/planes')
       .then((r) => r.json())
       .then((j) => setPlanes(j.planes || []))
@@ -16,34 +19,36 @@ export default function Precios() {
       .finally(() => setCargando(false));
   }, []);
 
+  const tl = (k) => t(k, lang);
+
   return (
     <>
     <main className="precios">
       <header className="precios-header">
-        <h1>Planes y precios</h1>
-        <p className="sub">Elige el plan que mejor se adapta a tu negocio. Puedes cambiar de plan en cualquier momento.</p>
+        <h1>{tl('precios_title')}</h1>
+        <p className="sub">{lang === 'es' ? 'Elige el plan que mejor se adapta a tu negocio. Puedes cambiar de plan en cualquier momento.' : 'Choose the plan that best fits your business. You can change plans at any time.'}</p>
       </header>
 
-      {cargando && <div className="cargando">Cargando planes...</div>}
+      {cargando && <div className="cargando">{tl('cargando')}</div>}
 
       <div className="precios-grid">
         {planes.map((p) => (
           <div key={p.codigo} className={`plan-card ${p.destacado ? 'destacado' : ''}`}>
-            {p.destacado && <div className="plan-badge">Recomendado</div>}
+            {p.destacado && <div className="plan-badge">{lang === 'es' ? 'Recomendado' : 'Recommended'}</div>}
             <h2>{p.nombre}</h2>
             <p className="plan-desc">{p.descripcion}</p>
             <div className="plan-precio">
               {p.precio.mensual === 0 ? (
-                <span className="precio-gratis">Gratis</span>
+                <span className="precio-gratis">{tl('precio_gratis')}</span>
               ) : (
                 <>
                   <span className="precio-monto">${p.precio.mensual}</span>
-                  <span className="precio-periodo">/mes</span>
+                  <span className="precio-periodo">{tl('precio_mensual')}</span>
                 </>
               )}
             </div>
             {p.precio.mensual > 0 && (
-              <div className="plan-anual">o ${p.precio.anual} USD/ano (ahorra 2 meses)</div>
+              <div className="plan-anual">{lang === 'es' ? `o $${p.precio.anual} USD/año (ahorra 2 meses)` : `or $${p.precio.anual} USD/year (save 2 months)`}</div>
             )}
             <ul className="plan-features">
               {p.features.map((f, i) => (
@@ -54,33 +59,33 @@ export default function Precios() {
               href={p.codigo === 'free' ? '/registro' : `/registro?plan=${p.codigo}`}
               className={`btn ${p.destacado ? 'btn-primary' : 'btn-secundario'}`}
             >
-              {p.codigo === 'free' ? 'Comenzar gratis' : 'Elegir plan'}
+              {p.codigo === 'free' ? (lang === 'es' ? 'Comenzar gratis' : 'Start free') : (lang === 'es' ? 'Elegir plan' : 'Choose plan')}
             </Link>
           </div>
         ))}
       </div>
 
       <section className="precios-faq">
-        <h2>Preguntas frecuentes</h2>
+        <h2>{lang === 'es' ? 'Preguntas frecuentes' : 'Frequently asked questions'}</h2>
         <div className="faq-item">
-          <h3>Puedo cambiar de plan en cualquier momento?</h3>
-          <p>Si. Puedes subir o bajar de plan desde la seccion de Suscripcion en Configuracion. El cambio se aplica de inmediato.</p>
+          <h3>{lang === 'es' ? '¿Puedo cambiar de plan en cualquier momento?' : 'Can I change plans at any time?'}</h3>
+          <p>{lang === 'es' ? 'Sí. Puedes subir o bajar de plan desde la sección de Suscripción en Configuración. El cambio se aplica de inmediato.' : 'Yes. You can upgrade or downgrade from the Subscription section in Settings. The change applies immediately.'}</p>
         </div>
         <div className="faq-item">
-          <h3>Que pasa cuando vence la prueba gratuita?</h3>
-          <p>Al vencer los 14 dias de prueba, el sistema te invita a elegir un plan. Mientras no elijas, puedes seguir viendo tus datos pero no crear nuevos registros.</p>
+          <h3>{lang === 'es' ? '¿Qué pasa cuando vence la prueba gratuita?' : 'What happens when the free trial expires?'}</h3>
+          <p>{lang === 'es' ? 'Al vencer los 14 días de prueba, el sistema te invita a elegir un plan. Mientras no elijas, puedes seguir viendo tus datos pero no crear nuevos registros.' : 'When the 14-day trial expires, the system invites you to choose a plan. Until you choose, you can keep viewing your data but not create new records.'}</p>
         </div>
         <div className="faq-item">
-          <h3>Los datos se pierden si bajo de plan?</h3>
-          <p>No. Tus datos se conservan. Solo se aplican los limites del nuevo plan para crear nuevos registros.</p>
+          <h3>{lang === 'es' ? '¿Los datos se pierden si bajo de plan?' : 'Do I lose data if I downgrade?'}</h3>
+          <p>{lang === 'es' ? 'No. Tus datos se conservan. Solo se aplican los límites del nuevo plan para crear nuevos registros.' : 'No. Your data is preserved. Only the new plan limits apply for creating new records.'}</p>
         </div>
         <div className="faq-item">
-          <h3>Que metodos de pago aceptan?</h3>
-          <p>Stripe, Mercado Pago, PayPal y transferencia bancaria. Elige el que prefieras en el panel de pago.</p>
+          <h3>{lang === 'es' ? '¿Qué métodos de pago aceptan?' : 'What payment methods do you accept?'}</h3>
+          <p>{lang === 'es' ? 'Stripe, Mercado Pago, PayPal y transferencia bancaria. Elige el que prefieras en el panel de pago.' : 'Stripe, Mercado Pago, PayPal and bank transfer. Choose your preferred method at checkout.'}</p>
         </div>
       </section>
     </main>
-    <Footer />
+    <Footer lang={lang} />
     </>
   );
 }
