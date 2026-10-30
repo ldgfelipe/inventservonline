@@ -1,5 +1,6 @@
 import './globals.css';
 import { leerConfigSitio, snippetGa4, snippetGtmHead } from '@/lib/config-sitio';
+import GoogleTranslate from '@/components/GoogleTranslate';
 
 
 const BASE = (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://inventser.online').replace(/\/+$/, '');
@@ -88,14 +89,44 @@ export default async function RootLayout({ children }) {
   return (
     <html lang="es">
       <head>
-{/* temporal: scripts dinamicos descomentados despues de probar */}
+        {gtmHead && <script dangerouslySetInnerHTML={{ __html: gtmHead }} />}
+        {cfg.ga_measurement_id && (
+          <>
+            <script async src={`https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(cfg.ga_measurement_id)}`} />
+            <script dangerouslySetInnerHTML={{ __html: gaJs }} />
+          </>
+        )}
+        {headExtra.scripts.map((s, i) =>
+          s.src
+            ? <script key={`hs-${i}`} src={s.src} async />
+            : <script key={`hs-${i}`} dangerouslySetInnerHTML={{ __html: s.code }} />
+        )}
+        {headExtra.html && <div dangerouslySetInnerHTML={{ __html: headExtra.html }} />}
       </head>
       <body>
-        {/* body scripts */}
+        {bodyOpenExtra.scripts.map((s, i) =>
+          s.src
+            ? <script key={`bo-${i}`} src={s.src} async />
+            : <script key={`bo-${i}`} dangerouslySetInnerHTML={{ __html: s.code }} />
+        )}
         {bodyOpenExtra.html && <div dangerouslySetInnerHTML={{ __html: bodyOpenExtra.html }} />}
-{/* temporal: gtm descomentado despues de probar */}
+        {cfg.gtm_id && (
+          <noscript>
+            <iframe
+              src={`https://www.googletagmanager.com/ns.html?id=${encodeURIComponent(cfg.gtm_id)}`}
+              height="0"
+              width="0"
+              style={{ display: 'none', visibility: 'hidden' }}
+            />
+          </noscript>
+        )}
         {children}
-        {/* temporal: bodyClose scripts */}
+        <GoogleTranslate />
+        {bodyCloseExtra.scripts.map((s, i) =>
+          s.src
+            ? <script key={`bc-${i}`} src={s.src} async />
+            : <script key={`bc-${i}`} dangerouslySetInnerHTML={{ __html: s.code }} />
+        )}
         {bodyCloseExtra.html && <div dangerouslySetInnerHTML={{ __html: bodyCloseExtra.html }} />}
       </body>
     </html>

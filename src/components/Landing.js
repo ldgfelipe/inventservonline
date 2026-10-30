@@ -43,7 +43,12 @@ const FAQS = [
   },
 ];
 
-export default function Landing({ lang = 'es' }) {
+export default function Landing() {
+  const [lang, setLang] = useState('es');
+  useEffect(() => {
+    const cookieValue = document.cookie.split(';').find(c => c.trim().startsWith('inventser_lang='))?.split('=')[1];
+    setLang(detectLocale(cookieValue) || 'es');
+  }, []);
   const planes = catalogoPlanes();
   const pagos = planes.filter((p) => p.precio.mensual > 0);
 

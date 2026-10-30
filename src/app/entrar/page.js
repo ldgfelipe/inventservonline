@@ -3,10 +3,8 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { t, detectLocale, tl } from '@/lib/i18n';
 
 function FormularioEntrar() {
-  const lang = detectLocale(typeof document !== 'undefined' ? (document.cookie.split(';').find(c=>c.trim().startsWith('inventser_lang='))?.split('=')[1] || 'es') : 'es');
   const router = useRouter();
   const params = useSearchParams();
   const [form, setForm] = useState({ email: '', password: '' });
@@ -20,9 +18,9 @@ function FormularioEntrar() {
     const ultimo = localStorage.getItem('ultimo_email');
     if (ultimo) setForm((f) => ({ ...f, email: ultimo }));
 
-    if (params.get('nuevo') === '1') setNota(tl('login_nota_nueva'));
-    if (params.get('expiro') === '1') setNota(tl('login_nota_expirada'));
-    if (params.get('salio') === '1') setNota(tl('login_nota_salio'));
+    if (params.get('nuevo') === '1') setNota('Cuenta creada. Entra con tu email y contrasena.');
+    if (params.get('expiro') === '1') setNota('Tu sesion expiro. Entra de nuevo.');
+    if (params.get('salio') === '1') setNota('Sesion cerrada.');
   }, [params]);
 
   function cambiar(e) {
@@ -40,7 +38,7 @@ function FormularioEntrar() {
         body: JSON.stringify(form),
       });
       const j = await r.json();
-      if (!r.ok) throw new Error(j.error || tl('login_error_generico'));
+      if (!r.ok) throw new Error(j.error || 'No se pudo iniciar sesion');
 
       localStorage.setItem('inventarios_sesion', JSON.stringify({
         access_token: j.access_token, refresh_token: j.refresh_token,
@@ -62,15 +60,15 @@ function FormularioEntrar() {
       <Link href="/" className="auth-logo" aria-label="inventserOnline - inicio">
         <img src="/logo.png" alt="inventserOnline" className="auth-logo-img" />
       </Link>
-      <h1>{tl('entrar_title')}</h1>
-      <p className="sub">{tl('login_subtitle')}</p>
+      <h1>Entrar</h1>
+      <p className="sub">Accede a tu inventario desde cualquier equipo.</p>
 
       {nota && <div className="mensaje ok">{nota}</div>}
       {error && <div className="mensaje error">{error}</div>}
 
       <form onSubmit={enviar}>
         <div className="campo">
-          <label>{tl('login_email')}</label>
+          <label>Email</label>
           <input
             type="email"
             name="email"
@@ -82,7 +80,7 @@ function FormularioEntrar() {
           />
         </div>
         <div className="campo">
-          <label>{tl('login_password')}</label>
+          <label>Contrasena</label>
           <input
             type="password"
             name="password"
@@ -101,12 +99,12 @@ function FormularioEntrar() {
               checked={recordar}
               onChange={(e) => setRecordar(e.target.checked)}
             />
-            {tl('login_recordar')}
+            Recordar mi email
           </label>
         </div>
 
         <button className="btn btn-bloque" disabled={cargando}>
-          {cargando ? tl('login_entrando') : tl('login_entrar')}
+          {cargando ? 'Entrando...' : 'Entrar'}
         </button>
       </form>
 
@@ -118,7 +116,7 @@ function FormularioEntrar() {
       )}
 
       <p className="pie">
-        {tl('login_nueva_cuenta')} <Link href="/registro">{tl('registro_continuar')}</Link>
+        No tienes cuenta? <Link href="/registro">Crear una gratis</Link>
       </p>
     </div>
   );
@@ -132,7 +130,7 @@ export default function Entrar() {
           <Link href="/" className="auth-logo" aria-label="inventserOnline - inicio">
             <img src="/logo.png" alt="inventserOnline" className="auth-logo-img" />
           </Link>
-          <h1>{tl('entrar_title')}</h1>
+          <h1>Entrar</h1>
         </div>
       }>
         <FormularioEntrar />

@@ -3,11 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { asegurarSesion } from '@/lib/sesionCliente';
-import LanguageToggle from '@/components/LanguageToggle';
-import { t, detectLocale } from '@/lib/i18n';
 
 export default function Admin() {
-  const lang = detectLocale(typeof document !== 'undefined' ? (document.cookie.split(';').find(c=>c.trim().startsWith('inventser_lang='))?.split('=')[1] || 'es') : 'es');
   const [usuario, setUsuario] = useState(null);
   const [cargandoSesion, setCargandoSesion] = useState(true);
   const [claves, setClaves] = useState([]);
@@ -38,11 +35,10 @@ export default function Admin() {
   const [paginasCargando, setPaginasCargando] = useState(false);
   const [paginaEditando, setPaginaEditando] = useState(null);
   const [paginaModal, setPaginaModal] = useState(false);
-  const [marketingTab, setMarketingTab] = useState('resumen');
-  const [pagFreemium, setPagFreemium] = useState(1);
-  const [pixelesConfig, setPixelesConfig] = useState(null);
-  const [pixelesCargando, setPixelesCargando] = useState(false);
-  const [pixelesMensaje, setPixelesMensaje] = useState('');
+  const [tracking, setTracking] = useState(null);
+  const [trackingCargando, setTrackingCargando] = useState(false);
+  const [campanaEditando, setCampanaEditando] = useState(null);
+  const [campanaModal, setCampanaModal] = useState(false);
   const [usuarios, setUsuarios] = useState([]);
   const [usuariosCargando, setUsuariosCargando] = useState(false);
   const [usuarioDetalle, setUsuarioDetalle] = useState(null);
@@ -85,7 +81,7 @@ export default function Admin() {
     cargarTickets();
     cargarConfigPagos();
     cargarPaginas();
-    cargarPixeles();
+    cargarTracking();
     cargarUsuariosAdmin();
   }, [usuario]);
 
@@ -356,40 +352,79 @@ export default function Admin() {
     cargarPaginas();
   }
 
-  async function cargarPixeles() {
-    setPixelesCargando(true);
+  async function cargarTracking() {
+    setTrackingCargando(true);
     try {
-      const r = await fetch('/api/admin/pixeles', { headers: auth() });
+      const r = await fetch('/api/admin/tracking', { headers: auth() });
       const j = await r.json();
-      if (r.ok) {
-        setPixelesConfig(j.config || {});
-        if (j.aviso) setPixelesMensaje(j.aviso);
-      } else {
-        setError(j.error || 'No se pudo cargar la configuracion de pixeles');
-      }
-    } finally { setPixelesCargando(false); }
+      if (r.ok) setTracking(j);
+      else setError(j.error || 'No se pudo cargar el seguimiento');
+    } finally { setTrackingCargando(false); }
   }
 
-  async function guardarPixeles(e) {
+  function nuevaCampana() {
+    setCampanaEditando({
+      nombre: '', tipo: 'mailing', canal: 'email', estado: 'activa',
+      presupuesto: 0, moneda: 'USD', fecha_inicio: '', fecha_fin: '',
+      utm_source: 'email', utm_medium: 'email', utm_campaign: '',
+      utm_content: '', utm_term: '', landing_url: '',
+    });
+    setCampanaModal(true);
+  }
+
+  function editarCampana(c) {
+    setCampanaEditando({ ...c });
+    setCampanaModal(true);
+  }
+
+  async function guardarCampana(e) {
     e.preventDefault();
-    setError(''); setMensaje(''); setPixelesMensaje('');
-    const form = e.target;
-    const payload = {
-      ga_measurement_id: form.elements.ga_measurement_id.value.trim(),
-      gtm_id: form.elements.gtm_id.value.trim(),
-      head_code: form.elements.head_code.value,
-      body_open_code: form.elements.body_open_code.value,
-      body_close_code: form.elements.body_close_code.value,
-    };
-    const r = await fetch('/api/admin/pixeles', {
-      method: 'POST',
+    if (!campanaEditando) return;
+    setError(''); setMensaje('');
+    const payload = { ...campanaEditando };
+    delete payload.id; delete payload.codigo; delete payload.email_pixel_token;
+    const url = campanaEditando.id ? '/api/admin/campanas/' + campanaEditando.id : '/api/admin/campanas';
+    const metodo = campanaEditando.id ? 'PATCH' : 'POST';
+    const r = await fetch(url, {
+      method: metodo,
       headers: { 'Content-Type': 'application/json', ...auth() },
       body: JSON.stringify(payload),
     });
     const j = await r.json();
-    if (!r.ok) return setError(j.error || 'No se pudo guardar');
-    setPixelesMensaje('Configuracion guardada. Los cambios se aplican al recargar el sitio.');
-    cargarPixeles();
+    if (!r.ok) return setError(j.error || 'No se pudo guardar la campana');
+    setMensaje('Campana guardada');
+    setCampanaModal(false);
+    setCampanaEditando(null);
+    cargarTracking();
+  }
+
+  async function eliminarCampana(id) {
+    if (!confirm('¿Eliminar esta campana?')) return;
+    setError(''); setMensaje('');
+    const r = await fetch('/api/admin/campanas/' + id, { method: 'DELETE', headers: auth() });
+    const j = await r.json();
+    if (!r.ok) return setError(j.error || 'No se pudo eliminar');
+    setMensaje('Campana eliminada');
+    cargarTracking();
+  }
+
+  function copiar(texto, etiqueta) {
+    try {
+      navigator.clipboard.writeText(texto);
+      setMensaje(etiqueta + ' copiado al portapapeles');
+    } catch {
+      setError('No se pudo copiar. Copia manualmente el texto.');
+    }
+  }
+
+  function enlaceCampana(c) {
+    const base = typeof window !== 'undefined' ? window.location.origin : '';
+    return base + '/api/click/' + c.codigo;
+  }
+
+  function pixelCampana(c) {
+    const base = typeof window !== 'undefined' ? window.location.origin : '';
+    return '<img src="' + base + '/api/pixel/' + c.email_pixel_token + '.gif?e={{email}}" width="1" height="1" alt="" />';
   }
 
   async function cargarUsuariosAdmin() {
@@ -631,10 +666,6 @@ export default function Admin() {
   });
   const empresasNombres = Array.from(new Set(usuarios.map((u) => u.empresa).filter(Boolean))).sort();
 
-  // Paginacion de la tabla de freemium
-  const freemiumOrden = marketing ? (marketing.freemium_users || []).slice().sort((a, b) => b.score - a.score) : [];
-  const freemiumPag = paginar(freemiumOrden, pagFreemium);
-
   return (
     <main className="admin admin-ancho" data-tab={tab}>
       <header className="admin-header">
@@ -642,8 +673,6 @@ export default function Admin() {
           <h1>Administracion</h1>
           <p className="sub">Hola {usuario.nombre}. Panel general de la plataforma.</p>
         </div>
-        <LanguageToggle />
-        <span aria-label="Notificaciones" style={{ fontSize: 20, cursor: 'pointer', marginLeft: 8 }}>🔔</span>
         <Link className="btn btn-secundario" href="/panel">Ir al sistema</Link>
       </header>
 
@@ -1351,149 +1380,212 @@ export default function Admin() {
       </section>
 
       <section className="panel-admin sec-marketing">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
-          <div>
-            <h2>Marketing y conversion</h2>
-            <p className="ayuda">Campanas, trafico, correo, bajas y usuarios freemium.</p>
-          </div>
-          <button className="btn btn-secundario" onClick={() => { cargarMarketing(); }}>
-            {marketingCargando ? 'Cargando...' : 'Actualizar datos'}
+        <h2>Marketing y conversion</h2>
+        <p className="ayuda">
+          Analisis de usuarios freemium, probabilidad de conversion, trafico por fuente y campanas.
+        </p>
+        <button className="btn btn-secundario" onClick={cargarMarketing} style={{ marginBottom: 12 }}>
+          {marketingCargando ? 'Cargando...' : 'Actualizar'}
+        </button>
+
+        <h3 style={{ fontSize: 15, marginTop: 8 }}>Campanas y enlaces de seguimiento</h3>
+        <p className="ayuda">
+          Crea una campana para obtener un enlace de seguimiento y un pixel de apertura de correo.
+          Cada visita y registro queda atribuido a la campana por sus parametros UTM.
+        </p>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+          <button className="btn btn-secundario" onClick={cargarTracking}>
+            {trackingCargando ? 'Cargando...' : 'Actualizar seguimiento'}
           </button>
+          <button className="btn btn-primary" onClick={nuevaCampana}>+ Nueva campana</button>
         </div>
 
-        <nav className="admin-subtabs">
-          {[
-            ['resumen', 'Resumen'],
-            ['pixeles', 'Pixeles'],
-            ['freemium', 'Freemium'],
-          ].map(([id, nombre]) => (
-            <button
-              key={id}
-              className={'admin-subtab' + (marketingTab === id ? ' activo' : '')}
-              onClick={() => setMarketingTab(id)}
-            >
-              {nombre}
-            </button>
-          ))}
-        </nav>
-
-        {/* ---------- RESUMEN ---------- */}
-        {marketingTab === 'resumen' && (
+        {tracking && (
           <>
-            {marketing ? (
-              <>
-                <h3 style={{ fontSize: 14, marginTop: 4 }}>Usuarios y conversion</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 8 }}>
-                  <div className="adopcion-card"><h4>Total empresas</h4><div className="valor">{marketing.resumen.total_empresas}</div></div>
-                  <div className="adopcion-card"><h4>Freemium</h4><div className="valor">{marketing.resumen.freemium}</div></div>
-                  <div className="adopcion-card"><h4>Pagadas</h4><div className="valor">{marketing.resumen.pagadas}</div></div>
-                  <div className="adopcion-card"><h4>Score promedio</h4><div className="valor">{marketing.resumen.score_promedio}</div></div>
-                  <div className="adopcion-card"><h4>Alta probabilidad</h4><div className="valor">{marketing.resumen.alta_probabilidad}</div></div>
-                </div>
-                <p className="ayuda">
-                  El rastreo de campanas y el trafico se llevan ahora con herramientas externas (Google Analytics, Tag Manager, etc.).
-                  Configura los pixeles en la sub-pestaña "Pixeles".
-                </p>
-              </>
-            ) : (
-              <p className="ayuda">Cargando analisis de marketing...</p>
-            )}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 16 }}>
+              <div className="adopcion-card"><h4>Visitas</h4><div className="valor">{tracking.resumen.visitas}</div></div>
+              <div className="adopcion-card"><h4>Visitantes unicos</h4><div className="valor">{tracking.resumen.visitantes_unicos}</div></div>
+              <div className="adopcion-card"><h4>Registros</h4><div className="valor">{tracking.resumen.registros}</div></div>
+              <div className="adopcion-card"><h4>Demos</h4><div className="valor">{tracking.resumen.demos}</div></div>
+              <div className="adopcion-card"><h4>Aperturas email</h4><div className="valor">{tracking.resumen.aperturas}</div></div>
+              <div className="adopcion-card"><h4>Tasa registro</h4><div className="valor">{tracking.resumen.tasa_registro}%</div></div>
+            </div>
+
+            <table className="tabla-admin">
+              <thead>
+                <tr>
+                  <th>Campana</th><th>Tipo</th><th>Estado</th><th>Visitas</th><th>Unicos</th>
+                  <th>Registros</th><th>Demos</th><th>Aperturas</th><th>Clicks</th><th>Tasa</th><th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(tracking.campanas || []).map((c) => (
+                  <tr key={c.id}>
+                    <td>{c.nombre}</td>
+                    <td>{c.tipo}</td>
+                    <td>{c.estado}</td>
+                    <td>{c.visitas}</td>
+                    <td>{c.unicos}</td>
+                    <td>{c.registros}</td>
+                    <td>{c.demos}</td>
+                    <td>{c.aperturas}</td>
+                    <td>{c.clicks}</td>
+                    <td>{c.tasa_registro}%</td>
+                    <td style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                      <button className="btn-mini" onClick={() => editarCampana(c)}>Editar</button>
+                      <button className="btn-mini" onClick={() => copiar(enlaceCampana(c), 'Enlace')}>Copiar enlace</button>
+                      <button className="btn-mini" onClick={() => copiar(pixelCampana(c), 'Pixel')}>Copiar pixel</button>
+                      <button className="btn-mini" onClick={() => eliminarCampana(c.id)}>Eliminar</button>
+                    </td>
+                  </tr>
+                ))}
+                {(tracking.campanas || []).length === 0 && (
+                  <tr><td colSpan={11} className="vacio">Sin campanas. Crea la primera.</td></tr>
+                )}
+              </tbody>
+            </table>
+
+            <h3 style={{ fontSize: 14, marginTop: 18 }}>Trafico reciente</h3>
+            <table className="tabla-admin">
+              <thead><tr><th>Fecha</th><th>Evento</th><th>Fuente</th><th>Medio</th><th>Campana UTM</th><th>Pagina</th><th>Referer</th></tr></thead>
+              <tbody>
+                {(tracking.trafico_reciente || []).slice(0, 50).map((t) => (
+                  <tr key={t.id}>
+                    <td style={{ fontSize: 11 }}>{t.created_at ? new Date(t.created_at).toLocaleString('es-VE') : '-'}</td>
+                    <td>{t.evento}</td>
+                    <td>{t.fuente || '-'}</td>
+                    <td>{t.medio || '-'}</td>
+                    <td>{t.utm_campaign || '-'}</td>
+                    <td className="mono" style={{ fontSize: 11 }}>{t.pagina || '-'}</td>
+                    <td style={{ fontSize: 11, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {t.referer || '-'}
+                    </td>
+                  </tr>
+                ))}
+                {(tracking.trafico_reciente || []).length === 0 && (
+                  <tr><td colSpan={7} className="vacio">Sin trafico registrado</td></tr>
+                )}
+              </tbody>
+            </table>
+
+            <h3 style={{ fontSize: 14, marginTop: 18 }}>Aperturas y clicks de correo</h3>
+            <table className="tabla-admin">
+              <thead><tr><th>Fecha</th><th>Tipo</th><th>Email</th><th>Campana</th><th>URL</th></tr></thead>
+              <tbody>
+                {(tracking.emails_recientes || []).slice(0, 50).map((e) => (
+                  <tr key={e.id}>
+                    <td style={{ fontSize: 11 }}>{e.created_at ? new Date(e.created_at).toLocaleString('es-VE') : '-'}</td>
+                    <td>{e.tipo}</td>
+                    <td>{e.email || '-'}</td>
+                    <td>{(tracking.campanas || []).find((c) => c.id === e.campana_id)?.nombre || '-'}</td>
+                    <td style={{ fontSize: 11, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {e.url || '-'}
+                    </td>
+                  </tr>
+                ))}
+                {(tracking.emails_recientes || []).length === 0 && (
+                  <tr><td colSpan={5} className="vacio">Sin aperturas registradas</td></tr>
+                )}
+              </tbody>
+            </table>
           </>
         )}
 
-        {/* ---------- CAMPANAS ---------- */}
-        {/* ---------- PIXELES ---------- */}
-        {marketingTab === 'pixeles' && (
+        <h3 style={{ fontSize: 15, marginTop: 24 }}>Analisis general</h3>
+
+        {marketing && (
           <>
-            <h3 style={{ fontSize: 15, marginTop: 4 }}>Pixeles y codigo de seguimiento</h3>
-            <p className="ayuda">
-              Configura Google Analytics 4, Google Tag Manager y codigo adicional para pixeles
-              (Meta, TikTok, LinkedIn, etc.). Los IDs generan el codigo estandar automaticamente.
-            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 16 }}>
+              <div className="adopcion-card"><h4>Total empresas</h4><div className="valor">{marketing.resumen.total_empresas}</div></div>
+              <div className="adopcion-card"><h4>Freemium</h4><div className="valor">{marketing.resumen.freemium}</div></div>
+              <div className="adopcion-card"><h4>Pagadas</h4><div className="valor">{marketing.resumen.pagadas}</div></div>
+              <div className="adopcion-card"><h4>Score promedio</h4><div className="valor">{marketing.resumen.score_promedio}</div></div>
+              <div className="adopcion-card"><h4>Alta probabilidad</h4><div className="valor">{marketing.resumen.alta_probabilidad}</div></div>
+            </div>
 
-            {pixelesMensaje && <div className="mensaje ok" style={{ marginBottom: 10 }}>{pixelesMensaje}</div>}
-            {pixelesCargando && <p className="ayuda">Cargando...</p>}
+            <h3 style={{ fontSize: 14, marginTop: 12 }}>Usuarios freemium (por probabilidad de conversion)</h3>
+            <table className="tabla-admin">
+              <thead>
+                <tr><th>Empresa</th><th>Plan</th><th>Estado</th><th>Productos</th><th>Usuarios</th><th>Movs</th><th>Ventas</th><th>Dias</th><th>Score</th></tr>
+              </thead>
+              <tbody>
+                {(marketing.freemium_users || []).sort((a, b) => b.score - a.score).slice(0, 30).map((u) => (
+                  <tr key={u.id}>
+                    <td>{u.nombre}</td>
+                    <td>{u.plan}</td>
+                    <td>{u.suscripcion ? u.suscripcion.estado : '-'}</td>
+                    <td>{u.productos}</td>
+                    <td>{u.usuarios}</td>
+                    <td>{u.movimientos}</td>
+                    <td>{u.ventas}</td>
+                    <td>{u.dias_registro}</td>
+                    <td><strong style={{ color: u.score >= 60 ? '#16a34a' : u.score >= 30 ? '#d97706' : '#dc2626' }}>{u.score}</strong></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
 
-            {pixelesConfig && (
-              <form onSubmit={guardarPixeles}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
-                  <div className="campo">
-                    <label>Google Analytics 4 (Measurement ID)</label>
-                    <input name="ga_measurement_id" defaultValue={pixelesConfig.ga_measurement_id || ''} placeholder="G-XXXXXXXXXX" />
-                  </div>
-                  <div className="campo">
-                    <label>Google Tag Manager (Container ID)</label>
-                    <input name="gtm_id" defaultValue={pixelesConfig.gtm_id || ''} placeholder="GTM-XXXXXXX" />
-                  </div>
+            <h3 style={{ fontSize: 14, marginTop: 16 }}>Trafico por fuente</h3>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+              {Object.entries(marketing.traffic?.por_fuente || {}).map(([k, v]) => (
+                <div key={k} className="adopcion-card" style={{ minWidth: 100 }}>
+                  <h4>{k}</h4><div className="valor">{v}</div>
                 </div>
+              ))}
+            </div>
 
-                <div className="campo">
-                  <label>Codigo en &lt;head&gt; (JavaScript)</label>
-                  <textarea name="head_code" rows={4} defaultValue={pixelesConfig.head_code || ''} placeholder="window.dataLayer = window.dataLayer || [];" style={{ fontFamily: 'Consolas, monospace', fontSize: 12.5 }} />
-                  <div className="ayuda">Se inserta al final del &lt;head&gt;. Pega el JavaScript sin las etiquetas &lt;script&gt; (si las incluyes, se extraen automaticamente).</div>
-                </div>
+            <h3 style={{ fontSize: 14, marginTop: 12 }}>Campanas</h3>
+            <table className="tabla-admin">
+              <thead><tr><th>Nombre</th><th>Tipo</th><th>Canal</th><th>Estado</th><th>Presupuesto</th><th>Inicio</th><th>Fin</th></tr></thead>
+              <tbody>
+                {(marketing.campanas || []).map((c) => (
+                  <tr key={c.id}>
+                    <td>{c.nombre}</td>
+                    <td>{c.tipo}</td>
+                    <td>{c.canal || '-'}</td>
+                    <td>{c.estado}</td>
+                    <td>{c.presupuesto} {c.moneda}</td>
+                    <td>{c.fecha_inicio || '-'}</td>
+                    <td>{c.fecha_fin || '-'}</td>
+                  </tr>
+                ))}
+                {(marketing.campanas || []).length === 0 && <tr><td colSpan={7} className="vacio">Sin campanas</td></tr>}
+              </tbody>
+            </table>
 
-                <div className="campo">
-                  <label>Codigo despues de abrir &lt;body&gt; (JavaScript)</label>
-                  <textarea name="body_open_code" rows={4} defaultValue={pixelesConfig.body_open_code || ''} placeholder="// Pixel o inicializacion" style={{ fontFamily: 'Consolas, monospace', fontSize: 12.5 }} />
-                </div>
+            <h3 style={{ fontSize: 14, marginTop: 16 }}>Landing pages</h3>
+            <table className="tabla-admin">
+              <thead><tr><th>Nombre</th><th>Slug</th><th>Visitas</th><th>Conversiones</th><th>Publicada</th></tr></thead>
+              <tbody>
+                {(marketing.landings || []).map((l) => (
+                  <tr key={l.id}>
+                    <td>{l.nombre}</td>
+                    <td className="mono">{l.slug}</td>
+                    <td>{l.visitas}</td>
+                    <td>{l.conversiones}</td>
+                    <td>{l.publicada ? 'Si' : 'No'}</td>
+                  </tr>
+                ))}
+                {(marketing.landings || []).length === 0 && <tr><td colSpan={5} className="vacio">Sin landing pages</td></tr>}
+              </tbody>
+            </table>
 
-                <div className="campo">
-                  <label>Codigo antes de cerrar &lt;/body&gt; (JavaScript)</label>
-                  <textarea name="body_close_code" rows={4} defaultValue={pixelesConfig.body_close_code || ''} placeholder="// Eventos finales" style={{ fontFamily: 'Consolas, monospace', fontSize: 12.5 }} />
-                </div>
-
-                <button type="submit" className="btn">Guardar pixeles</button>
-              </form>
-            )}
-
-            <p className="ayuda" style={{ marginTop: 12 }}>
-              Los cambios se aplican en la siguiente carga del sitio. Si pegas un snippet completo
-              con etiquetas &lt;script&gt;, el sistema conserva solo el JavaScript interior.
-            </p>
-          </>
-        )}
-
-        {/* ---------- FREEMIUM ---------- */}
-        {marketingTab === 'freemium' && (
-          <>
-            {marketing ? (
-              <>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 16 }}>
-                  <div className="adopcion-card"><h4>Total empresas</h4><div className="valor">{marketing.resumen.total_empresas}</div></div>
-                  <div className="adopcion-card"><h4>Freemium</h4><div className="valor">{marketing.resumen.freemium}</div></div>
-                  <div className="adopcion-card"><h4>Pagadas</h4><div className="valor">{marketing.resumen.pagadas}</div></div>
-                  <div className="adopcion-card"><h4>Score promedio</h4><div className="valor">{marketing.resumen.score_promedio}</div></div>
-                  <div className="adopcion-card"><h4>Alta probabilidad</h4><div className="valor">{marketing.resumen.alta_probabilidad}</div></div>
-                </div>
-
-                <h3 style={{ fontSize: 14, marginTop: 4 }}>Usuarios freemium (por probabilidad de conversion)</h3>
-                <table className="tabla-admin">
-                  <thead>
-                    <tr><th>Empresa</th><th>Plan</th><th>Estado</th><th>Productos</th><th>Usuarios</th><th>Movs</th><th>Ventas</th><th>Dias</th><th>Score</th></tr>
-                  </thead>
-                  <tbody>
-                    {freemiumPag.filas.map((u) => (
-                      <tr key={u.id}>
-                        <td>{u.nombre}</td>
-                        <td>{u.plan}</td>
-                        <td>{u.suscripcion ? u.suscripcion.estado : '-'}</td>
-                        <td>{u.productos}</td>
-                        <td>{u.usuarios}</td>
-                        <td>{u.movimientos}</td>
-                        <td>{u.ventas}</td>
-                        <td>{u.dias_registro}</td>
-                        <td><strong style={{ color: u.score >= 60 ? '#16a34a' : u.score >= 30 ? '#d97706' : '#dc2626' }}>{u.score}</strong></td>
-                      </tr>
-                    ))}
-                    {freemiumPag.total === 0 && <tr><td colSpan={9} className="vacio">Sin usuarios freemium</td></tr>}
-                  </tbody>
-                </table>
-                <Paginacion total={freemiumPag.total} pagina={freemiumPag.pagina} setPagina={setPagFreemium} />
-              </>
-            ) : (
-              <p className="ayuda">Cargando analisis de freemium...</p>
-            )}
+            <h3 style={{ fontSize: 14, marginTop: 16 }}>Pixeles de tracking</h3>
+            <table className="tabla-admin">
+              <thead><tr><th>Nombre</th><th>Plataforma</th><th>Pixel ID</th><th>Activo</th><th>Global</th></tr></thead>
+              <tbody>
+                {(marketing.pixeles || []).map((px) => (
+                  <tr key={px.id}>
+                    <td>{px.nombre}</td>
+                    <td>{px.plataforma}</td>
+                    <td className="mono">{px.pixel_id}</td>
+                    <td>{px.activo ? 'Si' : 'No'}</td>
+                    <td>{px.global ? 'Si' : 'No'}</td>
+                  </tr>
+                ))}
+                {(marketing.pixeles || []).length === 0 && <tr><td colSpan={5} className="vacio">Sin pixeles</td></tr>}
+              </tbody>
+            </table>
           </>
         )}
       </section>
@@ -1551,6 +1643,112 @@ export default function Admin() {
           </tbody>
         </table>
       </section>
+      {campanaModal && campanaEditando && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)',
+            zIndex: 1000, display: 'flex', justifyContent: 'center', alignItems: 'flex-start',
+            padding: 20, overflowY: 'auto',
+          }}
+        >
+          <div style={{ background: '#fff', borderRadius: 14, padding: 24, width: '100%', maxWidth: 860, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h2 style={{ margin: 0, fontSize: 18 }}>{campanaEditando.id ? 'Editar campana' : 'Nueva campana'}</h2>
+              <button className="btn btn-secundario" onClick={() => { setCampanaModal(false); setCampanaEditando(null); }}>Cerrar</button>
+            </div>
+
+            <form onSubmit={guardarCampana}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+                <div className="campo">
+                  <label>Nombre *</label>
+                  <input value={campanaEditando.nombre} onChange={(e) => setCampanaEditando({ ...campanaEditando, nombre: e.target.value })} required />
+                </div>
+                <div className="campo">
+                  <label>Tipo</label>
+                  <select value={campanaEditando.tipo} onChange={(e) => setCampanaEditando({ ...campanaEditando, tipo: e.target.value })}>
+                    <option value="mailing">Mailing</option>
+                    <option value="ccp">CCP</option>
+                    <option value="organico">Organico</option>
+                    <option value="referido">Referido</option>
+                    <option value="otro">Otro</option>
+                  </select>
+                </div>
+                <div className="campo">
+                  <label>Canal</label>
+                  <input value={campanaEditando.canal || ''} onChange={(e) => setCampanaEditando({ ...campanaEditando, canal: e.target.value })} placeholder="email, facebook, google..." />
+                </div>
+                <div className="campo">
+                  <label>Estado</label>
+                  <select value={campanaEditando.estado} onChange={(e) => setCampanaEditando({ ...campanaEditando, estado: e.target.value })}>
+                    <option value="borrador">Borrador</option>
+                    <option value="activa">Activa</option>
+                    <option value="pausada">Pausada</option>
+                    <option value="finalizada">Finalizada</option>
+                  </select>
+                </div>
+                <div className="campo">
+                  <label>Landing URL (destino)</label>
+                  <input value={campanaEditando.landing_url || ''} onChange={(e) => setCampanaEditando({ ...campanaEditando, landing_url: e.target.value })} placeholder="/p/olvidate-de-excel" />
+                </div>
+                <div className="campo">
+                  <label>Presupuesto</label>
+                  <input type="number" value={campanaEditando.presupuesto || 0} onChange={(e) => setCampanaEditando({ ...campanaEditando, presupuesto: e.target.value })} />
+                </div>
+                <div className="campo">
+                  <label>utm_source</label>
+                  <input value={campanaEditando.utm_source || ''} onChange={(e) => setCampanaEditando({ ...campanaEditando, utm_source: e.target.value })} placeholder="email" />
+                </div>
+                <div className="campo">
+                  <label>utm_medium</label>
+                  <input value={campanaEditando.utm_medium || ''} onChange={(e) => setCampanaEditando({ ...campanaEditando, utm_medium: e.target.value })} placeholder="email" />
+                </div>
+                <div className="campo">
+                  <label>utm_campaign</label>
+                  <input value={campanaEditando.utm_campaign || ''} onChange={(e) => setCampanaEditando({ ...campanaEditando, utm_campaign: e.target.value })} placeholder="lanzamiento-octubre" />
+                </div>
+                <div className="campo">
+                  <label>utm_content</label>
+                  <input value={campanaEditando.utm_content || ''} onChange={(e) => setCampanaEditando({ ...campanaEditando, utm_content: e.target.value })} placeholder="boton-principal" />
+                </div>
+                <div className="campo">
+                  <label>Fecha inicio</label>
+                  <input type="date" value={campanaEditando.fecha_inicio || ''} onChange={(e) => setCampanaEditando({ ...campanaEditando, fecha_inicio: e.target.value })} />
+                </div>
+                <div className="campo">
+                  <label>Fecha fin</label>
+                  <input type="date" value={campanaEditando.fecha_fin || ''} onChange={(e) => setCampanaEditando({ ...campanaEditando, fecha_fin: e.target.value })} />
+                </div>
+              </div>
+
+              {campanaEditando.id && (
+                <div style={{ marginTop: 16, display: 'grid', gap: 12 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Enlace de seguimiento (para el correo)</label>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <input readOnly value={enlaceCampana(campanaEditando)} style={{ flex: 1 }} />
+                      <button type="button" className="btn btn-secundario" onClick={() => copiar(enlaceCampana(campanaEditando), 'Enlace')}>Copiar</button>
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Pixel de apertura (HTML para el correo)</label>
+                    <textarea readOnly value={pixelCampana(campanaEditando)} rows={2} style={{ width: '100%', fontFamily: 'Consolas, monospace', fontSize: 12 }} />
+                    <button type="button" className="btn btn-secundario" style={{ marginTop: 6 }} onClick={() => copiar(pixelCampana(campanaEditando), 'Pixel')}>Copiar pixel</button>
+                    <p className="ayuda" style={{ marginTop: 4 }}>
+                      Reemplaza <code>{'{{email}}'}</code> por el correo del destinatario (o dejalo vacio).
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
+                <button type="button" className="btn btn-secundario" onClick={() => { setCampanaModal(false); setCampanaEditando(null); }}>Cancelar</button>
+                <button type="submit" className="btn btn-primary">Guardar campana</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {paginaModal && paginaEditando && (
         <div
           style={{
@@ -1661,31 +1859,5 @@ export default function Admin() {
       )}
 
     </main>
-  );
-}
-
-const POR_PAGINA = 15;
-
-function paginar(lista, pagina) {
-  const total = (lista || []).length;
-  const paginas = Math.max(1, Math.ceil(total / POR_PAGINA));
-  const p = Math.min(Math.max(1, pagina), paginas);
-  return {
-    filas: (lista || []).slice((p - 1) * POR_PAGINA, p * POR_PAGINA),
-    total,
-    paginas,
-    pagina: p,
-  };
-}
-
-function Paginacion({ total, pagina, setPagina }) {
-  const paginas = Math.max(1, Math.ceil((total || 0) / POR_PAGINA));
-  if (paginas <= 1) return null;
-  return (
-    <div style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '10px 0', flexWrap: 'wrap' }}>
-      <button className="btn-mini" disabled={pagina <= 1} onClick={() => setPagina(pagina - 1)}>Anterior</button>
-      <span className="ayuda">Pagina {pagina} de {paginas} · {total} registros</span>
-      <button className="btn-mini" disabled={pagina >= paginas} onClick={() => setPagina(pagina + 1)}>Siguiente</button>
-    </div>
   );
 }
