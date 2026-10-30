@@ -359,7 +359,9 @@ const translations = {
 
 export function detectLocale(cookieValue) {
   if (!cookieValue) return 'es';
-  const match = String(cookieValue).match(/invertser_lang=([^;]+)/);
+  const str = String(cookieValue).trim();
+  if (str === 'es' || str === 'en') return str;
+  const match = str.match(/inventser_lang=([^;]+)/);
   return match ? match[1] : 'es';
 }
 
