@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
+import GoogleTranslate from '@/components/GoogleTranslate';
 import Footer from '@/components/Footer';
 import DemoButton from '@/components/DemoButton';
 import { catalogoPlanes } from '@/lib/planes';
@@ -127,7 +128,7 @@ export default function Landing() {
           <Link href="/ayuda">Ayuda</Link>
           <Link href="/entrar">Entrar</Link>
           <Link className="btn" href="/registro">Crear cuenta gratis</Link>
-          <LanguageToggle />
+          <GoogleTranslate />
         </nav>
       </header>
 
