@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { t, detectLocale } from '@/lib/i18n';
-import { PAISES, opciones{t('registro_moneda','es')}, monedaDePais, PAIS_POR_DEFECTO } from '@/lib/monedas';
+import { PAISES, opcionesMoneda, monedaDePais, PAIS_POR_DEFECTO } from '@/lib/monedas';
 
 const MONEDAS = opciones{t('registro_moneda','es')}();
 
