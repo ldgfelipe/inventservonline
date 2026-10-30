@@ -238,7 +238,7 @@ function FormularioRegistro() {
           )}
 
           <button className="btn btn-bloque" disabled={cargando}>
-            {cargando ? 'Creando cuenta...' : '{t('registro_continuar', lang)}'}
+            {cargando ? t('login_entrando', lang) : t('registro_continuar', lang)}
           </button>
         </form>
 
