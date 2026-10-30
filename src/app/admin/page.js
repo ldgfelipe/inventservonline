@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { asegurarSesion } from '@/lib/sesionCliente';
+import LanguageToggle from '@/components/LanguageToggle';
 
 export default function Admin() {
   const [usuario, setUsuario] = useState(null);
@@ -639,6 +640,7 @@ export default function Admin() {
           <h1>Administracion</h1>
           <p className="sub">Hola {usuario.nombre}. Panel general de la plataforma.</p>
         </div>
+        <LanguageToggle />
         <Link className="btn btn-secundario" href="/panel">Ir al sistema</Link>
       </header>
 
