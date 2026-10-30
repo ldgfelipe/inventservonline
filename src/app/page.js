@@ -1,4 +1,6 @@
 import Landing from '@/components/Landing';
+import { cookies } from 'next/headers';
+import { detectLocale } from '@/lib/i18n';
 
 const BASE = (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://inventser.online').replace(/\/+$/, '');
 
@@ -22,5 +24,7 @@ export const metadata = {
 };
 
 export default function Page() {
-  return <Landing />;
+  const langCookie = cookies().get('inventser_lang')?.value || 'es';
+  const lang = detectLocale(langCookie);
+  return <Landing lang={lang} />;
 }
