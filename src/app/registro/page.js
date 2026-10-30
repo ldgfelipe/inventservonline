@@ -9,6 +9,7 @@ import { PAISES, opcionesMoneda, monedaDePais, PAIS_POR_DEFECTO } from '@/lib/mo
 const MONEDAS = opcionesMoneda();
 
 function FormularioRegistro() {
+  const lang = detectLocale(typeof document !== 'undefined' ? (document.cookie.split(';').find(c=>c.trim().startsWith('inventser_lang='))?.split('=')[1] || 'es') : 'es');
   const router = useRouter();
   const searchParams = useSearchParams();
   const embed = searchParams.get('embed') === '1';
@@ -139,12 +140,12 @@ function FormularioRegistro() {
               ))}
             </select>
             <div className="ayuda">
-              Se usara para mostrar los montos. Podras cambiarla luego en Configuracion.
+              {t('registro_ayuda_moneda', lang)}
             </div>
           </div>
 
           <div className="campo">
-            <label>A que se dedica tu negocio *</label>
+            <label>{t('registro_campo_giro', lang)}</label>
             <select name="giro" value={form.giro} onChange={cambiar} required>
               {giros.map((g) => (
                 <option key={g.id} value={g.nombre}>{g.nombre}</option>
@@ -237,7 +238,7 @@ function FormularioRegistro() {
           )}
 
           <button className="btn btn-bloque" disabled={cargando}>
-            {cargando ? 'Creando cuenta...' : 'Crear cuenta y entrar'}
+            {cargando ? 'Creando cuenta...' : '{t('registro_continuar', lang)}'}
           </button>
         </form>
 

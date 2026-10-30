@@ -6,6 +6,7 @@ import { asegurarSesion } from '@/lib/sesionCliente';
 import LanguageToggle from '@/components/LanguageToggle';
 
 export default function Admin() {
+  const lang = detectLocale(typeof document !== 'undefined' ? (document.cookie.split(';').find(c=>c.trim().startsWith('inventser_lang='))?.split('=')[1] || 'es') : 'es');
   const [usuario, setUsuario] = useState(null);
   const [cargandoSesion, setCargandoSesion] = useState(true);
   const [claves, setClaves] = useState([]);
