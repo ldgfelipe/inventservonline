@@ -293,6 +293,18 @@ const translations = {
     // --- Entrar / Login ---
     entrar_title: 'Sign in',
     entrar_con_google: 'Continue with Google',
+    login_subtitle: 'Access your inventory from any device.',
+    login_recordar: 'Remember my email',
+    login_entrando: 'Signing in...',
+    login_email: 'Email',
+    login_password: 'Password',
+    login_entrar: 'Sign in',
+    login_olvido: 'Forgot your password?',
+    login_nueva_cuenta: 'No account? Create one',
+    login_nota_nueva: 'Account created. Sign in with your email and password.',
+    login_nota_expirada: 'Your session has expired. Sign in again.',
+    login_nota_salio: 'Session closed.',
+    login_error_generico: 'Could not sign in',
     // --- Footer (Landing) ---
     footer_marca: 'inventserOnline',
     footer_nav_precios: 'Prices',

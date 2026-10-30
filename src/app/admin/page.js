@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { asegurarSesion } from '@/lib/sesionCliente';
 import LanguageToggle from '@/components/LanguageToggle';
+import { t, detectLocale } from '@/lib/i18n';
 
 export default function Admin() {
   const lang = detectLocale(typeof document !== 'undefined' ? (document.cookie.split(';').find(c=>c.trim().startsWith('inventser_lang='))?.split('=')[1] || 'es') : 'es');
