@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import Footer from '@/components/Footer';
 import DemoButton from '@/components/DemoButton';
-import { t, detectLocale, tl } from '@/lib/i18n';
+import { t, detectLocale } from '@/lib/i18n';
 import LanguageToggle from '@/components/LanguageToggle';
 import { catalogoPlanes } from '@/lib/planes';
 
