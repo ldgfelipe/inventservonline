@@ -8,7 +8,10 @@ import { cookies } from 'next/headers';
 
 const BASE = (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://inventser.online').replace(/\/+$/, '');
 
+export const dynamic = 'force-dynamic';
+
 export const metadata = {
+  dynamic: 'force-dynamic',
   title: 'Sistema de Inventarios Online | Control de stock, ventas y almacenes',
   description: 'Sistema de inventarios online para controlar stock, ventas, compras, almacenes y facturacion sin Excel. Prueba gratis 14 dias. Ideal para ferreterias, farmacias, abarrotes y mas.',
   keywords: [
