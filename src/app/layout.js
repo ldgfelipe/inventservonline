@@ -87,8 +87,7 @@ export default async function RootLayout({ children }) {
   const bodyOpenExtra = extraerScripts(cfg.body_open_code);
   const bodyCloseExtra = extraerScripts(cfg.body_close_code);
 
-  const langCookie = cookies().get('inventser_lang')?.value;
-  const lang = detectLocale(langCookie);
+  const lang = 'es'; // temporal hasta revisar middleware
 
   return (
     <html lang={langCookie}>
