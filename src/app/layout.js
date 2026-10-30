@@ -1,6 +1,6 @@
 import './globals.css';
 import { leerConfigSitio, snippetGa4, snippetGtmHead } from '@/lib/config-sitio';
-import { setLanguage } from '@/lib/i18n';
+import { detectLocale } from '@/lib/i18n';
 import { cookies } from 'next/headers';
 import LanguageToggle from '@/components/LanguageToggle';
 
@@ -87,8 +87,8 @@ export default async function RootLayout({ children }) {
   const bodyOpenExtra = extraerScripts(cfg.body_open_code);
   const bodyCloseExtra = extraerScripts(cfg.body_close_code);
 
-  const langCookie = cookies().get('inventser_lang')?.value || 'es';
-  setLanguage(langCookie);
+  const langCookie = cookies().get('inventser_lang')?.value;
+  const lang = detectLocale(langCookie);
 
   return (
     <html lang={langCookie}>

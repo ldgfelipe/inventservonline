@@ -1,10 +1,10 @@
 'use client';
 import { useEffect } from 'react';
-import { setLanguage } from '@/lib/i18n';
+import { setLanguageClient } from '@/lib/i18n';
 
 export default function LanguageToggle() {
   const setLang = (lang) => {
-    setLanguage(lang);
+    setLanguageClient(lang);
     // Save in cookie for persistence (SSR friendly)
     document.cookie = `inventser_lang=${lang};path=/;max-age=31536000`;
     // Reload to apply changes immediately (optional)
