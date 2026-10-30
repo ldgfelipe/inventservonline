@@ -1,8 +1,5 @@
 import './globals.css';
 import { leerConfigSitio, snippetGa4, snippetGtmHead } from '@/lib/config-sitio';
-import { detectLocale } from '@/lib/i18n';
-import { cookies } from 'next/headers';
-import LanguageToggle from '@/components/LanguageToggle';
 
 const BASE = (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://inventser.online').replace(/\/+$/, '');
 
@@ -79,8 +76,7 @@ function extraerScripts(codigo) {
 }
 
 export default async function RootLayout({ children }) {
-  // Temporal: evitar error de DB si 042 no está aplicada
-  const cfg = { ga_measurement_id: '', gtm_id: '', head_code: '', body_open_code: '', body_close_code: '' };
+  const cfg = await leerConfigSitio({ force: true });
   const gtmHead = snippetGtmHead(cfg.gtm_id);
   const gaJs = snippetGa4(cfg.ga_measurement_id);
 
@@ -88,10 +84,8 @@ export default async function RootLayout({ children }) {
   const bodyOpenExtra = extraerScripts(cfg.body_open_code);
   const bodyCloseExtra = extraerScripts(cfg.body_close_code);
 
-  const lang = 'es'; // temporal hasta revisar middleware
-
   return (
-    <html lang={langCookie}>
+    <html lang="es">
       <head>
         {gtmHead && <script dangerouslySetInnerHTML={{ __html: gtmHead }} />}
         {cfg.ga_measurement_id && (
@@ -131,7 +125,6 @@ export default async function RootLayout({ children }) {
             : <script key={`bc-${i}`} dangerouslySetInnerHTML={{ __html: s.code }} />
         )}
         {bodyCloseExtra.html && <div dangerouslySetInnerHTML={{ __html: bodyCloseExtra.html }} />}
-        <LanguageToggle />
       </body>
     </html>
   );

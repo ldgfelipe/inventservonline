@@ -2,67 +2,86 @@ import Link from 'next/link';
 import Footer from '@/components/Footer';
 import DemoButton from '@/components/DemoButton';
 import { catalogoPlanes } from '@/lib/planes';
-import { detectLocale, t } from '@/lib/i18n';
-import { cookies } from 'next/headers';
 
 const BASE = (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://inventser.online').replace(/\/+$/, '');
 
-export async function generateMetadata() {
-  const lang = detectLocale(cookies().get('invertser_lang')?.value);
-  const title = t('metadata_default_title', lang);
-  const desc = t('metadata_default_desc', lang);
-  const isEs = lang === 'es';
-  return {
-    title,
-    description: desc,
-    keywords: isEs
-      ? ['sistema de inventarios', 'control de inventario', 'software de inventario', 'inventario online', 'gestion de almacenes', 'control de stock', 'sistema de almacen', 'inventario para empresas', 'programa de inventario', 'facturacion electronica']
-      : ['online inventory system', 'inventory control', 'inventory software', 'inventory online', 'warehouse management', 'stock control', 'stock management', 'inventory for companies', 'inventory program', 'electronic invoicing'],
-    alternates: { canonical: '/' },
-    openGraph: {
-      type: 'website',
-      locale: isEs ? 'es_MX' : 'en_US',
-      url: BASE,
-      siteName: 'inventserOnline',
-      title: t('og_title', lang),
-      description: t('og_descripcion', lang),
-      images: [{ url: '/logo.png', width: 760, height: 410, alt: 'inventserOnline - Sistema de Inventarios' }],
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title: t('og_title', lang),
-      description: t('og_descripcion', lang),
-      images: ['/logo.png'],
-    },
-    robots: {
-      index: true,
-      follow: true,
-      googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1, 'max-video-preview': -1 },
-    },
-  };
-}
+export const metadata = {
+  title: 'Sistema de Inventarios Online | Control de stock, ventas y almacenes',
+  description: 'Sistema de inventarios online para controlar stock, ventas, compras, almacenes y facturacion sin Excel. Prueba gratis 14 dias. Ideal para ferreterias, farmacias, abarrotes y mas.',
+  keywords: [
+    'sistema de inventarios',
+    'control de inventario',
+    'software de inventario',
+    'inventario online',
+    'gestion de almacenes',
+    'control de stock',
+    'sistema de almacen',
+    'inventario para empresas',
+    'programa de inventario',
+    'sistema de ventas e inventario',
+    'facturacion electronica',
+    'punto de venta',
+    'kardex',
+    'inventario multi almacen',
+    'alternativa a Excel para inventarios',
+  ],
+  alternates: { canonical: '/' },
+  openGraph: {
+    type: 'website',
+    locale: 'es_MX',
+    url: BASE,
+    siteName: 'inventserOnline',
+    title: 'Sistema de Inventarios Online | inventserOnline',
+    description: 'Controla stock, ventas, compras y almacenes desde cualquier equipo. Sin Excel. Prueba gratis 14 dias.',
+    images: [{ url: '/logo.png', width: 760, height: 410, alt: 'inventserOnline - Sistema de Inventarios' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Sistema de Inventarios Online | inventserOnline',
+    description: 'Controla stock, ventas, compras y almacenes sin Excel. Prueba gratis 14 dias.',
+    images: ['/logo.png'],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1, 'max-video-preview': -1 },
+  },
+};
 
-const FAQS_ES = [
-  { q: t('faq_q1', 'es'), a: t('faq_a1', 'es') },
-  { q: t('faq_q2', 'es'), a: t('faq_a2', 'es') },
-  { q: t('faq_q3', 'es'), a: t('faq_a3', 'es') },
-  { q: t('faq_q4', 'es'), a: t('faq_a4', 'es') },
-  { q: t('faq_q5', 'es'), a: t('faq_a5', 'es') },
-  { q: t('faq_q6', 'es'), a: t('faq_a6', 'es') },
-  { q: t('faq_q7', 'es'), a: t('faq_a7', 'es') },
-  { q: t('faq_q8', 'es'), a: t('faq_a8', 'es') },
+const FAQS = [
+  {
+    q: '¿Qué es inventserOnline?',
+    a: 'Es un sistema de inventarios online que permite controlar el stock, registrar entradas y salidas, gestionar varios almacenes, ventas, compras, cuentas por cobrar y por pagar, y consultar reportes desde cualquier navegador, sin instalar nada.',
+  },
+  {
+    q: '¿Sirve para cualquier tipo de negocio?',
+    a: 'Sí. Se adapta a ferreterías, farmacias, abarrotes, construcción, repuestos, cosméticos, papelerías y cualquier giro. Cada empresa configura sus propios campos de producto, categorías y almacenes.',
+  },
+  {
+    q: '¿Puedo probarlo gratis?',
+    a: 'Sí. Todas las cuentas nuevas incluyen 14 días de prueba gratis con las funciones del plan Profesional. No se requiere tarjeta de crédito para comenzar.',
+  },
+  {
+    q: '¿Puedo dejar de usar Excel?',
+    a: 'Sí. inventserOnline reemplaza las hojas de cálculo para el control de inventario: registra movimientos con trazabilidad, calcula el kardex valorizado, alerta sobre stock bajo y permite exportar a Excel cuando lo necesites.',
+  },
+  {
+    q: '¿Funciona con varios almacenes o sucursales?',
+    a: 'Sí. Los planes Profesional y Empresa incluyen multi-almacén, traslados entre bodegas, stock por almacén y reportes de rendimiento por ubicación.',
+  },
+  {
+    q: '¿Incluye facturación electrónica?',
+    a: 'Sí, según el país y el proveedor fiscal configurado. El sistema soporta Facturama y SW Sapien en México, DIAN en Colombia, AFIP en Argentina, SUNAT en Perú, SII en Chile, AEAT en España y timbrado manual en otros casos.',
+  },
+  {
+    q: '¿Cómo se pagan los planes?',
+    a: 'Puedes pagar con Stripe, Mercado Pago, PayPal o transferencia bancaria. El administrador de la plataforma habilita los medios disponibles y los pagos se confirman automáticamente.',
+  },
+  {
+    q: '¿Mis datos están seguros?',
+    a: 'La plataforma usa autenticación, permisos por rol y separación de datos por empresa. Cada usuario ve únicamente la información de su organización y los movimientos quedan registrados en la bitácora.',
+  },
 ];
-const FAQS_EN = [
-  { q: t('faq_q1', 'en'), a: t('faq_a1', 'en') },
-  { q: t('faq_q2', 'en'), a: t('faq_a2', 'en') },
-  { q: t('faq_q3', 'en'), a: t('faq_a3', 'en') },
-  { q: t('faq_q4', 'en'), a: t('faq_a4', 'en') },
-  { q: t('faq_q5', 'en'), a: t('faq_a5', 'en') },
-  { q: t('faq_q6', 'en'), a: t('faq_a6', 'en') },
-  { q: t('faq_q7', 'en'), a: t('faq_a7', 'en') },
-  { q: t('faq_q8', 'en'), a: t('faq_a8', 'en') },
-];
-
 
 export default function Landing() {
   const planes = catalogoPlanes();
