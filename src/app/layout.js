@@ -79,7 +79,8 @@ function extraerScripts(codigo) {
 }
 
 export default async function RootLayout({ children }) {
-  const cfg = await leerConfigSitio({ force: true });
+  // Temporal: evitar error de DB si 042 no está aplicada
+  const cfg = { ga_measurement_id: '', gtm_id: '', head_code: '', body_open_code: '', body_close_code: '' };
   const gtmHead = snippetGtmHead(cfg.gtm_id);
   const gaJs = snippetGa4(cfg.ga_measurement_id);
 
