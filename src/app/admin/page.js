@@ -641,6 +641,7 @@ export default function Admin() {
           <p className="sub">Hola {usuario.nombre}. Panel general de la plataforma.</p>
         </div>
         <LanguageToggle />
+        <span aria-label="Notificaciones" style={{ fontSize: 20, cursor: 'pointer', marginLeft: 8 }}>🔔</span>
         <Link className="btn btn-secundario" href="/panel">Ir al sistema</Link>
       </header>
 

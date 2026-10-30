@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { t, detectLocale } from '@/lib/i18n';
 
 function FormularioEntrar() {
   const router = useRouter();
@@ -18,9 +19,9 @@ function FormularioEntrar() {
     const ultimo = localStorage.getItem('ultimo_email');
     if (ultimo) setForm((f) => ({ ...f, email: ultimo }));
 
-    if (params.get('nuevo') === '1') setNota('Cuenta creada. Entra con tu email y contrasena.');
-    if (params.get('expiro') === '1') setNota('Tu sesion expiro. Entra de nuevo.');
-    if (params.get('salio') === '1') setNota('Sesion cerrada.');
+    if (params.get('nuevo') === '1') setNota(t('login_nota_nueva', 'es'));
+    if (params.get('expiro') === '1') setNota(t('login_nota_expirada', 'es'));
+    if (params.get('salio') === '1') setNota(t('login_nota_salio', 'es'));
   }, [params]);
 
   function cambiar(e) {
@@ -38,7 +39,7 @@ function FormularioEntrar() {
         body: JSON.stringify(form),
       });
       const j = await r.json();
-      if (!r.ok) throw new Error(j.error || 'No se pudo iniciar sesion');
+      if (!r.ok) throw new Error(j.error || t('login_error_generico', 'es'));
 
       localStorage.setItem('inventarios_sesion', JSON.stringify({
         access_token: j.access_token, refresh_token: j.refresh_token,
@@ -60,15 +61,15 @@ function FormularioEntrar() {
       <Link href="/" className="auth-logo" aria-label="inventserOnline - inicio">
         <img src="/logo.png" alt="inventserOnline" className="auth-logo-img" />
       </Link>
-      <h1>Entrar</h1>
-      <p className="sub">Accede a tu inventario desde cualquier equipo.</p>
+      <h1>{t('entrar_title','es')}</h1>
+      <p className="sub">{t('login_subtitle','es')}</p>
 
       {nota && <div className="mensaje ok">{nota}</div>}
       {error && <div className="mensaje error">{error}</div>}
 
       <form onSubmit={enviar}>
         <div className="campo">
-          <label>Email</label>
+          <label>{t('login_email','es')}</label>
           <input
             type="email"
             name="email"
@@ -80,7 +81,7 @@ function FormularioEntrar() {
           />
         </div>
         <div className="campo">
-          <label>Contrasena</label>
+          <label>{t('login_password','es')}</label>
           <input
             type="password"
             name="password"
@@ -99,12 +100,12 @@ function FormularioEntrar() {
               checked={recordar}
               onChange={(e) => setRecordar(e.target.checked)}
             />
-            Recordar mi email
+            {t('login_recordar','es')}
           </label>
         </div>
 
         <button className="btn btn-bloque" disabled={cargando}>
-          {cargando ? 'Entrando...' : 'Entrar'}
+          {cargando ? t('login_entrando','es') : t('login_entrar','es')}
         </button>
       </form>
 
@@ -116,7 +117,7 @@ function FormularioEntrar() {
       )}
 
       <p className="pie">
-        No tienes cuenta? <Link href="/registro">Crear una gratis</Link>
+        {t('login_nueva_cuenta','es')} <Link href="/registro">{t('registro_continuar','es')}</Link>
       </p>
     </div>
   );
@@ -130,7 +131,7 @@ export default function Entrar() {
           <Link href="/" className="auth-logo" aria-label="inventserOnline - inicio">
             <img src="/logo.png" alt="inventserOnline" className="auth-logo-img" />
           </Link>
-          <h1>Entrar</h1>
+          <h1>{t('entrar_title','es')}</h1>
         </div>
       }>
         <FormularioEntrar />

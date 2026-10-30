@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Footer from '@/components/Footer';
 import DemoButton from '@/components/DemoButton';
+import { t, detectLocale } from '@/lib/i18n';
 import LanguageToggle from '@/components/LanguageToggle';
 import { catalogoPlanes } from '@/lib/planes';
 
@@ -85,6 +86,7 @@ const FAQS = [
 ];
 
 export default function Landing() {
+  const lang = detectLocale(typeof document !== 'undefined' ? document.cookie.split(';').find(c=>c.trim().startsWith('inventser_lang='))?.split('=')[1] : 'es');
   const planes = catalogoPlanes();
   const pagos = planes.filter((p) => p.precio.mensual > 0);
 
@@ -177,15 +179,15 @@ export default function Landing() {
       <main>
         <section className="hero" aria-labelledby="titulo-principal">
           <div className="hero-badge">14 dias de prueba gratis · Sin tarjeta</div>
-          <h1 id="titulo-principal">Sistema de inventarios online para controlar tu stock sin Excel</h1>
+          <h1 id="titulo-principal">{t('home_hero_title', lang)}</h1>
           <p className="lead">
-            Controla entradas, salidas, ventas, compras y almacenes desde cualquier equipo.
+            {t('home_hero_subtitle', lang)}
             inventserOnline se adapta a tu giro y te da reportes claros para tomar mejores decisiones.
           </p>
           <div className="hero-acciones">
             <DemoButton />
-            <Link className="btn" href="/registro">Empieza gratis</Link>
-            <Link className="btn btn-secundario" href="/precios">Ver planes y precios</Link>
+            <Link className="btn" href="/registro">{t('home_hero_cta_gratis', lang)}</Link>
+            <Link className="btn btn-secundario" href="/precios">{t('home_hero_cta_planos', lang)}</Link>
           </div>
           <p className="texto-demo">
             Cuenta demo: <code>demo@abarrotes.com</code> / <code>demo123456</code> · Tienda de abarrotes lista para probar
@@ -212,7 +214,7 @@ export default function Landing() {
           <div className="beneficio">
             <div className="icono">&#128176;</div>
             <h3>Planes desde $0</h3>
-            <p>Empieza gratis y sube a Basico, Profesional o Empresa cuando tu negocio lo necesite. Sin permanencia.</p>
+            <p>{t('home_hero_cta_gratis', lang)} y sube a Basico, Profesional o Empresa cuando tu negocio lo necesite. Sin permanencia.</p>
             <Link href="/precios" className="btn-enlace" style={{ marginTop: 10, display: 'inline-block' }}>
               Comparar planes →
             </Link>
@@ -294,7 +296,7 @@ export default function Landing() {
 
         <section className="seo-seccion" aria-labelledby="planes">
           <h2 id="planes">Planes y precios</h2>
-          <p>Empieza gratis y cambia de plan cuando lo necesites. Precios en USD.</p>
+          <p>{t('home_hero_cta_gratis', lang)} y cambia de plan cuando lo necesites. Precios en USD.</p>
           <div className="seo-planes">
             {pagos.map((p) => (
               <div key={p.codigo} className="seo-plan">
