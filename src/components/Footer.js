@@ -1,6 +1,8 @@
 import Link from 'next/link';
+import { t } from '@/lib/i18n';
 
-export default function Footer() {
+export default function Footer({ lang = 'es' }) {
+  const tl = (key) => t(key, lang);
   return (
     <footer className="landing-footer">
       <div className="footer-marca">
@@ -12,7 +14,7 @@ export default function Footer() {
       </div>
 
       <div className="footer-contacto">
-        <h4>Contacto</h4>
+        <h4>{tl('footer_contact_title')}</h4>
         <a href="https://wa.me/522227328662" target="_blank" rel="noopener" className="footer-enlace">
           <span className="footer-icono">&#128241;</span> WhatsApp: 2227328662
         </a>
@@ -22,17 +24,17 @@ export default function Footer() {
       </div>
 
       <div className="footer-mensaje">
-        <h4>Sistemas personalizados</h4>
+        <h4>{tl('footer_custom_systems_title')}</h4>
         <p>
-          Si requieres un sistema personalizado, puedes contactarnos para mayor informacion.
-          Desarrollamos soluciones a medida para tu negocio.
+          {tl('footer_custom_systems_desc1')}<br />
+          {tl('footer_custom_systems_desc2')}
         </p>
       </div>
 
       <div className="footer-base">
-        © {new Date().getFullYear()} inventserOnline. Todos los derechos reservados ·{' '}
+        &copy; {new Date().getFullYear()} inventserOnline. Todos los derechos reservados ·{' '}
         <Link href="/mapa-del-sitio" style={{ color: 'inherit', textDecoration: 'underline' }}>
-          Mapa del sitio
+          {tl('footer_site_map')}
         </Link>
       </div>
     </footer>

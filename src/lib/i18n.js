@@ -133,6 +133,73 @@ const translations = {
     bajas: 'Bajas',
     // --- Landing tagline ---
     landing_tagline: 'Sistema de Inventarios',
+    // --- Footer ---
+    footer_contact_title: 'Contacto',
+    footer_custom_systems_title: 'Sistemas personalizados',
+    footer_custom_systems_desc1: 'Si requieres un sistema personalizado, puedes contactarnos para mayor información.',
+    footer_custom_systems_desc2: 'Desarrollamos soluciones a medida para tu negocio.',
+    footer_site_map: 'Mapa del sitio',
+    // --- Pricing page ---
+    precios_basico: 'Basico',
+    precios_profesional: 'Profesional',
+    precios_empresa: 'Empresa',
+    precios_desde: 'Desde',
+    precios_mes: '/mes',
+    precios_features_item: (features) => features.join(', '),
+    precios_benefits_subheading: '',
+    precios_features_intro: '',
+    precios_pago_methods: { stripe: 'Stripe', mercadopago: 'Mercado Pago', paypal: 'PayPal', transferencia: 'Transferencia bancaria' },
+    // --- Registration page ---
+    registro_campo_empresa: 'Nombre de la empresa o persona',
+    registro_campo_giro: 'Giro del negocio',
+    registro_campo_email: 'Correo',
+    registro_campo_password: 'Contraseña',
+    registro_continuar: 'Continuar',
+    // --- Login ---
+    login_con_google: 'Continuar con Google',
+    login_google_placeholder: 'Correo o contraseña',
+    // --- Help page subcategories ---
+    ayuda_home: 'Home',
+    ayuda_inventario: 'Inventario',
+    ayuda_ventas: 'Ventas',
+    ayuda_compras: 'Compras',
+    ayuda_reportes: 'Reportes',
+    ayuda_multiwarehouse: 'Multi-almacen',
+    ayuda_valorization: 'Kardex valorizado',
+    ayuda_ecommerce: 'Punto de venta',
+    ayuda_facturacion: 'Facturación electrónica',
+    ayuda_logout: 'Cerrar sesión',
+    // --- General admin texts ---
+    admin_salir_sesion: '',
+    admin_roles_label: '',
+    pixeles_head: '',
+    pixeles_body_open: '',
+    pixeles_body_close: '',
+    pixeles_ga: '',
+    pixeles_gtm: '',
+    // --- Table columns ---
+    col_nombre: 'Nombre',
+    col_codigo: 'Código',
+    col_estado: 'Estado',
+    col_activos: 'Activos',
+    col_bajas: 'Bajas',
+    col_score: 'Score',
+    col_plan: 'Plan',
+    col_fecha: 'Fecha',
+    col_acciones: 'Acciones',
+    // --- Marketing tab headers ---
+    marketing_resumen: 'Resumen',
+    marketing_campanas: 'Campanas',
+    marketing_trafico: 'Trafico',
+    marketing_correo: 'Correo',
+    marketing_bajas: 'Bajas',
+    marketing_pixeles: 'Pixeles',
+    // --- General actions ---
+    btn_escribir_escritura: '',
+    btn_precio: '',
+    btn_importar: '',
+    // --- Help sections ---
+    help_inspector_observation: 'Nota: el inspector no detectó lecturas automáticas en los equipos conectados al modulo. Revisa la tabla lecturas y haz clic en leer manualmente para actualizar el valor.',
   },
   en: {
     // --- Landing / Main page ---
