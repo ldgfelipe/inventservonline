@@ -4,7 +4,6 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { PAISES, opcionesMoneda, monedaDePais, PAIS_POR_DEFECTO } from '@/lib/monedas';
-import TrackVisita from '@/components/TrackVisita';
 
 const MONEDAS = opcionesMoneda();
 
@@ -251,7 +250,6 @@ function FormularioRegistro() {
           </p>
         )}
       </div>
-      {!embed && <TrackVisita />}
     </main>
   );
 }
