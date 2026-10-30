@@ -1,5 +1,8 @@
 import './globals.css';
 import { leerConfigSitio, snippetGa4, snippetGtmHead } from '@/lib/config-sitio';
+import { setLanguage } from '@/lib/i18n';
+import { cookies } from 'next/headers';
+import LanguageToggle from '@/components/LanguageToggle';
 
 const BASE = (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://inventser.online').replace(/\/+$/, '');
 
@@ -84,8 +87,11 @@ export default async function RootLayout({ children }) {
   const bodyOpenExtra = extraerScripts(cfg.body_open_code);
   const bodyCloseExtra = extraerScripts(cfg.body_close_code);
 
+  const langCookie = cookies().get('inventser_lang')?.value || 'es';
+  setLanguage(langCookie);
+
   return (
-    <html lang="es">
+    <html lang={langCookie}>
       <head>
         {gtmHead && <script dangerouslySetInnerHTML={{ __html: gtmHead }} />}
         {cfg.ga_measurement_id && (
@@ -125,6 +131,7 @@ export default async function RootLayout({ children }) {
             : <script key={`bc-${i}`} dangerouslySetInnerHTML={{ __html: s.code }} />
         )}
         {bodyCloseExtra.html && <div dangerouslySetInnerHTML={{ __html: bodyCloseExtra.html }} />}
+        <LanguageToggle />
       </body>
     </html>
   );
