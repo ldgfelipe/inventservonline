@@ -376,8 +376,12 @@ export function setLanguageClient(l) {
 }
 
 export function tl(key) {
-  if (typeof document === 'undefined') return t(key, 'es');
-  const cookieValue = document.cookie.split(';').find(c => c.trim().startsWith('inventser_lang='))?.split('=')[1];
+  let cookieValue;
+  if (typeof document !== 'undefined') {
+    cookieValue = document.cookie.split(';').find(c => c.trim().startsWith('inventser_lang='))?.split('=')[1];
+  } else {
+    cookieValue = 'es';
+  }
   return t(key, detectLocale(cookieValue));
 }
 export default { t, detectLocale, setLanguageClient, tl };
