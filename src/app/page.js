@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Footer from '@/components/Footer';
 import DemoButton from '@/components/DemoButton';
+import LanguageToggle from '@/components/LanguageToggle';
 import { catalogoPlanes } from '@/lib/planes';
 
 const BASE = (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://inventser.online').replace(/\/+$/, '');
@@ -169,6 +170,7 @@ export default function Landing() {
           <Link href="/ayuda">Ayuda</Link>
           <Link href="/entrar">Entrar</Link>
           <Link className="btn" href="/registro">Crear cuenta gratis</Link>
+          <LanguageToggle />
         </nav>
       </header>
 

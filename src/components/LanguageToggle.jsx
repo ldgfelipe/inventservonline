@@ -1,42 +1,40 @@
 'use client';
-import { useEffect } from 'react';
-import { setLanguageClient } from '@/lib/i18n';
+import { useState, useEffect } from 'react';
 
 export default function LanguageToggle() {
-  const setLang = (lang) => {
-    setLanguageClient(lang);
-    // Save in cookie for persistence (SSR friendly)
-    document.cookie = `inventser_lang=${lang};path=/;max-age=31536000`;
-    // Reload to apply changes immediately (optional)
+  const [lang, setLang] = useState('es');
+
+  useEffect(() => {
+    const cookie = document.cookie.split(';').find(c => c.trim().startsWith('inventser_lang='));
+    if (cookie) {
+      const value = cookie.split('=')[1];
+      if (value === 'es' || value === 'en') setLang(value);
+    }
+  }, []);
+
+  const handleChange = (e) => {
+    const value = e.target.value;
+    setLang(value);
+    document.cookie = `inventser_lang=${value};path=/;max-age=31536000`;
     window.location.reload();
   };
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 8 }}>
-      <button 
-        onClick={() => setLang('es')} 
-        style={{ 
-          padding: '4px 8px', 
-          border: '1px solid #ccc', 
-          borderRadius: 4, 
-          background: '#f0f0f0', 
-          cursor: 'pointer' 
-        }}
-      >
-        ES
-      </button>
-      <button 
-        onClick={() => setLang('en')} 
-        style={{ 
-          padding: '4px 8px', 
-          border: '1px solid #ccc', 
-          borderRadius: 4, 
-          background: '#f0f0f0', 
-          cursor: 'pointer' 
-        }}
-      >
-        EN
-      </button>
-    </div>
+    <select
+      value={lang}
+      onChange={handleChange}
+      style={{
+        padding: '4px 8px',
+        border: '1px solid #ccc',
+        borderRadius: 4,
+        background: '#fff',
+        fontSize: 13,
+        cursor: 'pointer',
+      }}
+      aria-label="Seleccionar idioma"
+    >
+      <option value="es">Español</option>
+      <option value="en">English</option>
+    </select>
   );
 }

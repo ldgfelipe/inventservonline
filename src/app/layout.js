@@ -1,6 +1,6 @@
 import './globals.css';
 import { leerConfigSitio, snippetGa4, snippetGtmHead } from '@/lib/config-sitio';
-import LanguageToggle from '@/components/LanguageToggle';
+
 
 const BASE = (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://inventser.online').replace(/\/+$/, '');
 
@@ -103,9 +103,6 @@ export default async function RootLayout({ children }) {
         {headExtra.html && <div dangerouslySetInnerHTML={{ __html: headExtra.html }} />}
       </head>
       <body>
-        <div style={{ position: 'fixed', top: 12, right: 16, zIndex: 9999 }}>
-          <LanguageToggle />
-        </div>
         {bodyOpenExtra.scripts.map((s, i) =>
           s.src
             ? <script key={`bo-${i}`} src={s.src} async />
