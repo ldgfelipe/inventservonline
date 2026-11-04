@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import GoogleTranslate from '@/components/GoogleTranslate';
 import Footer from '@/components/Footer';
 import DemoButton from '@/components/DemoButton';
+import ScanModal from '@/components/ScanModal';
 import { catalogoPlanes } from '@/lib/planes';
 
 const FAQS = [
@@ -45,6 +46,7 @@ const FAQS = [
 export default function Landing() {
   const planes = catalogoPlanes();
   const pagos = planes.filter((p) => p.precio.mensual > 0);
+  const [scanOpen, setScanOpen] = useState(false);
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -128,6 +130,8 @@ export default function Landing() {
           <Link href="/ayuda">Ayuda</Link>
           <Link href="/entrar">Entrar</Link>
           <Link className="btn" href="/registro">Crear cuenta gratis</Link>
+          <Link className="btn" href="/registro">Crear cuenta gratis</Link>
+          <button className="btn-mini" onClick={() => setScanOpen(true)} style={{ marginLeft: 8 }} title="Digitaliza código">📷</button>
           <GoogleTranslate />
         </nav>
       </header>
@@ -299,6 +303,7 @@ export default function Landing() {
       </main>
 
       <Footer />
+      <ScanModal open={scanOpen} onClose={() => setScanOpen(false)} onSave={() => {}} />
     </>
   );
 }
