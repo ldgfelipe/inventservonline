@@ -112,6 +112,9 @@
         <button id="btnMenu" class="btn btn-ghost btn-menu" title="Menu">&#9776;</button>
         <h2 id="tituloVista">Dashboard</h2>
         <div style="display:flex;align-items:center;gap:12px">
+          <a href="/scan" class="btn btn-ghost" target="_blank" rel="noopener" title="Escanear codigo QR / barras" style="text-decoration:none">
+            &#128247;
+          </a>
           <button id="btnNotificaciones" class="btn btn-ghost" title="Notificaciones" style="position:relative">
             &#128276; <span id="notifBadge" style="position:absolute;top:-6px;right:-6px;background:#ef4444;color:#fff;border-radius:50%;padding:1px 5px;font-size:10px;display:none">0</span>
           </button>
@@ -144,6 +147,14 @@
           <div class="panel" id="panelStockAlmacenDash" style="margin-bottom:12px">
             <h3>Stock por almacen</h3>
             <div id="dashStockAlmacen" style="display:flex;gap:12px;flex-wrap:wrap"></div>
+          </div>
+          <div style="background:linear-gradient(135deg,#0077b5,#005577);color:#fff;border-radius:10px;padding:16px;margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <span style="font-size:28px">&#128247;</span>
+            <div style="flex:1;min-width:200px">
+              <strong style="font-size:15px">Nuevo: Escaneo de códigos desde tu celular</strong>
+              <p style="margin:4px 0 0;font-size:13px;opacity:.9">Ahora puedes escanear códigos QR / barras y guardarlos como producto, proveedor o almacén. Abre tu cámara o toca el botón.</p>
+            </div>
+            <a href="/scan" style="background:#fff;color:#0077b5;padding:8px 14px;border-radius:6px;font-weight:600;text-decoration:none;font-size:13px" target="_blank" rel="noopener">Escanear ahora &#8250;</a>
           </div>
           <div class="stats-grid" id="statsGrid"></div>
           <div class="panel">
