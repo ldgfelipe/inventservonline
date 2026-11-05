@@ -8,13 +8,22 @@ export default function RootLayout({ children }) {
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script
-          src="https://slt-xi.vercel.app/slt-tracker.js"
-          data-site-id="e614ba6d-2396-4bd6-bfaf-869a8ddb1abc"
-          data-host="https://slt-xi.vercel.app"
-          async
+          dangerouslySetInnerHTML={{
+            __html: `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','GTM-MKHZ5CX2');`,
+          }}
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());`,
+          }}
         />
       </head>
       <body>
+        <noscript
+          dangerouslySetInnerHTML={{
+            __html: `<iframe src="https://www.googletagmanager.com/ns.html?id=GTM-MKHZ5CX2" height="0" width="0" style="display:none;visibility:hidden"></iframe>`,
+          }}
+        />
         {children}
         <GoogleTranslate />
       </body>
