@@ -142,6 +142,11 @@ function mostrarInfoUsuario(u) {
   // Enlace al panel de administracion solo para super-admin
   const adminLink = document.getElementById('perfilAdminLink');
   if (adminLink) adminLink.classList.toggle('oculto', !u.super_admin);
+  // Escaner solo para el administrador general (super_admin) hasta liberarlo
+  const scanTop = document.getElementById('btnScanTop');
+  if (scanTop) scanTop.classList.toggle('oculto', !u.super_admin);
+  const banner = document.getElementById('bannerScanDash');
+  if (banner) banner.classList.toggle('oculto', !u.super_admin);
 }
 
 /* Oculta secciones y botones segun los permisos del rol */

@@ -7,20 +7,31 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "cap:sync": "npx cap sync",
+    "cap:open": "npx cap open android",
+    "cap:build": "npm run build && npx cap sync && npx cap open android"
   },
   "dependencies": {
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/app": "^7.0.0",
+    "@capacitor/camera": "^7.0.0",
+    "@capacitor/core": "^7.0.0",
+    "@capacitor-community/barcode-scanner": "^5.0.0",
     "@supabase/supabase-js": "^2.45.4",
     "exceljs": "^4.4.0",
+    "jsbarcode": "^3.11.6",
     "next": "^16.4.2",
     "node-forge": "^1.4.0",
     "nodemailer": "^10.1.2",
     "pdfkit": "^0.20.2",
+    "qrcode": "^1.5.3",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "xml-crypto": "^6.4.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "^7.0.0",
     "eslint": "^9.13.0",
     "eslint-config-next": "^16.4.0"
   }
