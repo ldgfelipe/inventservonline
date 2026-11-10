@@ -7,15 +7,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "cap": "npx cap",
-    "cap:build": "npm run build && npx cap sync && npx cap open android",
-    "apk": "npm run build"
+    "lint": "next lint"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
     "exceljs": "^4.4.0",
-    "jsbarcode": "^3.11.6",
     "next": "^16.4.2",
     "node-forge": "^1.4.0",
     "nodemailer": "^10.1.2",
