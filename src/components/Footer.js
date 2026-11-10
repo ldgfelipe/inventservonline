@@ -11,6 +11,14 @@ export default function Footer() {
         </div>
       </div>
 
+      <div className="footer-enlaces">
+        <h4>Enlaces</h4>
+        <Link href="/precios">Precios</Link>
+        <Link href="/terminos">Términos del Servicio</Link>
+        <Link href="/privacidad">Aviso de Privacidad</Link>
+        <Link href="/mapa-del-sitio">Mapa del Sitio</Link>
+      </div>
+
       <div className="footer-contacto">
         <h4>Contacto</h4>
         <a href="https://wa.me/522227328662" target="_blank" rel="noopener" className="footer-enlace">
@@ -19,14 +27,6 @@ export default function Footer() {
         <a href="mailto:contacto@inventser.online" className="footer-enlace">
           <span className="footer-icono">&#9993;</span> contacto@inventser.online
         </a>
-      </div>
-
-      <div className="footer-mensaje">
-        <h4>Sistemas personalizados</h4>
-        <p>
-          Si requieres un sistema personalizado, puedes contactarnos para mayor informacion.
-          Desarrollamos soluciones a medida para tu negocio.
-        </p>
       </div>
 
       <div className="footer-base">

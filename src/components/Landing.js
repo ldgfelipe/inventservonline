@@ -127,9 +127,10 @@ export default function Landing() {
         </Link>
         <nav style={{ display: 'flex', gap: 14, alignItems: 'center' }} aria-label="Navegacion principal">
           <Link href="/precios">Precios</Link>
+          <Link href="/terminos">Términos</Link>
+          <Link href="/privacidad">Privacidad</Link>
           <Link href="/ayuda">Ayuda</Link>
           <Link href="/entrar">Entrar</Link>
-          <Link className="btn" href="/registro">Crear cuenta gratis</Link>
           <Link className="btn" href="/registro">Crear cuenta gratis</Link>
           <button className="btn-mini" onClick={() => setScanOpen(true)} style={{ marginLeft: 8 }} title="Digitaliza código">📷</button>
           <GoogleTranslate />
