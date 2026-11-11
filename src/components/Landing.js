@@ -1,11 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import GoogleTranslate from '@/components/GoogleTranslate';
 import Footer from '@/components/Footer';
 import DemoButton from '@/components/DemoButton';
-import ScanModal from '@/components/ScanModal';
 import { catalogoPlanes } from '@/lib/planes';
 
 const FAQS = [
@@ -46,7 +45,6 @@ const FAQS = [
 export default function Landing() {
   const planes = catalogoPlanes();
   const pagos = planes.filter((p) => p.precio.mensual > 0);
-  const [scanOpen, setScanOpen] = useState(false);
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -302,9 +300,7 @@ export default function Landing() {
           </div>
         </section>
       </main>
-
       <Footer />
-      <ScanModal open={scanOpen} onClose={() => setScanOpen(false)} onSave={() => {}} />
     </>
   );
 }
